@@ -1,0 +1,157 @@
+.heading {
+  font-size: 22px;
+  margin-bottom: 16px;
+  color: #4ecca3;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.tab {
+  padding: 8px 16px;
+  background: #16213e;
+  border: 1px solid #304060;
+  color: #7080a0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.activeTab {
+  padding: 8px 16px;
+  background: #1a2745;
+  border: 1px solid #4ecca3;
+  color: #4ecca3;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.form {
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 13px;
+  color: #7080a0;
+}
+
+.inputRow {
+  display: flex;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  padding: 8px 12px;
+  background: #16213e;
+  border: 1px solid #304060;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #4ecca3;
+}
+
+.btn {
+  padding: 8px 16px;
+  background: #1a2745;
+  border: 1px solid #304060;
+  color: #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.submitBtn {
+  padding: 10px 20px;
+  background: #4ecca3;
+  border: none;
+  color: #1a1a2e;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.submitBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.success {
+  color: #4ecca3;
+  font-size: 13px;
+}
+
+.error {
+  color: #ff6b6b;
+  font-size: 13px;
+}
+
+.hint {
+  font-size: 12px;
+  color: #606080;
+  padding: 8px 12px;
+  background: #16213e;
+  border-radius: 6px;
+}
+
+.importList {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.importToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #7080a0;
+}
+
+.handles {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: #16213e;
+  border-radius: 8px;
+}
+
+.checkboxItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.checkboxItem input {
+  cursor: pointer;
+}
