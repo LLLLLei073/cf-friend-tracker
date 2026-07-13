@@ -1,0 +1,81 @@
+.container {
+  max-width: 500px;
+}
+
+.heading {
+  font-size: 22px;
+  margin-bottom: 16px;
+  color: #4ecca3;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 13px;
+  color: #7080a0;
+}
+
+.input {
+  padding: 8px 12px;
+  background: #16213e;
+  border: 1px solid #304060;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #4ecca3;
+}
+
+.saveBtn {
+  padding: 10px 20px;
+  background: #4ecca3;
+  border: none;
+  color: #1a1a2e;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.saved {
+  color: #4ecca3;
+  font-size: 13px;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #304060;
+  margin: 8px 0;
+}
+
+.info {
+  font-size: 13px;
+  color: #7080a0;
+}
+
+.dangerBtn {
+  padding: 8px 16px;
+  background: #3a1a1a;
+  border: 1px solid #ff6b6b;
+  color: #ff6b6b;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.dangerBtn:hover {
+  background: #4a1a1a;
+}
