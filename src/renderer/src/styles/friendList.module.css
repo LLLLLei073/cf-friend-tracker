@@ -1,0 +1,122 @@
+.heading {
+  font-size: 22px;
+  margin-bottom: 16px;
+  color: #4ecca3;
+}
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search {
+  flex: 1;
+  padding: 8px 12px;
+  background: #16213e;
+  border: 1px solid #304060;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.search:focus {
+  outline: none;
+  border-color: #4ecca3;
+}
+
+.select {
+  padding: 8px 12px;
+  background: #16213e;
+  border: 1px solid #304060;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #16213e;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.row:hover {
+  background: #1a2745;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+}
+
+.details {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.handle {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.alias {
+  font-size: 12px;
+  color: #7080a0;
+}
+
+.rank {
+  font-size: 12px;
+}
+
+.stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rating {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.up {
+  font-size: 12px;
+  color: #4ecca3;
+}
+
+.down {
+  font-size: 12px;
+  color: #ff6b6b;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #404060;
+}
+
+.online {
+  background: #4ecca3;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: #606080;
+}

@@ -1,0 +1,109 @@
+.sidebar {
+  width: 260px;
+  background: #16213e;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #304060;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 18px;
+  padding: 16px;
+  text-align: center;
+  border-bottom: 1px solid #304060;
+  color: #4ecca3;
+}
+
+.friendList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.empty {
+  text-align: center;
+  color: #606080;
+  padding: 20px 8px;
+  font-size: 13px;
+}
+
+.friendItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.friendItem:hover {
+  background: #1a2745;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+}
+
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.handle {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rating {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #404060;
+  flex-shrink: 0;
+}
+
+.online {
+  background: #4ecca3;
+}
+
+.actions {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #304060;
+}
+
+.btn {
+  padding: 8px 12px;
+  background: #1a2745;
+  border: 1px solid #304060;
+  color: #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.btn:hover:not(:disabled) {
+  background: #243456;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
