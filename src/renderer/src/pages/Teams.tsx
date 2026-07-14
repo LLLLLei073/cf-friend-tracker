@@ -162,10 +162,12 @@ export default function Teams() {
       ) : (
         <div className={styles.teamList}>
           {teams.map((team) => {
-            const totalRating = team.members.reduce(
-              (sum, h) => sum + (caches[h]?.info?.rating ?? 0),
-              0
-            );
+            const ratings = team.members
+              .map((h) => caches[h]?.info?.rating)
+              .filter((r): r is number => r !== undefined);
+            const avgRating = ratings.length > 0
+              ? Math.round(ratings.reduce((sum, r) => sum + r, 0) / ratings.length)
+              : 0;
             return (
               <div key={team.id} className={styles.teamCard}>
                 <div className={styles.teamHeader}>
@@ -173,7 +175,7 @@ export default function Teams() {
                   <button onClick={() => handleDelete(team.id)} className={styles.deleteBtn}>删除</button>
                 </div>
                 <div className={styles.teamStats}>
-                  <span className={styles.totalRating}>总 Rating: {totalRating}</span>
+                  <span className={styles.totalRating}>平均 Rating: {avgRating}</span>
                   <span className={styles.memberCount}>{team.members.length} 人</span>
                 </div>
                 <div className={styles.memberList}>
