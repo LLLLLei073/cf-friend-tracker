@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Friend, FriendCache, Settings as SettingsType } from '../types';
+import type { Friend, FriendCache, Settings as SettingsType, Team } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import styles from '../styles/report.module.css';
 
@@ -38,9 +38,11 @@ const DAY_SECONDS = 24 * 3600;
 export default function Report() {
   const navigate = useNavigate();
   const [range, setRange] = useState<Range>('week');
-  const [friends, setFriends] = useState<Friend[]>([]);
   const [caches, setCaches] = useState<Record<string, FriendCache>>({});
   const [myHandle, setMyHandle] = useState('');
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
 
   useEffect(() => {
     (async () => {
@@ -50,6 +52,9 @@ export default function Report() {
       setCaches(c);
       const s: SettingsType = await window.api.store.getSettings();
       setMyHandle(s.myHandle);
+      const t = await window.api.store.getTeams();
+      setTeams(t);
+      if (t.length > 0) setSelectedTeamId(t[0].id);
     })();
   }, []);
 
@@ -69,14 +74,18 @@ export default function Report() {
     return `${fmt(start)} ~ ${fmt(end)}`;
   }, [days]);
 
-  // 合并:自己 + 好友(去重)
+  // 当前选中的团队成员列表
+  const selectedTeam = teams.find((t) => t.id === selectedTeamId);
+  const teamMembers = selectedTeam?.members ?? [];
+
+  // 团队成员信息(含 isMe 标记和 alias)
   const allPeople = useMemo(() => {
-    const me = myHandle ? [{ handle: myHandle, alias: myHandle, isMe: true }] : [];
-    const fr = friends
-      .filter((f) => f.handle !== myHandle)
-      .map((f) => ({ handle: f.handle, alias: f.alias || f.handle, isMe: false }));
-    return [...me, ...fr];
-  }, [friends, myHandle]);
+    return teamMembers.map((h) => ({
+      handle: h,
+      alias: h === myHandle ? myHandle : (friends.find((f) => f.handle === h)?.alias || h),
+      isMe: h === myHandle,
+    }));
+  }, [teamMembers, myHandle, friends]);
 
   // 做题排行(时间范围内)
   const solvedRanking = useMemo<SolvedEntry[]>(() => {
@@ -101,7 +110,6 @@ export default function Report() {
           dailyAvg: acProblems.size / days,
         };
       })
-      .filter((e) => e.acCount > 0)
       .sort((a, b) => b.acCount - a.acCount);
   }, [allPeople, caches, cutoff, days]);
 
@@ -135,13 +143,12 @@ export default function Report() {
   // 总览数据
   const summary = useMemo(() => {
     const activeHandles = new Set<string>();
-    solvedRanking.forEach((e) => activeHandles.add(e.handle));
+    solvedRanking.forEach((e) => { if (e.acCount > 0) activeHandles.add(e.handle); });
     ratingRanking.forEach((e) => activeHandles.add(e.handle));
     const totalPeople = activeHandles.size;
 
     const totalAC = solvedRanking.reduce((sum, e) => sum + e.acCount, 0);
 
-    // 总比赛场次:时间范围内有 rating 变化的唯一比赛
     const contestIds = new Set<number>();
     for (const p of allPeople) {
       const history = caches[p.handle]?.ratingHistory ?? [];
@@ -153,7 +160,6 @@ export default function Report() {
     }
     const totalContests = contestIds.size;
 
-    // 平均 rating 变化
     const totalChange = ratingRanking.reduce((sum, e) => sum + e.change, 0);
     const avgChange =
       ratingRanking.length > 0 ? Math.round(totalChange / ratingRanking.length) : 0;
@@ -161,7 +167,7 @@ export default function Report() {
     return { totalPeople, totalAC, totalContests, avgChange };
   }, [solvedRanking, ratingRanking, allPeople, caches, cutoff]);
 
-  // 活跃度热力图:每天总 AC 题数(所有人合计,去重)
+  // 活跃度热力图:每天总 AC 题数(团队所有人合计,去重)
   const heatmap = useMemo<HeatCell[]>(() => {
     const buckets = new Array(days).fill(0);
     const startOfDay = new Date();
@@ -213,12 +219,11 @@ export default function Report() {
       parts.push(`总做题 ${summary.totalAC} 道`);
     }
 
-    if (solvedRanking.length > 0) {
-      const top = solvedRanking[0];
-      parts.push(`其中 ${top.alias} 以 ${top.acCount} 道题位居榜首`);
+    const topSolver = solvedRanking.find((e) => e.acCount > 0);
+    if (topSolver) {
+      parts.push(`其中 ${topSolver.alias} 以 ${topSolver.acCount} 道题位居榜首`);
     }
 
-    // 找进步最大的人
     const topImprover = ratingRanking.find((e) => e.change > 0);
     if (topImprover) {
       parts.push(`${topImprover.alias} rating 提升了 ${topImprover.change} 分`);
@@ -229,9 +234,33 @@ export default function Report() {
 
   const hasData = solvedRanking.length > 0 || ratingRanking.length > 0;
 
+  if (teams.length === 0) {
+    return (
+      <div>
+        <h2 className={styles.heading}>团队周报 / 月报</h2>
+        <p className={styles.empty}>还没有团队，请先在「团队」页面创建团队。</p>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <h2 className={styles.heading}>周报 / 月报</h2>
+      <h2 className={styles.heading}>团队周报 / 月报</h2>
+
+      {/* 团队选择器 */}
+      <div className={styles.teamSelector}>
+        <label className={styles.teamLabel}>选择团队：</label>
+        <select
+          value={selectedTeamId}
+          onChange={(e) => setSelectedTeamId(e.target.value)}
+          className={styles.teamSelect}
+        >
+          {teams.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}（{t.members.length}人）</option>
+          ))}
+        </select>
+      </div>
+
       <div className={styles.tabs}>
         <button
           className={range === 'week' ? styles.activeTab : styles.tab}
@@ -250,7 +279,7 @@ export default function Report() {
 
       {!hasData ? (
         <p className={styles.empty}>
-          {rangeLabel}暂无数据，请先添加好友并刷新拉取数据。
+          {rangeLabel}暂无数据，请先刷新拉取数据。
         </p>
       ) : (
         <>
@@ -258,7 +287,7 @@ export default function Report() {
           <div className={styles.overview}>
             <div className={styles.overviewCard}>
               <span className={styles.overviewValue}>{summary.totalPeople}</span>
-              <span className={styles.overviewLabel}>总人数</span>
+              <span className={styles.overviewLabel}>活跃人数</span>
             </div>
             <div className={styles.overviewCard}>
               <span className={styles.overviewValue}>{summary.totalAC}</span>
@@ -285,7 +314,7 @@ export default function Report() {
 
           {/* 做题排行 */}
           <h3 className={styles.sectionTitle}>做题排行</h3>
-          {solvedRanking.length === 0 ? (
+          {solvedRanking.filter((e) => e.acCount > 0).length === 0 ? (
             <p className={styles.subEmpty}>{rangeLabel}暂无 AC 记录。</p>
           ) : (
             <table className={styles.table}>
@@ -299,7 +328,7 @@ export default function Report() {
                 </tr>
               </thead>
               <tbody>
-                {solvedRanking.map((e, i) => (
+                {solvedRanking.filter((e) => e.acCount > 0).map((e, i) => (
                   <tr
                     key={e.handle}
                     className={styles.row}
@@ -431,7 +460,7 @@ export default function Report() {
                 <span className={styles.heatmapLegendText}>多</span>
               </div>
               <span className={styles.heatmapHint}>
-                每个方块代表一天，颜色深浅表示当天所有人合计 AC 题数
+                每个方块代表一天，颜色深浅表示当天团队合计 AC 题数
               </span>
             </div>
           </div>

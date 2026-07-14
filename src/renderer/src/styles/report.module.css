@@ -9,6 +9,35 @@
   gap: 10px;
 }
 
+/* ===== 团队选择器 ===== */
+.teamSelector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.teamLabel {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.teamSelect {
+  padding: 7px 12px;
+  background: var(--bg-input, #1a1a2e);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.teamSelect:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .heading::before {
   content: '';
   width: 4px;
