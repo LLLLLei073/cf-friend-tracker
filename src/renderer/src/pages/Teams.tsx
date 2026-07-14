@@ -194,8 +194,10 @@ export default function Teams() {
             });
 
             const sortedBySolved = [...memberStats].sort((a, b) => b.solvedToday - a.solvedToday);
-            const hardest = sortedBySolved[0];
-            const slacker = sortedBySolved[sortedBySolved.length - 1];
+            const maxSolved = sortedBySolved[0]?.solvedToday ?? 0;
+            const minSolved = sortedBySolved[sortedBySolved.length - 1]?.solvedToday ?? 0;
+            const hardestList = sortedBySolved.filter((m) => m.solvedToday === maxSolved);
+            const slackerList = sortedBySolved.filter((m) => m.solvedToday === minSolved);
             const isExpanded = expandedId === team.id;
 
             return (
@@ -250,43 +252,49 @@ export default function Teams() {
                     <h4 className={styles.dailyTitle}>今日战况</h4>
                     <div className={styles.dailyGrid}>
                       <div className={styles.dailyCard}>
-                        <div className={styles.dailyLabel}>🔥 今日最卷</div>
-                        <div
-                          className={styles.dailyMember}
-                          onClick={() => navigate(`/friends/${hardest.handle}`)}
-                        >
-                          <img
-                            src={hardest.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
-                            className={styles.dailyAvatar}
-                            alt={hardest.handle}
-                          />
-                          <div className={styles.dailyInfo}>
-                            <span className={styles.dailyHandle}>{hardest.handle}</span>
-                            <span className={styles.dailySolved}>
-                              今日 AC <strong style={{ color: '#4ecca3' }}>{hardest.solvedToday}</strong> 题
-                            </span>
+                        <div className={styles.dailyLabel}>🔥 今日最卷{hardestList.length > 1 && ` (${hardestList.length}人并列)`}</div>
+                        {hardestList.map((m) => (
+                          <div
+                            key={m.handle}
+                            className={styles.dailyMember}
+                            onClick={() => navigate(`/friends/${m.handle}`)}
+                          >
+                            <img
+                              src={m.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                              className={styles.dailyAvatar}
+                              alt={m.handle}
+                            />
+                            <div className={styles.dailyInfo}>
+                              <span className={styles.dailyHandle}>{m.handle}</span>
+                              <span className={styles.dailySolved}>
+                                今日 AC <strong style={{ color: '#4ecca3' }}>{m.solvedToday}</strong> 题
+                              </span>
+                            </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
 
                       <div className={styles.dailyCard}>
-                        <div className={styles.dailyLabel}>😴 今日最拉</div>
-                        <div
-                          className={styles.dailyMember}
-                          onClick={() => navigate(`/friends/${slacker.handle}`)}
-                        >
-                          <img
-                            src={slacker.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
-                            className={styles.dailyAvatar}
-                            alt={slacker.handle}
-                          />
-                          <div className={styles.dailyInfo}>
-                            <span className={styles.dailyHandle}>{slacker.handle}</span>
-                            <span className={styles.dailySolved}>
-                              今日 AC <strong style={{ color: slacker.solvedToday === 0 ? '#ff6b6b' : '#e0e0e0' }}>{slacker.solvedToday}</strong> 题
-                            </span>
+                        <div className={styles.dailyLabel}>😴 今日最拉{slackerList.length > 1 && ` (${slackerList.length}人并列)`}</div>
+                        {slackerList.map((m) => (
+                          <div
+                            key={m.handle}
+                            className={styles.dailyMember}
+                            onClick={() => navigate(`/friends/${m.handle}`)}
+                          >
+                            <img
+                              src={m.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                              className={styles.dailyAvatar}
+                              alt={m.handle}
+                            />
+                            <div className={styles.dailyInfo}>
+                              <span className={styles.dailyHandle}>{m.handle}</span>
+                              <span className={styles.dailySolved}>
+                                今日 AC <strong style={{ color: m.solvedToday === 0 ? '#ff6b6b' : '#e0e0e0' }}>{m.solvedToday}</strong> 题
+                              </span>
+                            </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
                     </div>
 
@@ -302,13 +310,13 @@ export default function Teams() {
                           <tr key={m.handle}>
                             <td>
                               <span style={{ marginRight: 6 }}>
-                                {i === 0 ? '🔥' : i === sortedBySolved.length - 1 ? '😴' : '  '}
+                                {m.solvedToday === maxSolved && maxSolved > 0 ? '🔥' : m.solvedToday === minSolved ? '😴' : '  '}
                               </span>
                               {m.handle}
                             </td>
                             <td className={styles.dailyNum}>
                               <span style={{
-                                color: m.solvedToday === 0 ? '#ff6b6b' : m.solvedToday === hardest.solvedToday ? '#4ecca3' : '#e0e0e0',
+                                color: m.solvedToday === 0 ? '#ff6b6b' : m.solvedToday === maxSolved ? '#4ecca3' : '#e0e0e0',
                                 fontWeight: 'bold',
                               }}>
                                 {m.solvedToday}
