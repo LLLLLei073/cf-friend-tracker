@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { StoreManager } from './store';
-import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends } from './cf-api';
-import type { Friend, FriendCache, Settings, CFUser, Team } from '../shared/types';
+import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests } from './cf-api';
+import type { Friend, FriendCache, Settings, CFUser, Team, WindowState } from '../shared/types';
 
 function sendProgress(progress: {
   handle?: string;
@@ -272,5 +272,45 @@ export function registerIpcHandlers(store: StoreManager): void {
     }
 
     return { synced, removed, skipped: false, error: '' };
+  });
+
+  // ---- Contests ----
+  ipcMain.handle('cf:getContests', async () => {
+    try {
+      const contests = await fetchContests();
+      // 只返回即将开始和进行中的
+      const now = Math.floor(Date.now() / 1000);
+      return contests.filter((c) => {
+        const endTime = c.startTimeSeconds + c.durationSeconds;
+        return endTime > now; // 还没结束的
+      }).sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
+    } catch (e) {
+      return [];
+    }
+  });
+
+  // ---- Window State ----
+  ipcMain.handle('store:getWindowState', () => {
+    return store.getWindowState();
+  });
+
+  ipcMain.handle('store:setWindowState', (_event, state: WindowState) => {
+    store.setWindowState(state);
+    return true;
+  });
+
+  // ---- Viewed Ratings ----
+  ipcMain.handle('store:getViewedRatings', () => {
+    return store.getViewedRatings();
+  });
+
+  ipcMain.handle('store:setViewedRating', (_event, handle: string, rating: number) => {
+    store.setViewedRating(handle, rating);
+    return true;
+  });
+
+  ipcMain.handle('store:removeViewedRating', (_event, handle: string) => {
+    store.removeViewedRating(handle);
+    return true;
   });
 }

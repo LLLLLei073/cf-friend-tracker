@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import type { FriendCache } from '../types';
+import type { FriendCache, CFProblem } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import RatingChart from '../components/RatingChart';
 import ContestTable from '../components/ContestTable';
@@ -13,12 +13,63 @@ function formatRelativeTime(seconds: number): string {
   return `${Math.floor(diff / 86400)} 天前`;
 }
 
+// --- Heatmap helpers ---
+
+interface HeatmapDay {
+  date: Date;
+  dateStr: string;
+  count: number;
+}
+
+function toDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getHeatLevel(count: number): number {
+  if (count === 0) return 0;
+  if (count <= 2) return 1;
+  if (count <= 5) return 2;
+  return 3;
+}
+
+// --- Recommendation helpers ---
+
+function getRatingColor(rating?: number): string {
+  if (!rating) return '#9CA3AF';
+  if (rating < 1200) return '#9CA3AF';
+  if (rating < 1400) return '#2BA82B';
+  if (rating < 1600) return '#03A89E';
+  if (rating < 1900) return '#3B6FE0';
+  if (rating < 2100) return '#9333EA';
+  if (rating < 2300) return '#E8820C';
+  if (rating < 2400) return '#E8820C';
+  if (rating < 2600) return '#E5383B';
+  return '#C4181D';
+}
+
+interface RecommendedProblem {
+  contestId: number;
+  index: string;
+  name: string;
+  rating?: number;
+  tags?: string[];
+}
+
+type RecStatus = 'loading' | 'ready' | 'no-handle' | 'no-cache' | 'empty';
+
 export default function FriendDetail() {
   const { handle } = useParams<{ handle: string }>();
   const navigate = useNavigate();
   const [cache, setCache] = useState<FriendCache | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Recommendation state
+  const [recommendations, setRecommendations] = useState<RecommendedProblem[]>([]);
+  const [recStatus, setRecStatus] = useState<RecStatus>('loading');
 
   useEffect(() => {
     (async () => {
@@ -49,6 +100,146 @@ export default function FriendDetail() {
       }
     })();
   }, [handle]);
+
+  // --- Compute heatmap data from friend's submissions ---
+  const heatmapData = useMemo<HeatmapDay[]>(() => {
+    if (!cache?.recentSubmissions) return [];
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    // Build daily unique AC problem sets
+    const dailyProblems = new Map<string, Set<string>>();
+
+    for (const sub of cache.recentSubmissions) {
+      if (sub.verdict !== 'OK') continue;
+      if (!sub.problem.contestId) continue;
+
+      const date = new Date(sub.creationTimeSeconds * 1000);
+      date.setHours(0, 0, 0, 0);
+      const dateStr = toDateStr(date);
+      const problemKey = `${sub.problem.contestId}-${sub.problem.index}`;
+
+      if (!dailyProblems.has(dateStr)) {
+        dailyProblems.set(dateStr, new Set());
+      }
+      dailyProblems.get(dateStr)!.add(problemKey);
+    }
+
+    // Generate last 90 days
+    const days: HeatmapDay[] = [];
+    for (let i = 89; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const dateStr = toDateStr(date);
+      const count = dailyProblems.get(dateStr)?.size ?? 0;
+      days.push({ date, dateStr, count });
+    }
+
+    return days;
+  }, [cache]);
+
+  // Arrange heatmap days into weeks (columns of 7), with leading padding
+  const heatmapWeeks = useMemo<(HeatmapDay | null)[][]>(() => {
+    if (heatmapData.length === 0) return [];
+    const firstDayOfWeek = heatmapData[0].date.getDay(); // 0 = Sunday
+    const padded: (HeatmapDay | null)[] = [
+      ...Array(firstDayOfWeek).fill(null),
+      ...heatmapData,
+    ];
+    while (padded.length % 7 !== 0) {
+      padded.push(null);
+    }
+    const weeks: (HeatmapDay | null)[][] = [];
+    for (let i = 0; i < padded.length; i += 7) {
+      weeks.push(padded.slice(i, i + 7));
+    }
+    return weeks;
+  }, [heatmapData]);
+
+  // --- Load recommendations when cache is available ---
+  useEffect(() => {
+    if (!cache?.recentSubmissions) return;
+
+    // Extract friend's AC problems
+    const friendAC = new Map<string, CFProblem>();
+    for (const sub of cache.recentSubmissions) {
+      if (sub.verdict !== 'OK') continue;
+      if (!sub.problem.contestId) continue;
+      const key = `${sub.problem.contestId}-${sub.problem.index}`;
+      if (!friendAC.has(key)) {
+        friendAC.set(key, sub.problem);
+      }
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const settings = await window.api.store.getSettings();
+        if (cancelled) return;
+
+        if (!settings?.myHandle) {
+          setRecStatus('no-handle');
+          setRecommendations([]);
+          return;
+        }
+
+        const myCache = await window.api.store.getCache(settings.myHandle);
+        if (cancelled) return;
+
+        if (!myCache?.recentSubmissions) {
+          setRecStatus('no-cache');
+          setRecommendations([]);
+          return;
+        }
+
+        // Extract my AC problems
+        const myAC = new Set<string>();
+        for (const sub of myCache.recentSubmissions) {
+          if (sub.verdict === 'OK' && sub.problem.contestId) {
+            myAC.add(`${sub.problem.contestId}-${sub.problem.index}`);
+          }
+        }
+
+        // Find problems friend did but I didn't
+        const myRating = myCache.info?.rating ?? 1500;
+        const candidates: RecommendedProblem[] = [];
+        for (const [, problem] of friendAC) {
+          const key = `${problem.contestId}-${problem.index}`;
+          if (myAC.has(key)) continue;
+          candidates.push({
+            contestId: problem.contestId!,
+            index: problem.index,
+            name: problem.name,
+            rating: problem.rating,
+            tags: problem.tags,
+          });
+        }
+
+        // Sort by proximity to my rating (closest first)
+        candidates.sort((a, b) => {
+          const diffA = Math.abs((a.rating ?? 1500) - myRating);
+          const diffB = Math.abs((b.rating ?? 1500) - myRating);
+          return diffA - diffB;
+        });
+
+        const top = candidates.slice(0, 10);
+        if (cancelled) return;
+        setRecommendations(top);
+        setRecStatus(top.length === 0 ? 'empty' : 'ready');
+      } catch {
+        if (!cancelled) {
+          setRecStatus('no-cache');
+          setRecommendations([]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cache]);
 
   if (loading && !cache) {
     return <p style={{ color: '#B0A99E' }}>加载中...</p>;
@@ -113,6 +304,99 @@ export default function FriendDetail() {
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>最近比赛</h3>
         <ContestTable data={ratingHistory} />
+      </section>
+
+      {/* 做题热力图 */}
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>最近90天做题热力图</h3>
+        <div className={styles.heatmapWrap}>
+          <div className={styles.heatmapBody}>
+            <div className={styles.heatmapWeekdays}>
+              <span />
+              <span>一</span>
+              <span />
+              <span>三</span>
+              <span />
+              <span>五</span>
+              <span />
+            </div>
+            <div className={styles.heatmapGrid}>
+              {heatmapWeeks.map((week, wi) => (
+                <div key={wi} className={styles.heatmapWeek}>
+                  {week.map((day, di) => (
+                    <div
+                      key={di}
+                      className={`${styles.heatmapCell} ${styles[`heatLevel${day ? getHeatLevel(day.count) : 0}`]}`}
+                      title={day ? `${day.dateStr}：${day.count} 题` : ''}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className={styles.heatmapLegend}>
+            <span className={styles.legendText}>少</span>
+            <div className={`${styles.heatmapCell} ${styles.heatLevel0}`} />
+            <div className={`${styles.heatmapCell} ${styles.heatLevel1}`} />
+            <div className={`${styles.heatmapCell} ${styles.heatLevel2}`} />
+            <div className={`${styles.heatmapCell} ${styles.heatLevel3}`} />
+            <span className={styles.legendText}>多</span>
+          </div>
+        </div>
+      </section>
+
+      {/* 题目推荐 */}
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>你可能感兴趣的题目</h3>
+        {recStatus === 'no-handle' && (
+          <p className={styles.emptyText}>设置自己的 handle 后可获取推荐</p>
+        )}
+        {recStatus === 'no-cache' && (
+          <p className={styles.emptyText}>暂无自己的提交记录，请先刷新自己的数据</p>
+        )}
+        {recStatus === 'empty' && (
+          <p className={styles.emptyText}>没有可推荐的题目，你已完成好友做过的所有题目</p>
+        )}
+        {recStatus === 'loading' && (
+          <p className={styles.emptyText}>推荐加载中...</p>
+        )}
+        {recStatus === 'ready' && recommendations.length > 0 && (
+          <div className={styles.recommendations}>
+            {recommendations.map((p, idx) => (
+              <a
+                key={`${p.contestId}-${p.index}-${idx}`}
+                href={`https://codeforces.com/problemset/problem/${p.contestId}/${p.index}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.recCard}
+              >
+                <div className={styles.recHeader}>
+                  <span className={styles.recProblemName}>
+                    {p.contestId}{p.index} - {p.name}
+                  </span>
+                  {p.rating && (
+                    <span
+                      className={styles.recRating}
+                      style={{ color: getRatingColor(p.rating) }}
+                    >
+                      {p.rating}
+                    </span>
+                  )}
+                </div>
+                {p.tags && p.tags.length > 0 && (
+                  <div className={styles.recTags}>
+                    {p.tags.slice(0, 4).map((tag, ti) => (
+                      <span key={ti} className={styles.recTag}>{tag}</span>
+                    ))}
+                    {p.tags.length > 4 && (
+                      <span className={styles.recTag}>+{p.tags.length - 4}</span>
+                    )}
+                  </div>
+                )}
+              </a>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className={styles.section}>

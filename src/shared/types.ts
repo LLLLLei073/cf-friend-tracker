@@ -86,3 +86,22 @@ export interface Team {
   members: string[]; // CF handles, 最多 3 个
   createdAt: number;
 }
+
+// 比赛
+export interface CFContest {
+  id: number;
+  name: string;
+  type: string;
+  phase: string; // BEFORE | CODING | PENDING_SYSTEM_TEST | SYSTEM_TEST | FINISHED
+  durationSeconds: number;
+  startTimeSeconds: number;
+  relativeTimeSeconds: number;
+}
+
+// 窗口状态
+export interface WindowState {
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+}

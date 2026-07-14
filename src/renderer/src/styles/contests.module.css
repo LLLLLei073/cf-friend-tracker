@@ -1,0 +1,209 @@
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.heading {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heading::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.refreshBtn {
+  padding: 9px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.refreshBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.refreshBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  color: var(--down);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: rgba(217, 64, 47, 0.08);
+  border: 1px solid rgba(217, 64, 47, 0.2);
+  border-radius: var(--radius);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 70px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.7;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 比赛卡片 */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+  border-left: 3px solid transparent;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+
+/* 赛前:默认/蓝色调,左侧用 accent 提示即将开始 */
+.cardBefore {
+  border-left-color: var(--accent);
+}
+
+/* 比赛中:绿色高亮 */
+.cardCoding {
+  border-left-color: var(--up);
+  background: linear-gradient(0deg, rgba(74, 138, 58, 0.04), rgba(74, 138, 58, 0.04)), var(--bg-surface);
+  box-shadow: 0 1px 2px rgba(60, 50, 30, 0.03), 0 2px 8px rgba(74, 138, 58, 0.1);
+}
+
+.cardCoding:hover {
+  box-shadow: 0 2px 4px rgba(60, 50, 30, 0.04), 0 6px 16px rgba(74, 138, 58, 0.14);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  min-width: 0;
+}
+
+/* 比赛名称:可点击,支持省略号 */
+.name {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--transition);
+}
+
+.name:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+.typeTag {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.cardBody {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.infoLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.infoValue {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 状态文案颜色变体 */
+.before {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.coding {
+  color: var(--up);
+  font-weight: 700;
+}
+
+.system {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.finished {
+  color: var(--text-muted);
+}
+
+.default {
+  color: var(--text-secondary);
+}

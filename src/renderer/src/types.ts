@@ -6,4 +6,5 @@ export type {
   Friend,
   FriendCache,
   Settings,
+  CFContest,
 } from '../../shared/types';

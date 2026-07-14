@@ -1,19 +1,30 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { Friend, FriendCache, CFUser } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import styles from '../styles/sidebar.module.css';
+
+// 排序方式
+type SortOption = 'default' | 'rating-desc' | 'recent';
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [caches, setCaches] = useState<Record<string, FriendCache>>({});
+  const [viewedRatings, setViewedRatings] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null);
   const [refreshingHandles, setRefreshingHandles] = useState<Set<string>>(new Set());
   const [myHandle, setMyHandle] = useState('');
   const [myInfo, setMyInfo] = useState<CFUser | null>(null);
+  const [lastRefreshAt, setLastRefreshAt] = useState(0);
+  // 用于定时刷新"距上次刷新"的显示
+  const [now, setNow] = useState(Date.now());
+
+  // 搜索 & 排序
+  const [searchText, setSearchText] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('default');
 
   // 右键菜单
   const [contextMenu, setContextMenu] = useState<{
@@ -27,13 +38,20 @@ export default function Sidebar() {
   const [editingFriend, setEditingFriend] = useState<{ handle: string; alias: string } | null>(null);
   const [editAlias, setEditAlias] = useState('');
 
+  // 防止开机自动刷新重复触发
+  const autoRefreshChecked = useRef(false);
+
   const loadData = async () => {
     const fr = await window.api.store.getFriends();
     setFriends(fr);
     const cacheMap = await window.api.store.getAllCache();
     setCaches(cacheMap);
+    // 加载已查看的 rating 记录,用于 rating 变动标记
+    const viewed = await window.api.store.getViewedRatings();
+    setViewedRatings(viewed);
     const settings = await window.api.store.getSettings();
     setMyHandle(settings.myHandle);
+    setLastRefreshAt(settings.lastRefreshAt || 0);
     if (settings.myHandle && cacheMap[settings.myHandle]) {
       setMyInfo(cacheMap[settings.myHandle].info);
     } else {
@@ -81,19 +99,50 @@ export default function Sidebar() {
     return unsubscribe;
   }, []);
 
-  const handleRefresh = async () => {
+  // 定时器: 每30秒更新一次"距上次刷新"显示
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // 开机自动刷新: 距上次刷新超过30分钟则自动触发
+  useEffect(() => {
+    if (autoRefreshChecked.current) return;
+    autoRefreshChecked.current = true;
+    (async () => {
+      const settings = await window.api.store.getSettings();
+      const last = settings.lastRefreshAt || 0;
+      // 从未刷新过或距上次刷新超过30分钟,自动触发
+      if (!last || Date.now() - last > 30 * 60 * 1000) {
+        // 先加载好友列表,确保刷新进度显示正确
+        const fr = await window.api.store.getFriends();
+        if (fr.length > 0) {
+          handleRefresh(fr);
+        }
+      }
+    })();
+  }, []);
+
+  const handleRefresh = async (friendList?: Friend[]) => {
+    // 支持传入好友列表(开机自动刷新时 state 可能还未更新)
+    const fr = friendList ?? friends;
     setRefreshing(true);
-    setProgress({ completed: 0, total: friends.length });
+    setProgress({ completed: 0, total: fr.length });
     // 标记所有好友为刷新中
-    setRefreshingHandles(new Set(friends.map((f) => f.handle)));
+    setRefreshingHandles(new Set(fr.map((f) => f.handle)));
     try {
       await window.api.cf.refreshAll();
       // 同时刷新自己的信息
-      if (myHandle) {
+      const settings = await window.api.store.getSettings();
+      if (settings.myHandle) {
         const myResult = await window.api.cf.refreshMyProfile();
         if (myResult) setMyInfo(myResult);
       }
       await loadData();
+      // 更新刷新时间显示
+      const newSettings = await window.api.store.getSettings();
+      setLastRefreshAt(newSettings.lastRefreshAt || 0);
+      setNow(Date.now());
     } catch (e) {
       console.error('Refresh failed:', e);
     } finally {
@@ -132,6 +181,8 @@ export default function Sidebar() {
     setContextMenu(null);
     if (confirm(`确定删除好友 ${handle} 吗?`)) {
       await window.api.store.removeFriend(handle);
+      // 同时清除已查看的 rating 记录
+      await window.api.store.removeViewedRating(handle);
       await loadData();
       // 如果在删除的好友详情页,返回列表
       if (location.pathname === `/friends/${handle}`) {
@@ -140,26 +191,111 @@ export default function Sidebar() {
     }
   };
 
+  // 点击好友: 进入详情页并标记 rating 已查看,消除小红点
+  const handleFriendClick = async (friend: Friend) => {
+    const cache = caches[friend.handle];
+    const rating = cache?.info?.rating;
+    if (rating !== undefined) {
+      // 更新已查看记录,清除变动标记
+      await window.api.store.setViewedRating(friend.handle, rating);
+      setViewedRatings((prev) => ({ ...prev, [friend.handle]: rating }));
+    }
+    navigate(`/friends/${friend.handle}`);
+  };
+
+  // 过滤 + 排序后的好友列表
+  const displayFriends = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase();
+    let list = friends;
+    // 搜索过滤: 匹配 handle 或 alias
+    if (keyword) {
+      list = friends.filter((f) => {
+        const handle = f.handle.toLowerCase();
+        const alias = (f.alias || '').toLowerCase();
+        return handle.includes(keyword) || alias.includes(keyword);
+      });
+    }
+    const sorted = [...list];
+    if (sortBy === 'rating-desc') {
+      // Rating 高→低
+      sorted.sort((a, b) => {
+        const ra = caches[a.handle]?.info?.rating ?? -1;
+        const rb = caches[b.handle]?.info?.rating ?? -1;
+        return rb - ra;
+      });
+    } else if (sortBy === 'recent') {
+      // 最近活跃(按最后在线时间排序)
+      sorted.sort((a, b) => {
+        const ta = caches[a.handle]?.info?.lastOnlineTimeSeconds ?? 0;
+        const tb = caches[b.handle]?.info?.lastOnlineTimeSeconds ?? 0;
+        return tb - ta;
+      });
+    }
+    // default: 保持添加顺序(friends 数组本身就是添加顺序)
+    return sorted;
+  }, [friends, caches, searchText, sortBy]);
+
+  // 计算"距上次刷新"的文案
+  const refreshHint = useMemo(() => {
+    if (!lastRefreshAt) return '';
+    const diffMs = now - lastRefreshAt;
+    if (diffMs < 0) return '';
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return '刚刚';
+    if (diffMin < 60) return `${diffMin}分钟前`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}小时前`;
+    const diffDay = Math.floor(diffHour / 24);
+    return `${diffDay}天前`;
+  }, [lastRefreshAt, now]);
+
   return (
     <aside className={styles.sidebar}>
       <h1 className={styles.title}>CF Friends</h1>
+
+      {/* 搜索框 + 排序下拉 */}
+      <div className={styles.toolbar}>
+        <input
+          type="text"
+          className={styles.searchInput}
+          placeholder="搜索好友..."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+        />
+        <select
+          className={styles.sortSelect}
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as SortOption)}
+          title="排序方式"
+        >
+          <option value="default">默认</option>
+          <option value="rating-desc">Rating 高→低</option>
+          <option value="recent">最近活跃</option>
+        </select>
+      </div>
 
       <div className={styles.friendList}>
         {friends.length === 0 && (
           <p className={styles.empty}>点击下方 + 添加好友</p>
         )}
-        {friends.map((f) => {
+        {friends.length > 0 && displayFriends.length === 0 && (
+          <p className={styles.empty}>未找到匹配的好友</p>
+        )}
+        {displayFriends.map((f) => {
           const cache = caches[f.handle];
           const rating = cache?.info?.rating;
           const online = cache?.info
             ? Date.now() / 1000 - cache.info.lastOnlineTimeSeconds < 300
             : false;
           const isRefreshing = refreshingHandles.has(f.handle);
+          // Rating 变动标记: 当前缓存 rating 与已查看记录不一致时显示小红点
+          const ratingChanged =
+            rating !== undefined && rating !== viewedRatings[f.handle];
           return (
             <div
               key={f.handle}
               className={`${styles.friendItem} ${location.pathname === `/friends/${f.handle}` ? styles.friendItemActive : ''}`}
-              onClick={() => navigate(`/friends/${f.handle}`)}
+              onClick={() => handleFriendClick(f)}
               onContextMenu={(e) => handleContextMenu(e, f)}
             >
               <img
@@ -182,6 +318,8 @@ export default function Sidebar() {
               </div>
               {isRefreshing ? (
                 <span className={styles.spinner} />
+              ) : ratingChanged ? (
+                <span className={styles.ratingDot} title="Rating 有变动" />
               ) : (
                 <span className={`${styles.dot} ${online ? styles.online : ''}`} />
               )}
@@ -227,13 +365,24 @@ export default function Sidebar() {
         <button onClick={() => navigate('/teams')} className={location.pathname === '/teams' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
           <span className={styles.btnIcon}>👥</span> 团队
         </button>
+        <button onClick={() => navigate('/contests')} className={location.pathname === '/contests' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+          <span className={styles.btnIcon}>📅</span> 近期比赛
+        </button>
+        <button onClick={() => navigate('/compare')} className={location.pathname === '/compare' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+          <span className={styles.btnIcon}>📊</span> 好友对比
+        </button>
+        <button onClick={() => navigate('/report')} className={location.pathname === '/report' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+          <span className={styles.btnIcon}>📝</span> 周报/月报
+        </button>
         <button onClick={() => navigate('/settings')} className={location.pathname === '/settings' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
           <span className={styles.btnIcon}>⚙</span> 设置
         </button>
-        <button onClick={handleRefresh} disabled={refreshing} className={styles.refreshBtn}>
+        <button onClick={() => handleRefresh()} disabled={refreshing} className={styles.refreshBtn}>
           {refreshing && progress
             ? `刷新中 ${progress.completed}/${progress.total}`
-            : '↻ 刷新全部'}
+            : refreshHint
+              ? `↻ 刷新全部 (${refreshHint})`
+              : '↻ 刷新全部'}
         </button>
       </div>
 

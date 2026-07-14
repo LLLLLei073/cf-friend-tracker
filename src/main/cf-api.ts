@@ -5,6 +5,7 @@ import type {
   CFRatingChange,
   CFSubmission,
   CFApiResponse,
+  CFContest,
 } from '../shared/types';
 
 const API_BASE = 'https://codeforces.com/api';
@@ -125,4 +126,8 @@ export async function fetchFriends(
   apiSecret: string
 ): Promise<string[]> {
   return cfRequest<string[]>('user.friends', { handle }, { apiKey, apiSecret });
+}
+
+export async function fetchContests(): Promise<CFContest[]> {
+  return cfRequest<CFContest[]>('contest.list', {});
 }

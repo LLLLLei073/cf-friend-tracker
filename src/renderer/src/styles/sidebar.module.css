@@ -25,6 +25,60 @@
   color: var(--accent-text);
 }
 
+/* 搜索框 + 排序下拉工具栏 */
+.toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+
+.searchInput::placeholder {
+  color: var(--text-muted);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.sortSelect {
+  flex-shrink: 0;
+  max-width: 110px;
+  padding: 7px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.sortSelect:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sortSelect:hover {
+  border-color: var(--border-strong);
+}
+
 .friendList {
   flex: 1;
   overflow-y: auto;
@@ -116,6 +170,22 @@
   0% { box-shadow: 0 0 0 0 rgba(74, 138, 58, 0.4); }
   70% { box-shadow: 0 0 0 5px rgba(74, 138, 58, 0); }
   100% { box-shadow: 0 0 0 0 rgba(74, 138, 58, 0); }
+}
+
+/* Rating 变动小红点标记 */
+.ratingDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--down);
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(217, 64, 47, 0.5);
+  animation: ratingPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes ratingPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.65; }
 }
 
 .actions {

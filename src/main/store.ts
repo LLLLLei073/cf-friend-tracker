@@ -1,5 +1,5 @@
 import Store from 'electron-store';
-import type { Friend, FriendCache, Settings, Team } from '../shared/types';
+import type { Friend, FriendCache, Settings, Team, WindowState } from '../shared/types';
 
 const DEFAULT_SETTINGS: Settings = {
   myHandle: '',
@@ -19,6 +19,8 @@ export class StoreManager {
         cache: {} as Record<string, FriendCache>,
         settings: DEFAULT_SETTINGS,
         teams: [] as Team[],
+        windowState: null as WindowState | null,
+        viewedRatings: {} as Record<string, number>,
       },
     });
   }
@@ -115,5 +117,31 @@ export class StoreManager {
   removeTeam(id: string): void {
     const teams = this.getTeams().filter((t) => t.id !== id);
     this.store.set('teams', teams);
+  }
+
+  // ---- Window State ----
+  getWindowState(): WindowState | null {
+    return this.store.get('windowState') as WindowState | null;
+  }
+
+  setWindowState(state: WindowState): void {
+    this.store.set('windowState', state);
+  }
+
+  // ---- Viewed Ratings (for rating change indicator) ----
+  getViewedRatings(): Record<string, number> {
+    return this.store.get('viewedRatings') as Record<string, number>;
+  }
+
+  setViewedRating(handle: string, rating: number): void {
+    const viewed = this.getViewedRatings();
+    viewed[handle] = rating;
+    this.store.set('viewedRatings', viewed);
+  }
+
+  removeViewedRating(handle: string): void {
+    const viewed = this.getViewedRatings();
+    delete viewed[handle];
+    this.store.set('viewedRatings', viewed);
   }
 }

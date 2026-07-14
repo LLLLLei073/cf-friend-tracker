@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Friend, Settings, Team } from '../shared/types';
+import type { Friend, Settings, Team, WindowState } from '../shared/types';
 
 export interface RefreshProgress {
   handle?: string;
@@ -19,6 +19,7 @@ const api = {
     refreshAll: () => ipcRenderer.invoke('cf:refreshAll'),
     refreshMyProfile: () => ipcRenderer.invoke('cf:refreshMyProfile'),
     syncFriendsAuto: () => ipcRenderer.invoke('cf:syncFriendsAuto'),
+    getContests: () => ipcRenderer.invoke('cf:getContests'),
     onRefreshProgress: (callback: (progress: RefreshProgress) => void) => {
       const handler = (_event: unknown, data: RefreshProgress) => callback(data);
       ipcRenderer.on('cf:refreshProgress', handler);
@@ -39,6 +40,11 @@ const api = {
     addTeam: (team: Team) => ipcRenderer.invoke('store:addTeam', team),
     updateTeam: (team: Team) => ipcRenderer.invoke('store:updateTeam', team),
     removeTeam: (id: string) => ipcRenderer.invoke('store:removeTeam', id),
+    getWindowState: () => ipcRenderer.invoke('store:getWindowState'),
+    setWindowState: (state: WindowState) => ipcRenderer.invoke('store:setWindowState', state),
+    getViewedRatings: () => ipcRenderer.invoke('store:getViewedRatings'),
+    setViewedRating: (handle: string, rating: number) => ipcRenderer.invoke('store:setViewedRating', handle, rating),
+    removeViewedRating: (handle: string) => ipcRenderer.invoke('store:removeViewedRating', handle),
   },
 };
 

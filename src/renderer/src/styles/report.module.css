@@ -1,0 +1,386 @@
+/* ===== 标题 ===== */
+.heading {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 18px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heading::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* ===== Tab 切换 ===== */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  background: var(--bg-elevated);
+  padding: 4px;
+  border-radius: var(--radius);
+  width: fit-content;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.tab {
+  padding: 8px 18px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.activeTab {
+  padding: 8px 18px;
+  background: var(--bg-surface);
+  border: none;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  box-shadow: var(--shadow-sm);
+}
+
+.dateRange {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 总览卡片 ===== */
+.overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.overviewCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+
+.overviewCard:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.overviewValue {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.overviewLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ===== 区块标题 ===== */
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionTitle::before {
+  content: '';
+  width: 3px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* ===== 表格(与 Leaderboard 一致) ===== */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 28px;
+}
+
+.table th {
+  text-align: left;
+  padding: 12px 14px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: var(--bg-elevated);
+}
+
+.table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.row {
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.row:hover {
+  background: var(--bg-hover);
+}
+
+.rankCol {
+  width: 56px;
+  text-align: center;
+}
+
+.numCol {
+  text-align: center;
+  width: 110px;
+}
+
+/* ===== 奖牌样式 ===== */
+.medal1 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #FFD426, #F5C518);
+  color: #3A352B;
+  box-shadow: 0 1px 3px rgba(245, 197, 24, 0.4);
+}
+
+.medal2 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #D8D8D8, #B0B0B0);
+  color: #3A352B;
+  box-shadow: 0 1px 3px rgba(176, 176, 176, 0.4);
+}
+
+.medal3 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #E89060, #CD7F32);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(205, 127, 50, 0.4);
+}
+
+.rankNum {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+/* ===== 用户单元格 ===== */
+.userCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.meTag {
+  display: inline-block;
+  background: var(--accent-dim);
+  color: var(--accent-text);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* ===== 数值样式 ===== */
+.solvedCount {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-text);
+}
+
+.dailyAvg {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.up {
+  color: var(--up);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.down {
+  color: var(--down);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 热力图 ===== */
+.heatmapCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 28px;
+}
+
+.heatmap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.heatCell {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--accent);
+  transition: transform var(--transition), box-shadow var(--transition);
+  position: relative;
+  cursor: default;
+}
+
+.heatCell:hover {
+  transform: scale(1.4);
+  z-index: 1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.heatmapFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.heatmapLegend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.heatmapLegendText {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.heatmapHint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ===== 总结文案 ===== */
+.summaryBox {
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.summaryText {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text);
+}
+
+/* ===== 空状态 ===== */
+.empty {
+  text-align: center;
+  padding: 70px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.7;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.subEmpty {
+  text-align: center;
+  padding: 36px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 28px;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 720px) {
+  .overview {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
