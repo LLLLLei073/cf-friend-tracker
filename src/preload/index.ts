@@ -18,6 +18,7 @@ const api = {
       ipcRenderer.invoke('cf:getFriends', handle, apiKey, apiSecret),
     refreshAll: () => ipcRenderer.invoke('cf:refreshAll'),
     refreshMyProfile: () => ipcRenderer.invoke('cf:refreshMyProfile'),
+    importFriendsAuto: () => ipcRenderer.invoke('cf:importFriendsAuto'),
     onRefreshProgress: (callback: (progress: RefreshProgress) => void) => {
       const handler = (_event: unknown, data: RefreshProgress) => callback(data);
       ipcRenderer.on('cf:refreshProgress', handler);

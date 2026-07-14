@@ -163,4 +163,27 @@ export function registerIpcHandlers(store: StoreManager): void {
       return null;
     }
   });
+
+  // ---- 自动导入好友(保存设置时调用) ----
+  ipcMain.handle('cf:importFriendsAuto', async () => {
+    const settings = store.getSettings();
+    if (!settings.myHandle || !settings.apiKey || !settings.apiSecret) {
+      return { imported: 0, skipped: true, error: '未配置 API' };
+    }
+    try {
+      const handles = await fetchFriends(
+        settings.myHandle,
+        settings.apiKey,
+        settings.apiSecret
+      );
+      let imported = 0;
+      for (const h of handles) {
+        const ok = store.addFriend({ handle: h, alias: '', addedAt: Date.now() });
+        if (ok) imported++;
+      }
+      return { imported, skipped: false, error: '' };
+    } catch (e) {
+      return { imported: 0, skipped: false, error: (e as Error).message };
+    }
+  });
 }

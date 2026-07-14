@@ -5,6 +5,8 @@ import styles from '../styles/settings.module.css';
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsType | null>(null);
   const [saved, setSaved] = useState(false);
+  const [importMsg, setImportMsg] = useState('');
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -18,6 +20,26 @@ export default function Settings() {
     await window.api.store.setSettings(settings);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+
+    // 自动导入好友
+    setImporting(true);
+    setImportMsg('');
+    try {
+      const result = await window.api.cf.importFriendsAuto();
+      if (result.skipped) {
+        setImportMsg('未配置 API,跳过好友导入');
+      } else if (result.error) {
+        setImportMsg(`导入失败: ${result.error}`);
+      } else if (result.imported === 0) {
+        setImportMsg('好友已是最新,无新增');
+      } else {
+        setImportMsg(`已导入 ${result.imported} 个好友`);
+      }
+    } catch (e) {
+      setImportMsg(`导入失败: ${(e as Error).message}`);
+    } finally {
+      setImporting(false);
+    }
   };
 
   const handleClearCache = async () => {
@@ -64,10 +86,15 @@ export default function Settings() {
           />
         </div>
 
-        <button onClick={handleSave} className={styles.saveBtn}>
-          保存设置
+        <button onClick={handleSave} className={styles.saveBtn} disabled={importing}>
+          {importing ? '保存并导入中...' : '保存设置'}
         </button>
         {saved && <p className={styles.saved}>✓ 已保存</p>}
+        {importMsg && (
+          <p className={styles.saved} style={{ color: importMsg.includes('失败') ? '#ff6b6b' : '#4ecca3' }}>
+            {importMsg}
+          </p>
+        )}
 
         <hr className={styles.divider} />
 
