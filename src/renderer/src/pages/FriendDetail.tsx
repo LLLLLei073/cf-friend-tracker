@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { FriendCache, CFProblem } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
@@ -70,6 +70,49 @@ export default function FriendDetail() {
   // Recommendation state
   const [recommendations, setRecommendations] = useState<RecommendedProblem[]>([]);
   const [recStatus, setRecStatus] = useState<RecStatus>('loading');
+
+  // 滚动导航
+  const [activeSection, setActiveSection] = useState('rating');
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  const navItems = [
+    { id: 'rating', label: 'Rating 曲线' },
+    { id: 'contests', label: '最近比赛' },
+    { id: 'heatmap', label: '做题热力图' },
+    { id: 'recommend', label: '题目推荐' },
+    { id: 'submissions', label: '最近提交' },
+  ];
+
+  const scrollToSection = useCallback((id: string) => {
+    const el = sectionRefs.current[id];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setActiveSection(id);
+    }
+  }, []);
+
+  // 监听滚动，高亮当前模块
+  useEffect(() => {
+    const main = document.querySelector('main');
+    if (!main) return;
+    const handleScroll = () => {
+      const scrollTop = main.scrollTop;
+      // 找到当前可视区域的 section
+      let current = 'rating';
+      for (const item of navItems) {
+        const el = sectionRefs.current[item.id];
+        if (el) {
+          const offsetTop = el.offsetTop - main.offsetTop;
+          if (scrollTop >= offsetTop - 100) {
+            current = item.id;
+          }
+        }
+      }
+      setActiveSection(current);
+    };
+    main.addEventListener('scroll', handleScroll);
+    return () => main.removeEventListener('scroll', handleScroll);
+  }, [cache]);
 
   useEffect(() => {
     (async () => {
@@ -267,7 +310,8 @@ export default function FriendDetail() {
   const online = Date.now() / 1000 - info.lastOnlineTimeSeconds < 300;
 
   return (
-    <div>
+    <div className={styles.detailLayout}>
+      <div className={styles.detailContent}>
       <div className={styles.header}>
         <img src={info.avatar} className={styles.avatar} alt={info.handle} />
         <div className={styles.headerInfo}>
@@ -296,18 +340,18 @@ export default function FriendDetail() {
         </div>
       </div>
 
-      <section className={styles.section}>
+      <section className={styles.section} ref={(el) => { sectionRefs.current['rating'] = el; }}>
         <h3 className={styles.sectionTitle}>Rating 曲线</h3>
         <RatingChart data={ratingHistory} />
       </section>
 
-      <section className={styles.section}>
+      <section className={styles.section} ref={(el) => { sectionRefs.current['contests'] = el; }}>
         <h3 className={styles.sectionTitle}>最近比赛</h3>
         <ContestTable data={ratingHistory} />
       </section>
 
       {/* 做题热力图 */}
-      <section className={styles.section}>
+      <section className={styles.section} ref={(el) => { sectionRefs.current['heatmap'] = el; }}>
         <h3 className={styles.sectionTitle}>最近90天做题热力图</h3>
         <div className={styles.heatmapWrap}>
           <div className={styles.heatmapBody}>
@@ -346,7 +390,7 @@ export default function FriendDetail() {
       </section>
 
       {/* 题目推荐 */}
-      <section className={styles.section}>
+      <section className={styles.section} ref={(el) => { sectionRefs.current['recommend'] = el; }}>
         <h3 className={styles.sectionTitle}>你可能感兴趣的题目</h3>
         {recStatus === 'no-handle' && (
           <p className={styles.emptyText}>设置自己的 handle 后可获取推荐</p>
@@ -399,7 +443,7 @@ export default function FriendDetail() {
         )}
       </section>
 
-      <section className={styles.section}>
+      <section className={styles.section} ref={(el) => { sectionRefs.current['submissions'] = el; }}>
         <h3 className={styles.sectionTitle}>最近提交</h3>
         {recentSubmissions.length === 0 ? (
           <p className={styles.emptyText}>暂无提交记录</p>
@@ -433,6 +477,20 @@ export default function FriendDetail() {
           </div>
         )}
       </section>
+      </div>
+
+      {/* 右侧导航栏 */}
+      <nav className={styles.sideNav}>
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            className={`${styles.sideNavItem} ${activeSection === item.id ? styles.sideNavActive : ''}`}
+            onClick={() => scrollToSection(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
