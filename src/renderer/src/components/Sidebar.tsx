@@ -109,7 +109,7 @@ export default function Sidebar() {
           return (
             <div
               key={f.handle}
-              className={styles.friendItem}
+              className={`${styles.friendItem} ${location.pathname === `/friends/${f.handle}` ? styles.friendItemActive : ''}`}
               onClick={() => navigate(`/friends/${f.handle}`)}
             >
               <img
@@ -168,15 +168,23 @@ export default function Sidebar() {
       </div>
 
       <div className={styles.actions}>
-        <button onClick={() => navigate('/add')} className={styles.btn}>+ 添加</button>
-        <button onClick={() => navigate('/leaderboard')} className={styles.btn}>🏆 排行榜</button>
-        <button onClick={() => navigate('/teams')} className={styles.btn}>👥 团队</button>
-        <button onClick={handleRefresh} disabled={refreshing} className={styles.btn}>
+        <button onClick={() => navigate('/add')} className={location.pathname === '/add' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+          <span className={styles.btnIcon}>＋</span> 添加好友
+        </button>
+        <button onClick={() => navigate('/leaderboard')} className={location.pathname === '/leaderboard' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+          <span className={styles.btnIcon}>🏆</span> 排行榜
+        </button>
+        <button onClick={() => navigate('/teams')} className={location.pathname === '/teams' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+          <span className={styles.btnIcon}>👥</span> 团队
+        </button>
+        <button onClick={() => navigate('/settings')} className={location.pathname === '/settings' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+          <span className={styles.btnIcon}>⚙</span> 设置
+        </button>
+        <button onClick={handleRefresh} disabled={refreshing} className={styles.refreshBtn}>
           {refreshing && progress
             ? `刷新中 ${progress.completed}/${progress.total}`
-            : '↻ 刷新'}
+            : '↻ 刷新全部'}
         </button>
-        <button onClick={() => navigate('/settings')} className={styles.btn}>⚙ 设置</button>
       </div>
     </aside>
   );

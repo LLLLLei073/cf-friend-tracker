@@ -1,70 +1,94 @@
 .heading {
   font-size: 22px;
-  margin-bottom: 16px;
-  color: #4ecca3;
+  font-weight: 700;
+  margin-bottom: 18px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heading::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: var(--accent);
+  border-radius: 2px;
 }
 
 .createBtn {
-  padding: 8px 16px;
-  background: #4ecca3;
+  padding: 11px 22px;
+  background: var(--accent);
   border: none;
-  color: #1a1a2e;
-  border-radius: 6px;
+  color: #0a0c12;
+  border-radius: var(--radius);
   cursor: pointer;
   font-size: 14px;
-  font-weight: bold;
-  margin-bottom: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  margin-bottom: 20px;
+  transition: all var(--transition);
+  box-shadow: 0 2px 8px rgba(52, 211, 153, 0.25);
+}
+
+.createBtn:hover {
+  background: var(--accent-bright);
+  box-shadow: 0 4px 14px rgba(52, 211, 153, 0.35);
 }
 
 .createForm {
-  max-width: 500px;
-  background: #16213e;
-  padding: 20px;
-  border-radius: 10px;
+  max-width: 520px;
+  background: var(--bg-surface);
+  padding: 22px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 18px;
+  margin-bottom: 26px;
+  box-shadow: var(--shadow-sm);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .field label {
   font-size: 13px;
-  color: #7080a0;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .input {
-  padding: 8px 12px;
-  background: #1a1a2e;
-  border: 1px solid #304060;
-  border-radius: 6px;
-  color: #e0e0e0;
+  padding: 10px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
   font-size: 14px;
+  font-family: inherit;
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
 .input:focus {
   outline: none;
-  border-color: #4ecca3;
-}
-
-.field .input + .input {
-  margin-top: 6px;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
 .error {
-  color: #ff6b6b;
+  color: var(--danger);
   font-size: 13px;
+  font-weight: 500;
 }
 
 .hintText {
-  color: #606080;
+  color: var(--text-muted);
   font-size: 13px;
   padding: 8px 0;
+  line-height: 1.6;
 }
 
 .friendPicker {
@@ -80,72 +104,91 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
-  background: #1a1a2e;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all var(--transition);
 }
 
 .friendOption:hover {
-  background: #243456;
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
 }
 
 .friendOptionActive {
-  background: #1a2a1a;
-  border-color: #4ecca3;
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .friendOption input {
   cursor: pointer;
   width: 16px;
   height: 16px;
+  accent-color: var(--accent);
 }
 
 .pickAvatar {
   width: 28px;
   height: 28px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
 }
 
 .pickName {
   flex: 1;
   font-size: 14px;
+  color: var(--text);
 }
 
 .pickRating {
   font-size: 13px;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .meTag {
   display: inline-block;
-  background: #4ecca3;
-  color: #1a1a2e;
+  background: var(--accent-dim);
+  color: var(--accent);
   font-size: 10px;
-  font-weight: bold;
-  padding: 1px 5px;
-  border-radius: 3px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
   margin-left: 6px;
   vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .submitBtn {
-  padding: 10px 20px;
-  background: #4ecca3;
+  padding: 11px 22px;
+  background: var(--accent);
   border: none;
-  color: #1a1a2e;
-  border-radius: 6px;
+  color: #0a0c12;
+  border-radius: var(--radius);
   cursor: pointer;
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 700;
+  font-family: inherit;
+  transition: all var(--transition);
+  box-shadow: 0 2px 8px rgba(52, 211, 153, 0.25);
+}
+
+.submitBtn:hover {
+  background: var(--accent-bright);
+  box-shadow: 0 4px 14px rgba(52, 211, 153, 0.35);
 }
 
 .empty {
   text-align: center;
-  padding: 60px 20px;
-  color: #606080;
+  padding: 70px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.7;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 
 .teamList {
@@ -155,17 +198,23 @@
 }
 
 .teamCard {
-  background: #16213e;
-  border-radius: 10px;
-  padding: 20px;
-  border: 1px solid #304060;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition);
+}
+
+.teamCard:hover {
+  border-color: var(--border-strong);
 }
 
 .teamHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   cursor: pointer;
 }
 
@@ -177,52 +226,64 @@
 
 .expandHint {
   font-size: 12px;
-  color: #7080a0;
+  color: var(--text-secondary);
+  transition: color var(--transition);
+}
+
+.teamHeader:hover .expandHint {
+  color: var(--accent);
 }
 
 .teamName {
   font-size: 18px;
-  color: #4ecca3;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .deleteBtn {
-  padding: 4px 12px;
-  background: #3a1a1a;
-  border: 1px solid #ff6b6b;
-  color: #ff6b6b;
-  border-radius: 4px;
+  padding: 5px 14px;
+  background: var(--danger-soft);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 12px;
+  font-family: inherit;
+  transition: all var(--transition);
 }
 
 .deleteBtn:hover {
-  background: #4a1a1a;
+  background: #3d1c26;
+  border-color: var(--danger);
 }
 
 .dailySection {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px dashed #304060;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--border-strong);
 }
 
 .dailyTitle {
-  font-size: 15px;
-  color: #4ecca3;
-  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .dailyGrid {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 18px;
 }
 
 .dailyCard {
   flex: 1;
-  background: #1a1a2e;
-  border-radius: 8px;
-  padding: 12px;
-  border: 1px solid #304060;
+  background: var(--bg-input);
+  border-radius: var(--radius);
+  padding: 14px;
+  border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -230,9 +291,9 @@
 
 .dailyLabel {
   font-size: 13px;
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #9090b0;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text);
 }
 
 .dailyMember {
@@ -241,18 +302,19 @@
   gap: 8px;
   cursor: pointer;
   padding: 4px;
-  border-radius: 6px;
-  transition: background 0.15s;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
 }
 
 .dailyMember:hover {
-  background: #243456;
+  background: var(--bg-elevated);
 }
 
 .dailyAvatar {
   width: 32px;
   height: 32px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
 }
 
 .dailyInfo {
@@ -263,11 +325,12 @@
 .dailyHandle {
   font-size: 13px;
   font-weight: 600;
+  color: var(--text);
 }
 
 .dailySolved {
   font-size: 12px;
-  color: #9090b0;
+  color: var(--text-secondary);
 }
 
 .dailyTable {
@@ -278,20 +341,28 @@
 
 .dailyTable th {
   text-align: left;
-  padding: 6px 10px;
-  color: #7080a0;
-  border-bottom: 1px solid #304060;
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
   font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .dailyTable td {
-  padding: 6px 10px;
-  border-bottom: 1px solid #202040;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.dailyTable tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .dailyNum {
   text-align: center;
-  width: 80px;
+  width: 90px;
 }
 
 .teamStats {
@@ -302,17 +373,17 @@
 }
 
 .totalRating {
-  color: #4ecca3;
-  font-weight: bold;
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .memberCount {
-  color: #7080a0;
+  color: var(--text-secondary);
 }
 
 .memberList {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -321,20 +392,23 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #1a1a2e;
-  border-radius: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all var(--transition);
 }
 
 .memberItem:hover {
-  background: #243456;
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
 }
 
 .memberAvatar {
   width: 32px;
   height: 32px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
 }
 
 .memberInfo {
@@ -345,4 +419,5 @@
 .memberHandle {
   font-size: 13px;
   font-weight: 600;
+  color: var(--text);
 }

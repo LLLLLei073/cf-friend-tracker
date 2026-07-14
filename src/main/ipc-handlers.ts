@@ -164,26 +164,77 @@ export function registerIpcHandlers(store: StoreManager): void {
     }
   });
 
-  // ---- 自动导入好友(保存设置时调用) ----
-  ipcMain.handle('cf:importFriendsAuto', async () => {
+  // ---- 自动同步好友数据(保存设置时调用,不增删好友,只刷新已有关注的数据) ----
+  ipcMain.handle('cf:syncFriendsAuto', async () => {
     const settings = store.getSettings();
-    if (!settings.myHandle || !settings.apiKey || !settings.apiSecret) {
-      return { imported: 0, skipped: true, error: '未配置 API' };
+    if (!settings.myHandle) {
+      return { synced: 0, skipped: true, error: '未配置 Handle' };
     }
-    try {
-      const handles = await fetchFriends(
-        settings.myHandle,
-        settings.apiKey,
-        settings.apiSecret
-      );
-      let imported = 0;
-      for (const h of handles) {
-        const ok = store.addFriend({ handle: h, alias: '', addedAt: Date.now() });
-        if (ok) imported++;
+
+    const friends = store.getFriends();
+    const handles = friends.map((f) => f.handle);
+    let synced = 0;
+
+    if (handles.length > 0) {
+      const total = handles.length;
+      const errors: string[] = [];
+      const infos: CFUser[] = await fetchUserInfo(handles);
+
+      let completed = 0;
+      for (const info of infos) {
+        try {
+          const [ratingHistory, recentSubmissions] = await Promise.all([
+            fetchUserRating(info.handle),
+            fetchUserStatus(info.handle, 20),
+          ]);
+          store.setCache(info.handle, {
+            handle: info.handle,
+            info,
+            ratingHistory,
+            recentSubmissions,
+            cachedAt: Date.now(),
+          });
+          synced++;
+        } catch (e) {
+          errors.push(info.handle);
+          store.setCache(info.handle, {
+            handle: info.handle,
+            info,
+            ratingHistory: [],
+            recentSubmissions: [],
+            cachedAt: Date.now(),
+          });
+        }
+        completed++;
+        sendProgress({ handle: info.handle, completed, total, errors });
       }
-      return { imported, skipped: false, error: '' };
-    } catch (e) {
-      return { imported: 0, skipped: false, error: (e as Error).message };
+
+      const s = store.getSettings();
+      s.lastRefreshAt = Date.now();
+      store.setSettings(s);
     }
+
+    // 同时刷新自己的数据
+    try {
+      const infos = await fetchUserInfo([settings.myHandle]);
+      if (infos.length > 0) {
+        const info = infos[0];
+        const [ratingHistory, recentSubmissions] = await Promise.all([
+          fetchUserRating(info.handle),
+          fetchUserStatus(info.handle, 20),
+        ]);
+        store.setCache(info.handle, {
+          handle: info.handle,
+          info,
+          ratingHistory,
+          recentSubmissions,
+          cachedAt: Date.now(),
+        });
+      }
+    } catch {
+      // 忽略自身刷新失败
+    }
+
+    return { synced, skipped: false, error: '' };
   });
 }

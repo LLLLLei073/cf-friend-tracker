@@ -11,7 +11,7 @@ export default function App() {
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <Sidebar />
-      <main style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
+      <main style={{ flex: 1, overflow: 'auto', padding: '28px 32px 40px' }}>
         <Routes>
           <Route path="/" element={<Navigate to="/friends" replace />} />
           <Route path="/friends" element={<FriendList />} />

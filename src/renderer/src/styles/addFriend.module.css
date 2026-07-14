@@ -1,51 +1,78 @@
 .heading {
   font-size: 22px;
-  margin-bottom: 16px;
-  color: #4ecca3;
+  font-weight: 700;
+  margin-bottom: 18px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heading::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: var(--accent);
+  border-radius: 2px;
 }
 
 .tabs {
   display: flex;
-  gap: 4px;
-  margin-bottom: 20px;
+  gap: 6px;
+  margin-bottom: 24px;
+  background: var(--bg-input);
+  padding: 4px;
+  border-radius: var(--radius);
+  width: fit-content;
+  border: 1px solid var(--border);
 }
 
 .tab {
-  padding: 8px 16px;
-  background: #16213e;
-  border: 1px solid #304060;
-  color: #7080a0;
-  border-radius: 6px;
+  padding: 8px 18px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+
+.tab:hover {
+  color: var(--text);
 }
 
 .activeTab {
-  padding: 8px 16px;
-  background: #1a2745;
-  border: 1px solid #4ecca3;
-  color: #4ecca3;
-  border-radius: 6px;
+  padding: 8px 18px;
+  background: var(--bg-elevated);
+  border: none;
+  color: var(--accent);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  box-shadow: var(--shadow-sm);
 }
 
 .form {
-  max-width: 500px;
+  max-width: 520px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .field label {
   font-size: 13px;
-  color: #7080a0;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .inputRow {
@@ -55,28 +82,42 @@
 
 .input {
   flex: 1;
-  padding: 8px 12px;
-  background: #16213e;
-  border: 1px solid #304060;
-  border-radius: 6px;
-  color: #e0e0e0;
+  padding: 10px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
   font-size: 14px;
+  font-family: inherit;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
 }
 
 .input:focus {
   outline: none;
-  border-color: #4ecca3;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
 .btn {
-  padding: 8px 16px;
-  background: #1a2745;
-  border: 1px solid #304060;
-  color: #e0e0e0;
-  border-radius: 6px;
+  padding: 10px 18px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  border-radius: var(--radius);
   cursor: pointer;
   font-size: 13px;
+  font-family: inherit;
   white-space: nowrap;
+  transition: all var(--transition);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
 }
 
 .btn:disabled {
@@ -85,44 +126,57 @@
 }
 
 .submitBtn {
-  padding: 10px 20px;
-  background: #4ecca3;
+  padding: 11px 22px;
+  background: var(--accent);
   border: none;
-  color: #1a1a2e;
-  border-radius: 6px;
+  color: #0a0c12;
+  border-radius: var(--radius);
   cursor: pointer;
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 700;
+  font-family: inherit;
+  transition: all var(--transition);
+  box-shadow: 0 2px 8px rgba(52, 211, 153, 0.25);
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: var(--accent-bright);
+  box-shadow: 0 4px 14px rgba(52, 211, 153, 0.35);
 }
 
 .submitBtn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .success {
-  color: #4ecca3;
+  color: var(--accent);
   font-size: 13px;
+  font-weight: 500;
 }
 
 .error {
-  color: #ff6b6b;
+  color: var(--danger);
   font-size: 13px;
+  font-weight: 500;
 }
 
 .hint {
   font-size: 12px;
-  color: #606080;
-  padding: 8px 12px;
-  background: #16213e;
-  border-radius: 6px;
+  color: var(--text-secondary);
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  line-height: 1.6;
 }
 
 .importList {
-  margin-top: 12px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .importToolbar {
@@ -130,7 +184,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
-  color: #7080a0;
+  color: var(--text-secondary);
 }
 
 .handles {
@@ -139,19 +193,28 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 12px;
-  background: #16213e;
-  border-radius: 8px;
+  padding: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .checkboxItem {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 13px;
   cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+
+.checkboxItem:hover {
+  background: var(--bg-elevated);
 }
 
 .checkboxItem input {
   cursor: pointer;
+  accent-color: var(--accent);
 }

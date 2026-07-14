@@ -1,90 +1,128 @@
 .heading {
   font-size: 22px;
-  margin-bottom: 16px;
-  color: #4ecca3;
+  font-weight: 700;
+  margin-bottom: 18px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heading::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: var(--accent);
+  border-radius: 2px;
 }
 
 .tabs {
   display: flex;
-  gap: 4px;
-  margin-bottom: 20px;
+  gap: 6px;
+  margin-bottom: 22px;
+  background: var(--bg-input);
+  padding: 4px;
+  border-radius: var(--radius);
+  width: fit-content;
+  border: 1px solid var(--border);
 }
 
 .tab {
-  padding: 8px 16px;
-  background: #16213e;
-  border: 1px solid #304060;
-  color: #7080a0;
-  border-radius: 6px;
+  padding: 8px 18px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+
+.tab:hover {
+  color: var(--text);
 }
 
 .activeTab {
-  padding: 8px 16px;
-  background: #1a2745;
-  border: 1px solid #4ecca3;
-  color: #4ecca3;
-  border-radius: 6px;
+  padding: 8px 18px;
+  background: var(--bg-elevated);
+  border: none;
+  color: var(--accent);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  box-shadow: var(--shadow-sm);
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 
 .table th {
   text-align: left;
-  padding: 10px 12px;
-  color: #7080a0;
-  border-bottom: 2px solid #304060;
-  font-size: 13px;
+  padding: 12px 14px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: var(--bg-elevated);
 }
 
 .table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #202040;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .row {
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--transition);
 }
 
 .row:hover {
-  background: #1a2745;
+  background: var(--bg-elevated);
 }
 
 .rankCol {
-  width: 50px;
+  width: 56px;
   text-align: center;
 }
 
 .numCol {
   text-align: center;
-  width: 100px;
+  width: 110px;
 }
 
 .medal {
-  display: inline-block;
-  width: 24px;
-  height: 24px;
-  line-height: 24px;
-  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   font-size: 12px;
-  font-weight: bold;
-  background: #4ecca3;
-  color: #1a1a2e;
+  font-weight: 700;
+  background: var(--accent);
+  color: #0a0c12;
 }
 
 .rankNum {
   font-size: 14px;
-  color: #7080a0;
-  font-weight: bold;
+  color: var(--text-secondary);
+  font-weight: 700;
 }
 
 .userCell {
@@ -96,34 +134,42 @@
 .avatar {
   width: 32px;
   height: 32px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
 }
 
 .solvedCount {
   font-size: 18px;
-  font-weight: bold;
-  color: #4ecca3;
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .maxRating {
   font-size: 13px;
-  color: #7080a0;
+  color: var(--text-secondary);
 }
 
 .empty {
   text-align: center;
-  padding: 60px 20px;
-  color: #606080;
+  padding: 70px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.7;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 
 .meTag {
   display: inline-block;
-  background: #4ecca3;
-  color: #1a1a2e;
+  background: var(--accent-dim);
+  color: var(--accent);
   font-size: 10px;
-  font-weight: bold;
-  padding: 1px 5px;
-  border-radius: 3px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
   margin-left: 4px;
   vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
