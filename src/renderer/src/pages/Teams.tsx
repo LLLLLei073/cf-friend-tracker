@@ -267,7 +267,7 @@ export default function Teams() {
                             <div className={styles.dailyInfo}>
                               <span className={styles.dailyHandle}>{m.handle}</span>
                               <span className={styles.dailySolved}>
-                                今日 AC <strong style={{ color: '#34d399' }}>{m.solvedToday}</strong> 题
+                                今日 AC <strong style={{ color: '#4A8A3A' }}>{m.solvedToday}</strong> 题
                               </span>
                             </div>
                           </div>
@@ -290,7 +290,7 @@ export default function Teams() {
                             <div className={styles.dailyInfo}>
                               <span className={styles.dailyHandle}>{m.handle}</span>
                               <span className={styles.dailySolved}>
-                                今日 AC <strong style={{ color: m.solvedToday === 0 ? '#f87171' : '#e8ebf2' }}>{m.solvedToday}</strong> 题
+                                今日 AC <strong style={{ color: m.solvedToday === 0 ? '#D9402F' : '#3A352B' }}>{m.solvedToday}</strong> 题
                               </span>
                             </div>
                           </div>
@@ -316,7 +316,7 @@ export default function Teams() {
                             </td>
                             <td className={styles.dailyNum}>
                               <span style={{
-                                color: m.solvedToday === 0 ? '#f87171' : m.solvedToday === maxSolved ? '#34d399' : '#e8ebf2',
+                                color: m.solvedToday === 0 ? '#D9402F' : m.solvedToday === maxSolved ? '#4A8A3A' : '#3A352B',
                                 fontWeight: 'bold',
                               }}>
                                 {m.solvedToday}

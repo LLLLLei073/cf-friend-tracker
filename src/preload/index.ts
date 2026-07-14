@@ -29,6 +29,7 @@ const api = {
     getFriends: () => ipcRenderer.invoke('store:getFriends'),
     addFriend: (friend: Friend) => ipcRenderer.invoke('store:addFriend', friend),
     removeFriend: (handle: string) => ipcRenderer.invoke('store:removeFriend', handle),
+    updateFriend: (handle: string, alias: string) => ipcRenderer.invoke('store:updateFriend', handle, alias),
     getCache: (handle: string) => ipcRenderer.invoke('store:getCache', handle),
     getAllCache: () => ipcRenderer.invoke('store:getAllCache'),
     clearCache: () => ipcRenderer.invoke('store:clearCache'),

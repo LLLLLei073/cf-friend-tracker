@@ -95,6 +95,10 @@ export function registerIpcHandlers(store: StoreManager): void {
     return true;
   });
 
+  ipcMain.handle('store:updateFriend', (_event, handle: string, alias: string) => {
+    return store.updateFriend(handle, alias);
+  });
+
   // ---- Store: Cache ----
   ipcMain.handle('store:getCache', (_event, handle: string) => {
     return store.getCache(handle);

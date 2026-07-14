@@ -1,45 +1,46 @@
 :root {
-  /* Backgrounds */
-  --bg-base: #0e1018;
-  --bg-surface: #151823;
-  --bg-elevated: #1c2030;
-  --bg-hover: #242a3c;
-  --bg-input: #11141d;
+  /* Backgrounds — warm paper tones */
+  --bg-base: #EFEBE3;
+  --bg-surface: #FDFCF8;
+  --bg-elevated: #F8F6F0;
+  --bg-hover: #F2EFE8;
+  --bg-input: #FFFFFF;
 
-  /* Borders */
-  --border: #262b3c;
-  --border-strong: #333a52;
+  /* Borders — subtle paper edges */
+  --border: #E2DED4;
+  --border-strong: #D0CABE;
 
   /* Text */
-  --text: #e8ebf2;
-  --text-secondary: #9aa1b8;
-  --text-muted: #646b85;
+  --text: #3A352B;
+  --text-secondary: #7A7268;
+  --text-muted: #B0A99E;
 
-  /* Accent */
-  --accent: #34d399;
-  --accent-bright: #5eead4;
-  --accent-dim: rgba(52, 211, 153, 0.14);
-  --accent-soft: #16291f;
+  /* Accent — Yellow / Gold */
+  --accent: #F5C518;
+  --accent-bright: #FFD426;
+  --accent-dim: rgba(245, 197, 24, 0.16);
+  --accent-soft: #FFF7D6;
+  --accent-text: #9A7400;
 
   /* Semantic */
-  --danger: #f87171;
-  --danger-soft: #321620;
-  --up: #34d399;
-  --down: #f87171;
+  --danger: #D9402F;
+  --danger-soft: #FCF0EE;
+  --up: #4A8A3A;
+  --down: #D9402F;
 
   /* Radius */
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.38);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
-  --shadow-glow: 0 0 0 1px rgba(52, 211, 153, 0.35), 0 6px 20px rgba(52, 211, 153, 0.16);
+  /* Paper shadows — soft, layered, like paper on a desk */
+  --shadow-sm: 0 1px 2px rgba(60, 50, 30, 0.04), 0 1px 3px rgba(60, 50, 30, 0.03);
+  --shadow-md: 0 1px 2px rgba(60, 50, 30, 0.03), 0 2px 6px rgba(60, 50, 30, 0.05), 0 4px 12px rgba(60, 50, 30, 0.04);
+  --shadow-lg: 0 2px 4px rgba(60, 50, 30, 0.04), 0 8px 20px rgba(60, 50, 30, 0.06), 0 16px 40px rgba(60, 50, 30, 0.08);
+  --shadow-hover: 0 2px 4px rgba(60, 50, 30, 0.04), 0 6px 16px rgba(60, 50, 30, 0.08), 0 12px 28px rgba(60, 50, 30, 0.06);
 
-  --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -50,11 +51,19 @@
 
 html, body, #root {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   background: var(--bg-base);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle paper texture on the base background */
+body {
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(245, 197, 24, 0.03), transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(120, 100, 60, 0.02), transparent 50%);
+  background-attachment: fixed;
 }
 
 ::-webkit-scrollbar {
@@ -65,17 +74,17 @@ html, body, #root {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
+  background: #C7C0B4;
   border-radius: 4px;
   border: 2px solid var(--bg-base);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #404a63;
+  background: #A8A094;
 }
 
 ::selection {
   background: var(--accent-dim);
-  color: var(--accent-bright);
+  color: var(--accent-text);
 }
 
 a {

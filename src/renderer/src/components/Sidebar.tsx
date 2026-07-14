@@ -15,6 +15,18 @@ export default function Sidebar() {
   const [myHandle, setMyHandle] = useState('');
   const [myInfo, setMyInfo] = useState<CFUser | null>(null);
 
+  // 右键菜单
+  const [contextMenu, setContextMenu] = useState<{
+    handle: string;
+    alias: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // 备注编辑
+  const [editingFriend, setEditingFriend] = useState<{ handle: string; alias: string } | null>(null);
+  const [editAlias, setEditAlias] = useState('');
+
   const loadData = async () => {
     const fr = await window.api.store.getFriends();
     setFriends(fr);
@@ -91,6 +103,43 @@ export default function Sidebar() {
     }
   };
 
+  const handleContextMenu = (e: React.MouseEvent, friend: Friend) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      handle: friend.handle,
+      alias: friend.alias,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
+  const handleEditAlias = (friend: Friend) => {
+    setEditingFriend({ handle: friend.handle, alias: friend.alias });
+    setEditAlias(friend.alias);
+    setContextMenu(null);
+  };
+
+  const handleSaveAlias = async () => {
+    if (!editingFriend) return;
+    await window.api.store.updateFriend(editingFriend.handle, editAlias.trim());
+    setEditingFriend(null);
+    setEditAlias('');
+    await loadData();
+  };
+
+  const handleRemoveFriend = async (handle: string) => {
+    setContextMenu(null);
+    if (confirm(`确定删除好友 ${handle} 吗?`)) {
+      await window.api.store.removeFriend(handle);
+      await loadData();
+      // 如果在删除的好友详情页,返回列表
+      if (location.pathname === `/friends/${handle}`) {
+        navigate('/friends');
+      }
+    }
+  };
+
   return (
     <aside className={styles.sidebar}>
       <h1 className={styles.title}>CF Friends</h1>
@@ -111,6 +160,7 @@ export default function Sidebar() {
               key={f.handle}
               className={`${styles.friendItem} ${location.pathname === `/friends/${f.handle}` ? styles.friendItemActive : ''}`}
               onClick={() => navigate(`/friends/${f.handle}`)}
+              onContextMenu={(e) => handleContextMenu(e, f)}
             >
               <img
                 src={cache?.info?.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
@@ -186,6 +236,59 @@ export default function Sidebar() {
             : '↻ 刷新全部'}
         </button>
       </div>
+
+      {/* 右键菜单 */}
+      {contextMenu && (
+        <>
+          <div className={styles.overlay} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
+          <div
+            className={styles.contextMenu}
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <div
+              className={styles.contextItem}
+              onClick={() => {
+                const friend = friends.find((f) => f.handle === contextMenu.handle);
+                if (friend) handleEditAlias(friend);
+              }}
+            >
+              ✏️ 修改备注
+            </div>
+            <div
+              className={`${styles.contextItem} ${styles.contextDanger}`}
+              onClick={() => handleRemoveFriend(contextMenu.handle)}
+            >
+              🗑️ 删除好友
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 备注编辑弹窗 */}
+      {editingFriend && (
+        <div className={styles.modalOverlay} onClick={() => setEditingFriend(null)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>修改备注</h3>
+            <p className={styles.modalHandle}>{editingFriend.handle}</p>
+            <input
+              type="text"
+              value={editAlias}
+              onChange={(e) => setEditAlias(e.target.value)}
+              placeholder="输入备注名(留空则显示 handle)"
+              className={styles.modalInput}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveAlias();
+                if (e.key === 'Escape') setEditingFriend(null);
+              }}
+            />
+            <div className={styles.modalActions}>
+              <button onClick={() => setEditingFriend(null)} className={styles.modalCancel}>取消</button>
+              <button onClick={handleSaveAlias} className={styles.modalConfirm}>保存</button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

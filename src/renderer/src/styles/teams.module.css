@@ -20,7 +20,7 @@
   padding: 11px 22px;
   background: var(--accent);
   border: none;
-  color: #0a0c12;
+  color: #3A352B;
   border-radius: var(--radius);
   cursor: pointer;
   font-size: 14px;
@@ -28,25 +28,26 @@
   font-family: inherit;
   margin-bottom: 20px;
   transition: all var(--transition);
-  box-shadow: 0 2px 8px rgba(52, 211, 153, 0.25);
+  box-shadow: var(--shadow-sm);
 }
 
 .createBtn:hover {
   background: var(--accent-bright);
-  box-shadow: 0 4px 14px rgba(52, 211, 153, 0.35);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .createForm {
   max-width: 520px;
   background: var(--bg-surface);
-  padding: 22px;
+  padding: 26px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 18px;
   margin-bottom: 26px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
 }
 
 .field {
@@ -69,13 +70,14 @@
   color: var(--text);
   font-size: 14px;
   font-family: inherit;
-  transition: border-color var(--transition), box-shadow var(--transition);
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
 }
 
 .input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
+  box-shadow: 0 0 0 3px var(--accent-dim), var(--shadow-sm);
 }
 
 .error {
@@ -105,15 +107,16 @@
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  background: var(--bg-input);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
   transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
 }
 
 .friendOption:hover {
-  background: var(--bg-elevated);
+  background: var(--bg-hover);
   border-color: var(--border-strong);
 }
 
@@ -150,7 +153,7 @@
 .meTag {
   display: inline-block;
   background: var(--accent-dim);
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 10px;
   font-weight: 700;
   padding: 2px 6px;
@@ -165,19 +168,20 @@
   padding: 11px 22px;
   background: var(--accent);
   border: none;
-  color: #0a0c12;
+  color: #3A352B;
   border-radius: var(--radius);
   cursor: pointer;
   font-size: 14px;
   font-weight: 700;
   font-family: inherit;
   transition: all var(--transition);
-  box-shadow: 0 2px 8px rgba(52, 211, 153, 0.25);
+  box-shadow: var(--shadow-sm);
 }
 
 .submitBtn:hover {
   background: var(--accent-bright);
-  box-shadow: 0 4px 14px rgba(52, 211, 153, 0.35);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .empty {
@@ -189,25 +193,27 @@
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .teamList {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .teamCard {
   background: var(--bg-surface);
   border-radius: var(--radius-lg);
-  padding: 22px;
+  padding: 26px;
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  transition: border-color var(--transition);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition);
 }
 
 .teamCard:hover {
-  border-color: var(--border-strong);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
 }
 
 .teamHeader {
@@ -231,7 +237,7 @@
 }
 
 .teamHeader:hover .expandHint {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .teamName {
@@ -243,7 +249,7 @@
 .deleteBtn {
   padding: 5px 14px;
   background: var(--danger-soft);
-  border: 1px solid rgba(248, 113, 113, 0.4);
+  border: 1px solid rgba(217, 64, 47, 0.25);
   color: var(--danger);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -253,7 +259,7 @@
 }
 
 .deleteBtn:hover {
-  background: #3d1c26;
+  background: #F9E0DC;
   border-color: var(--danger);
 }
 
@@ -266,7 +272,7 @@
 .dailyTitle {
   font-size: 14px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
   margin-bottom: 14px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -280,13 +286,14 @@
 
 .dailyCard {
   flex: 1;
-  background: var(--bg-input);
+  background: var(--bg-elevated);
   border-radius: var(--radius);
-  padding: 14px;
+  padding: 16px;
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 8px;
+  box-shadow: var(--shadow-sm);
 }
 
 .dailyLabel {
@@ -307,7 +314,7 @@
 }
 
 .dailyMember:hover {
-  background: var(--bg-elevated);
+  background: var(--bg-hover);
 }
 
 .dailyAvatar {
@@ -373,7 +380,7 @@
 }
 
 .totalRating {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 700;
 }
 
@@ -392,16 +399,18 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: var(--bg-input);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
   transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
 }
 
 .memberItem:hover {
-  background: var(--bg-elevated);
+  background: var(--bg-hover);
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 
 .memberAvatar {

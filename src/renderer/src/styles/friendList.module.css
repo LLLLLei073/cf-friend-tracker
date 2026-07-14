@@ -30,8 +30,9 @@
   border-radius: var(--radius);
   color: var(--text);
   font-size: 14px;
-  transition: border-color var(--transition), box-shadow var(--transition);
+  transition: all var(--transition);
   font-family: inherit;
+  box-shadow: var(--shadow-sm);
 }
 
 .search::placeholder {
@@ -41,7 +42,7 @@
 .search:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
+  box-shadow: 0 0 0 3px var(--accent-dim), var(--shadow-sm);
 }
 
 .select {
@@ -53,7 +54,8 @@
   font-size: 14px;
   cursor: pointer;
   font-family: inherit;
-  transition: border-color var(--transition);
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
 }
 
 .select:hover {
@@ -68,26 +70,25 @@
 .list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 .row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
   transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
 }
 
 .row:hover {
-  background: var(--bg-elevated);
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
 }
 
 .avatar {
@@ -136,7 +137,7 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--up);
-  background: rgba(52, 211, 153, 0.12);
+  background: rgba(74, 138, 58, 0.1);
   padding: 1px 6px;
   border-radius: 4px;
 }
@@ -145,7 +146,7 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--down);
-  background: rgba(248, 113, 113, 0.12);
+  background: rgba(217, 64, 47, 0.1);
   padding: 1px 6px;
   border-radius: 4px;
 }
@@ -158,7 +159,7 @@
 }
 
 .online {
-  background: var(--accent);
+  background: var(--up);
 }
 
 .emptyState {

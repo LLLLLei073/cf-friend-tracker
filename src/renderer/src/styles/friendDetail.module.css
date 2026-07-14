@@ -3,11 +3,11 @@
   gap: 18px;
   align-items: center;
   margin-bottom: 28px;
-  padding: 22px;
-  background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-elevated) 100%);
+  padding: 26px;
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
 }
 
 .avatar {
@@ -15,7 +15,7 @@
   height: 68px;
   border-radius: var(--radius);
   object-fit: cover;
-  border: 2px solid var(--border-strong);
+  border: 2px solid var(--border);
 }
 
 .headerInfo {
@@ -66,7 +66,7 @@
 }
 
 .online {
-  background: var(--accent);
+  background: var(--up);
 }
 
 .cacheTime {
@@ -82,7 +82,7 @@
 .sectionTitle {
   font-size: 15px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
   margin-bottom: 14px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
@@ -95,6 +95,11 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
 }
 
 .table th {
@@ -106,6 +111,7 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+  background: var(--bg-elevated);
 }
 
 .table td {
@@ -114,12 +120,16 @@
   color: var(--text);
 }
 
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .table tbody tr {
   transition: background var(--transition);
 }
 
 .table tbody tr:hover {
-  background: var(--bg-elevated);
+  background: var(--bg-hover);
 }
 
 .up {
@@ -135,23 +145,25 @@
 .submissions {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .submission {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   font-size: 13px;
-  transition: border-color var(--transition);
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
 }
 
 .submission:hover {
-  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .verdict {
@@ -165,12 +177,12 @@
 }
 
 .ac {
-  background: rgba(52, 211, 153, 0.14);
-  color: var(--accent);
+  background: rgba(74, 138, 58, 0.12);
+  color: var(--up);
 }
 
 .notAc {
-  background: rgba(248, 113, 113, 0.14);
+  background: rgba(217, 64, 47, 0.12);
   color: var(--danger);
 }
 
@@ -206,7 +218,7 @@
 }
 
 .contestLink:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .profileLink {
@@ -216,7 +228,7 @@
 }
 
 .profileLink:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .problemLink {
@@ -226,6 +238,6 @@
 }
 
 .problemLink:hover {
-  color: var(--accent);
+  color: var(--accent-text);
   text-decoration: underline;
 }

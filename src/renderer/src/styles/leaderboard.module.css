@@ -18,13 +18,14 @@
 
 .tabs {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   margin-bottom: 22px;
-  background: var(--bg-input);
+  background: var(--bg-elevated);
   padding: 4px;
   border-radius: var(--radius);
   width: fit-content;
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 
 .tab {
@@ -45,9 +46,9 @@
 
 .activeTab {
   padding: 8px 18px;
-  background: var(--bg-elevated);
+  background: var(--bg-surface);
   border: none;
-  color: var(--accent);
+  color: var(--text);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
@@ -64,6 +65,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: var(--shadow-md);
 }
 
 .table th {
@@ -93,7 +95,7 @@
 }
 
 .row:hover {
-  background: var(--bg-elevated);
+  background: var(--bg-hover);
 }
 
 .rankCol {
@@ -116,7 +118,7 @@
   font-size: 12px;
   font-weight: 700;
   background: var(--accent);
-  color: #0a0c12;
+  color: #3A352B;
 }
 
 .rankNum {
@@ -141,7 +143,7 @@
 .solvedCount {
   font-size: 18px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .maxRating {
@@ -158,12 +160,13 @@
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .meTag {
   display: inline-block;
   background: var(--accent-dim);
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 10px;
   font-weight: 700;
   padding: 2px 6px;

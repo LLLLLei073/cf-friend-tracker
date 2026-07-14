@@ -1,12 +1,13 @@
 .sidebar {
   width: 268px;
-  background: linear-gradient(180deg, #14171f 0%, #10131a 100%);
+  background: var(--bg-surface);
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border);
   flex-shrink: 0;
   position: relative;
   z-index: 10;
+  box-shadow: 1px 0 8px rgba(60, 50, 30, 0.04), 2px 0 16px rgba(60, 50, 30, 0.03);
 }
 
 .title {
@@ -16,8 +17,12 @@
   padding: 20px 16px;
   text-align: center;
   border-bottom: 1px solid var(--border);
-  color: var(--accent);
+  color: var(--text);
   text-transform: uppercase;
+}
+
+.titleAccent {
+  color: var(--accent-text);
 }
 
 .friendList {
@@ -41,16 +46,18 @@
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--transition);
+  transition: all var(--transition);
   position: relative;
 }
 
 .friendItem:hover {
-  background: var(--bg-elevated);
+  background: var(--bg-hover);
+  box-shadow: var(--shadow-sm);
 }
 
 .friendItemActive {
-  background: var(--accent-dim);
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-sm);
 }
 
 .friendItemActive::before {
@@ -101,14 +108,14 @@
 }
 
 .online {
-  background: var(--accent);
+  background: var(--up);
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5); }
-  70% { box-shadow: 0 0 0 5px rgba(52, 211, 153, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(74, 138, 58, 0.4); }
+  70% { box-shadow: 0 0 0 5px rgba(74, 138, 58, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 138, 58, 0); }
 }
 
 .actions {
@@ -117,7 +124,6 @@
   flex-direction: column;
   gap: 3px;
   border-top: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.18);
 }
 
 .myProfile {
@@ -127,11 +133,11 @@
   padding: 12px 14px;
   border-top: 1px solid var(--border);
   cursor: pointer;
-  transition: background var(--transition);
+  transition: all var(--transition);
 }
 
 .myProfile:hover {
-  background: var(--bg-elevated);
+  background: var(--bg-hover);
 }
 
 .myAvatar {
@@ -139,20 +145,20 @@
   height: 38px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--border-strong);
+  border: 2px solid var(--border);
 }
 
 .myAvatarPlaceholder {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: var(--bg-elevated);
+  background: var(--bg-hover);
   color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
-  border: 2px solid var(--border-strong);
+  border: 2px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -201,14 +207,16 @@
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--bg-elevated);
+  background: var(--bg-hover);
   color: var(--text);
+  box-shadow: var(--shadow-sm);
 }
 
 .btnActive {
-  background: var(--accent-dim);
-  color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
   font-weight: 600;
+  box-shadow: var(--shadow-sm);
 }
 
 .btn:disabled {
@@ -225,19 +233,20 @@
   margin-top: 4px;
   background: var(--accent);
   border: none;
-  color: #0a0c12;
+  color: #3A352B;
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
   font-family: inherit;
   transition: all var(--transition);
-  box-shadow: 0 2px 8px rgba(52, 211, 153, 0.25);
+  box-shadow: var(--shadow-sm);
 }
 
 .refreshBtn:hover:not(:disabled) {
   background: var(--accent-bright);
-  box-shadow: 0 4px 14px rgba(52, 211, 153, 0.35);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .refreshBtn:disabled {
@@ -253,8 +262,8 @@
 .spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid var(--border-strong);
-  border-top-color: var(--accent);
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-text);
   border-radius: 50%;
   flex-shrink: 0;
   animation: spin 0.6s linear infinite;
@@ -264,4 +273,136 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* 右键菜单 */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
+.contextMenu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 4px 0;
+  min-width: 150px;
+}
+
+.contextItem {
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  transition: all var(--transition);
+}
+
+.contextItem:hover {
+  background: var(--bg-hover);
+}
+
+.contextDanger {
+  color: var(--down);
+}
+
+.contextDanger:hover {
+  background: rgba(217, 64, 47, 0.1);
+}
+
+/* 备注编辑弹窗 */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 340px;
+  box-shadow: var(--shadow-md);
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.modalHandle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+
+.modalInput {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.modalInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.modalCancel {
+  padding: 7px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.modalCancel:hover {
+  background: var(--bg-hover);
+}
+
+.modalConfirm {
+  padding: 7px 16px;
+  background: var(--accent);
+  border: none;
+  color: #3A352B;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.modalConfirm:hover {
+  background: var(--accent-bright);
 }

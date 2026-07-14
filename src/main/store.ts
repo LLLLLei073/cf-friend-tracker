@@ -47,6 +47,15 @@ export class StoreManager {
     this.store.set('cache', cache);
   }
 
+  updateFriend(handle: string, alias: string): boolean {
+    const friends = this.getFriends();
+    const idx = friends.findIndex((f) => f.handle === handle);
+    if (idx < 0) return false;
+    friends[idx] = { ...friends[idx], alias };
+    this.store.set('friends', friends);
+    return true;
+  }
+
   // ---- Cache ----
   getCache(handle: string): FriendCache | undefined {
     const cache = this.store.get('cache') as Record<string, FriendCache>;
