@@ -114,6 +114,7 @@ export default function Sidebar() {
 
       <div className={styles.actions}>
         <button onClick={() => navigate('/add')} className={styles.btn}>+ 添加</button>
+        <button onClick={() => navigate('/leaderboard')} className={styles.btn}>🏆 排行榜</button>
         <button onClick={handleRefresh} disabled={refreshing} className={styles.btn}>
           {refreshing && progress
             ? `刷新中 ${progress.completed}/${progress.total}`

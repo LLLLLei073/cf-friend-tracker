@@ -4,6 +4,7 @@ import FriendList from './pages/FriendList';
 import FriendDetail from './pages/FriendDetail';
 import AddFriend from './pages/AddFriend';
 import Settings from './pages/Settings';
+import Leaderboard from './pages/Leaderboard';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/friends" replace />} />
           <Route path="/friends" element={<FriendList />} />
           <Route path="/friends/:handle" element={<FriendDetail />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/add" element={<AddFriend />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

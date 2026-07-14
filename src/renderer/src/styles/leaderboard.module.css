@@ -1,0 +1,117 @@
+.heading {
+  font-size: 22px;
+  margin-bottom: 16px;
+  color: #4ecca3;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.tab {
+  padding: 8px 16px;
+  background: #16213e;
+  border: 1px solid #304060;
+  color: #7080a0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.activeTab {
+  padding: 8px 16px;
+  background: #1a2745;
+  border: 1px solid #4ecca3;
+  color: #4ecca3;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th {
+  text-align: left;
+  padding: 10px 12px;
+  color: #7080a0;
+  border-bottom: 2px solid #304060;
+  font-size: 13px;
+}
+
+.table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #202040;
+}
+
+.row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.row:hover {
+  background: #1a2745;
+}
+
+.rankCol {
+  width: 50px;
+  text-align: center;
+}
+
+.numCol {
+  text-align: center;
+  width: 100px;
+}
+
+.medal {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  background: #4ecca3;
+  color: #1a1a2e;
+}
+
+.rankNum {
+  font-size: 14px;
+  color: #7080a0;
+  font-weight: bold;
+}
+
+.userCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+}
+
+.solvedCount {
+  font-size: 18px;
+  font-weight: bold;
+  color: #4ecca3;
+}
+
+.maxRating {
+  font-size: 13px;
+  color: #7080a0;
+}
+
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #606080;
+}
