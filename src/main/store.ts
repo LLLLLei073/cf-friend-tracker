@@ -1,5 +1,5 @@
 import Store from 'electron-store';
-import type { Friend, FriendCache, Settings } from '../shared/types';
+import type { Friend, FriendCache, Settings, Team } from '../shared/types';
 
 const DEFAULT_SETTINGS: Settings = {
   myHandle: '',
@@ -18,6 +18,7 @@ export class StoreManager {
         friends: [] as Friend[],
         cache: {} as Record<string, FriendCache>,
         settings: DEFAULT_SETTINGS,
+        teams: [] as Team[],
       },
     });
   }
@@ -78,5 +79,32 @@ export class StoreManager {
   // ---- Util ----
   clearAll(): void {
     this.store.clear();
+  }
+
+  // ---- Teams ----
+  getTeams(): Team[] {
+    return this.store.get('teams') as Team[];
+  }
+
+  addTeam(team: Team): boolean {
+    const teams = this.getTeams();
+    if (teams.some((t) => t.id === team.id)) return false;
+    teams.push(team);
+    this.store.set('teams', teams);
+    return true;
+  }
+
+  updateTeam(team: Team): void {
+    const teams = this.getTeams();
+    const idx = teams.findIndex((t) => t.id === team.id);
+    if (idx >= 0) {
+      teams[idx] = team;
+      this.store.set('teams', teams);
+    }
+  }
+
+  removeTeam(id: string): void {
+    const teams = this.getTeams().filter((t) => t.id !== id);
+    this.store.set('teams', teams);
   }
 }

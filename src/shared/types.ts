@@ -78,3 +78,11 @@ export interface CFApiResponse<T> {
   comment?: string;
   result?: T;
 }
+
+// 团队
+export interface Team {
+  id: string;
+  name: string;
+  members: string[]; // CF handles, 最多 3 个
+  createdAt: number;
+}

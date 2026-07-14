@@ -5,6 +5,7 @@ import FriendDetail from './pages/FriendDetail';
 import AddFriend from './pages/AddFriend';
 import Settings from './pages/Settings';
 import Leaderboard from './pages/Leaderboard';
+import Teams from './pages/Teams';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/friends" element={<FriendList />} />
           <Route path="/friends/:handle" element={<FriendDetail />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/teams" element={<Teams />} />
           <Route path="/add" element={<AddFriend />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

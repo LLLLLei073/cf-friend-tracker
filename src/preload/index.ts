@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Friend, Settings } from '../shared/types';
+import type { Friend, Settings, Team } from '../shared/types';
 
 export interface RefreshProgress {
   handle?: string;
@@ -17,6 +17,7 @@ const api = {
     getFriends: (handle: string, apiKey: string, apiSecret: string) =>
       ipcRenderer.invoke('cf:getFriends', handle, apiKey, apiSecret),
     refreshAll: () => ipcRenderer.invoke('cf:refreshAll'),
+    refreshMyProfile: () => ipcRenderer.invoke('cf:refreshMyProfile'),
     onRefreshProgress: (callback: (progress: RefreshProgress) => void) => {
       const handler = (_event: unknown, data: RefreshProgress) => callback(data);
       ipcRenderer.on('cf:refreshProgress', handler);
@@ -32,6 +33,10 @@ const api = {
     clearCache: () => ipcRenderer.invoke('store:clearCache'),
     getSettings: () => ipcRenderer.invoke('store:getSettings'),
     setSettings: (settings: Settings) => ipcRenderer.invoke('store:setSettings', settings),
+    getTeams: () => ipcRenderer.invoke('store:getTeams'),
+    addTeam: (team: Team) => ipcRenderer.invoke('store:addTeam', team),
+    updateTeam: (team: Team) => ipcRenderer.invoke('store:updateTeam', team),
+    removeTeam: (id: string) => ipcRenderer.invoke('store:removeTeam', id),
   },
 };
 

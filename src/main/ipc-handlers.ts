@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { StoreManager } from './store';
 import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends } from './cf-api';
-import type { Friend, FriendCache, Settings, CFUser } from '../shared/types';
+import type { Friend, FriendCache, Settings, CFUser, Team } from '../shared/types';
 
 function sendProgress(progress: {
   handle?: string;
@@ -117,5 +117,50 @@ export function registerIpcHandlers(store: StoreManager): void {
   ipcMain.handle('store:setSettings', (_event, settings: Settings) => {
     store.setSettings(settings);
     return true;
+  });
+
+  // ---- Store: Teams ----
+  ipcMain.handle('store:getTeams', () => {
+    return store.getTeams();
+  });
+
+  ipcMain.handle('store:addTeam', (_event, team: Team) => {
+    return store.addTeam(team);
+  });
+
+  ipcMain.handle('store:updateTeam', (_event, team: Team) => {
+    store.updateTeam(team);
+    return true;
+  });
+
+  ipcMain.handle('store:removeTeam', (_event, id: string) => {
+    store.removeTeam(id);
+    return true;
+  });
+
+  // ---- My Profile: 刷新自己的信息 ----
+  ipcMain.handle('cf:refreshMyProfile', async () => {
+    const settings = store.getSettings();
+    if (!settings.myHandle) return null;
+    try {
+      const infos = await fetchUserInfo([settings.myHandle]);
+      if (infos.length === 0) return null;
+      const info = infos[0];
+      const [ratingHistory, recentSubmissions] = await Promise.all([
+        fetchUserRating(info.handle),
+        fetchUserStatus(info.handle, 20),
+      ]);
+      const cache: FriendCache = {
+        handle: info.handle,
+        info,
+        ratingHistory,
+        recentSubmissions,
+        cachedAt: Date.now(),
+      };
+      store.setCache(info.handle, cache);
+      return info;
+    } catch {
+      return null;
+    }
   });
 }

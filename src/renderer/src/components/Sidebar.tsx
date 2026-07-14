@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import type { Friend, FriendCache } from '../types';
-import { getRankColor } from '../utils/rank';
+import type { Friend, FriendCache, CFUser } from '../types';
+import { getRankColor, getRankLabel } from '../utils/rank';
 import styles from '../styles/sidebar.module.css';
 
 export default function Sidebar() {
@@ -12,17 +12,40 @@ export default function Sidebar() {
   const [refreshing, setRefreshing] = useState(false);
   const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null);
   const [refreshingHandles, setRefreshingHandles] = useState<Set<string>>(new Set());
+  const [myHandle, setMyHandle] = useState('');
+  const [myInfo, setMyInfo] = useState<CFUser | null>(null);
 
   const loadData = async () => {
     const fr = await window.api.store.getFriends();
     setFriends(fr);
     const cacheMap = await window.api.store.getAllCache();
     setCaches(cacheMap);
+    const settings = await window.api.store.getSettings();
+    setMyHandle(settings.myHandle);
+    if (settings.myHandle && cacheMap[settings.myHandle]) {
+      setMyInfo(cacheMap[settings.myHandle].info);
+    } else {
+      setMyInfo(null);
+    }
   };
 
   useEffect(() => {
     loadData();
   }, [location.pathname]);
+
+  // 启动时拉取自己的信息
+  useEffect(() => {
+    (async () => {
+      const settings = await window.api.store.getSettings();
+      if (settings.myHandle) {
+        const result = await window.api.cf.refreshMyProfile();
+        if (result) {
+          setMyInfo(result);
+          await loadData();
+        }
+      }
+    })();
+  }, []);
 
   // 监听刷新进度事件
   useEffect(() => {
@@ -53,6 +76,11 @@ export default function Sidebar() {
     setRefreshingHandles(new Set(friends.map((f) => f.handle)));
     try {
       await window.api.cf.refreshAll();
+      // 同时刷新自己的信息
+      if (myHandle) {
+        const myResult = await window.api.cf.refreshMyProfile();
+        if (myResult) setMyInfo(myResult);
+      }
       await loadData();
     } catch (e) {
       console.error('Refresh failed:', e);
@@ -112,9 +140,37 @@ export default function Sidebar() {
         })}
       </div>
 
+      {/* 左下角个人信息 */}
+      <div className={styles.myProfile} onClick={() => myHandle && navigate(`/friends/${myHandle}`)}>
+        {myInfo ? (
+          <>
+            <img
+              src={myInfo.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+              className={styles.myAvatar}
+              alt={myInfo.handle}
+            />
+            <div className={styles.myInfo}>
+              <span className={styles.myHandle}>{myInfo.handle}</span>
+              <span className={styles.myRating} style={{ color: getRankColor(myInfo.rank) }}>
+                {getRankLabel(myInfo.rank)} · {myInfo.rating ?? 'N/A'}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={styles.myAvatarPlaceholder}>?</div>
+            <div className={styles.myInfo}>
+              <span className={styles.myHandle}>未设置</span>
+              <span className={styles.myRating}>去设置填写 handle</span>
+            </div>
+          </>
+        )}
+      </div>
+
       <div className={styles.actions}>
         <button onClick={() => navigate('/add')} className={styles.btn}>+ 添加</button>
         <button onClick={() => navigate('/leaderboard')} className={styles.btn}>🏆 排行榜</button>
+        <button onClick={() => navigate('/teams')} className={styles.btn}>👥 团队</button>
         <button onClick={handleRefresh} disabled={refreshing} className={styles.btn}>
           {refreshing && progress
             ? `刷新中 ${progress.completed}/${progress.total}`
