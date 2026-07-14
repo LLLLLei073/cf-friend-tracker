@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Team, Friend, FriendCache } from '../types';
+import type { Team, Friend, FriendCache, Settings as SettingsType } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import styles from '../styles/teams.module.css';
 
@@ -11,6 +11,7 @@ export default function Teams() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [caches, setCaches] = useState<Record<string, FriendCache>>({});
+  const [myHandle, setMyHandle] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [teamName, setTeamName] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -23,11 +24,21 @@ export default function Teams() {
     setFriends(fr);
     const c = await window.api.store.getAllCache();
     setCaches(c);
+    const s: SettingsType = await window.api.store.getSettings();
+    setMyHandle(s.myHandle);
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // 合并:自己 + 好友(去重)
+  const allOptions: { handle: string; alias: string; isMe: boolean }[] = [
+    ...(myHandle ? [{ handle: myHandle, alias: myHandle, isMe: true }] : []),
+    ...friends
+      .filter((f) => f.handle !== myHandle)
+      .map((f) => ({ handle: f.handle, alias: f.alias || f.handle, isMe: false })),
+  ];
 
   const toggleMember = (handle: string) => {
     setError('');
@@ -100,30 +111,33 @@ export default function Teams() {
             <label>
               选择成员(最多 {MAX_MEMBERS} 人,已选 {selected.size})
             </label>
-            {friends.length === 0 ? (
-              <p className={styles.hintText}>好友列表为空,请先添加好友。</p>
+            {allOptions.length === 0 ? (
+              <p className={styles.hintText}>请先在设置中填写自己的 handle,或添加好友。</p>
             ) : (
               <div className={styles.friendPicker}>
-                {friends.map((f) => {
-                  const cache = caches[f.handle];
+                {allOptions.map((opt) => {
+                  const cache = caches[opt.handle];
                   const info = cache?.info;
-                  const isChecked = selected.has(f.handle);
+                  const isChecked = selected.has(opt.handle);
                   return (
                     <label
-                      key={f.handle}
+                      key={opt.handle}
                       className={`${styles.friendOption} ${isChecked ? styles.friendOptionActive : ''}`}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        onChange={() => toggleMember(f.handle)}
+                        onChange={() => toggleMember(opt.handle)}
                       />
                       <img
                         src={info?.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
                         className={styles.pickAvatar}
-                        alt={f.handle}
+                        alt={opt.handle}
                       />
-                      <span className={styles.pickName}>{f.alias || f.handle}</span>
+                      <span className={styles.pickName}>
+                        {opt.alias}
+                        {opt.isMe && <span className={styles.meTag}>我</span>}
+                      </span>
                       {info?.rating !== undefined && (
                         <span
                           className={styles.pickRating}

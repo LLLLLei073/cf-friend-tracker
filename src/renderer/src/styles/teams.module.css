@@ -119,6 +119,18 @@
   font-weight: bold;
 }
 
+.meTag {
+  display: inline-block;
+  background: #4ecca3;
+  color: #1a1a2e;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 .submitBtn {
   padding: 10px 20px;
   background: #4ecca3;
