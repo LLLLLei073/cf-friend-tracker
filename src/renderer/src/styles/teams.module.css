@@ -61,6 +61,64 @@
   font-size: 13px;
 }
 
+.hintText {
+  color: #606080;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.friendPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.friendOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #1a1a2e;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.friendOption:hover {
+  background: #243456;
+}
+
+.friendOptionActive {
+  background: #1a2a1a;
+  border-color: #4ecca3;
+}
+
+.friendOption input {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.pickAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+
+.pickName {
+  flex: 1;
+  font-size: 14px;
+}
+
+.pickRating {
+  font-size: 13px;
+  font-weight: bold;
+}
+
 .submitBtn {
   padding: 10px 20px;
   background: #4ecca3;
