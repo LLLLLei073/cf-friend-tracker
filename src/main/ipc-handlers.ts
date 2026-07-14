@@ -164,15 +164,47 @@ export function registerIpcHandlers(store: StoreManager): void {
     }
   });
 
-  // ---- 自动同步好友数据(保存设置时调用,不增删好友,只刷新已有关注的数据) ----
+  // ---- 自动同步好友数据(保存设置时调用) ----
+  // 配置了 API 时:拉取 CF 关注列表,删除本地不在关注列表中的好友,同步剩余好友数据
+  // 未配置 API 时:仅同步已有关注好友的数据,不删除
   ipcMain.handle('cf:syncFriendsAuto', async () => {
     const settings = store.getSettings();
     if (!settings.myHandle) {
-      return { synced: 0, skipped: true, error: '未配置 Handle' };
+      return { synced: 0, removed: 0, skipped: true, error: '未配置 Handle' };
     }
 
+    let cfFriends: string[] | null = null;
+
+    // 配置了 API 则拉取 CF 关注列表
+    if (settings.apiKey && settings.apiSecret) {
+      try {
+        cfFriends = await fetchFriends(
+          settings.myHandle,
+          settings.apiKey,
+          settings.apiSecret
+        );
+      } catch (e) {
+        return { synced: 0, removed: 0, skipped: false, error: `拉取关注列表失败: ${(e as Error).message}` };
+      }
+    }
+
+    let removed = 0;
     const friends = store.getFriends();
-    const handles = friends.map((f) => f.handle);
+
+    // 删除不在 CF 关注列表中的好友
+    if (cfFriends !== null) {
+      const cfSet = new Set(cfFriends);
+      for (const f of friends) {
+        if (!cfSet.has(f.handle)) {
+          store.removeFriend(f.handle);
+          removed++;
+        }
+      }
+    }
+
+    // 同步剩余好友数据
+    const remaining = store.getFriends();
+    const handles = remaining.map((f) => f.handle);
     let synced = 0;
 
     if (handles.length > 0) {
@@ -195,7 +227,7 @@ export function registerIpcHandlers(store: StoreManager): void {
             cachedAt: Date.now(),
           });
           synced++;
-        } catch (e) {
+        } catch {
           errors.push(info.handle);
           store.setCache(info.handle, {
             handle: info.handle,
@@ -208,11 +240,11 @@ export function registerIpcHandlers(store: StoreManager): void {
         completed++;
         sendProgress({ handle: info.handle, completed, total, errors });
       }
-
-      const s = store.getSettings();
-      s.lastRefreshAt = Date.now();
-      store.setSettings(s);
     }
+
+    const s = store.getSettings();
+    s.lastRefreshAt = Date.now();
+    store.setSettings(s);
 
     // 同时刷新自己的数据
     try {
@@ -235,6 +267,6 @@ export function registerIpcHandlers(store: StoreManager): void {
       // 忽略自身刷新失败
     }
 
-    return { synced, skipped: false, error: '' };
+    return { synced, removed, skipped: false, error: '' };
   });
 }

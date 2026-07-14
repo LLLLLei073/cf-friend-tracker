@@ -21,7 +21,7 @@ export default function Settings() {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
 
-    // 自动同步已有关注好友的数据(不增删好友)
+    // 自动同步好友数据(配置了API会删除不在关注列表中的好友)
     setSyncing(true);
     setSyncMsg('');
     try {
@@ -30,10 +30,15 @@ export default function Settings() {
         setSyncMsg('未配置 Handle,跳过同步');
       } else if (result.error) {
         setSyncMsg(`同步失败: ${result.error}`);
-      } else if (result.synced === 0) {
-        setSyncMsg('暂无关注好友,已刷新自身数据');
       } else {
-        setSyncMsg(`已同步 ${result.synced} 位关注好友的数据`);
+        const parts: string[] = [];
+        if (result.removed > 0) parts.push(`移除 ${result.removed} 个`);
+        if (result.synced > 0) parts.push(`同步 ${result.synced} 位`);
+        if (parts.length === 0) {
+          setSyncMsg('暂无关注好友,已刷新自身数据');
+        } else {
+          setSyncMsg(`已${parts.join(' · ')}好友数据`);
+        }
       }
     } catch (e) {
       setSyncMsg(`同步失败: ${(e as Error).message}`);
