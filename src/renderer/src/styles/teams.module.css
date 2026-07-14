@@ -166,6 +166,18 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.teamHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.expandHint {
+  font-size: 12px;
+  color: #7080a0;
 }
 
 .teamName {
@@ -185,6 +197,98 @@
 
 .deleteBtn:hover {
   background: #4a1a1a;
+}
+
+.dailySection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed #304060;
+}
+
+.dailyTitle {
+  font-size: 15px;
+  color: #4ecca3;
+  margin-bottom: 12px;
+}
+
+.dailyGrid {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dailyCard {
+  flex: 1;
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #304060;
+}
+
+.dailyLabel {
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #9090b0;
+}
+
+.dailyMember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.dailyMember:hover {
+  background: #243456;
+}
+
+.dailyAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+}
+
+.dailyInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.dailyHandle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dailySolved {
+  font-size: 12px;
+  color: #9090b0;
+}
+
+.dailyTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.dailyTable th {
+  text-align: left;
+  padding: 6px 10px;
+  color: #7080a0;
+  border-bottom: 1px solid #304060;
+  font-size: 12px;
+}
+
+.dailyTable td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #202040;
+}
+
+.dailyNum {
+  text-align: center;
+  width: 80px;
 }
 
 .teamStats {

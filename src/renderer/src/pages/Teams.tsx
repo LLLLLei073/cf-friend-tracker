@@ -16,6 +16,7 @@ export default function Teams() {
   const [teamName, setTeamName] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const loadData = async () => {
     const t = await window.api.store.getTeams();
@@ -168,11 +169,49 @@ export default function Teams() {
             const avgRating = ratings.length > 0
               ? Math.round(ratings.reduce((sum, r) => sum + r, 0) / ratings.length)
               : 0;
+
+            // 计算今日 AC 题数
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const todayStartSec = Math.floor(todayStart.getTime() / 1000);
+
+            const memberStats = team.members.map((h) => {
+              const cache = caches[h];
+              const subs = cache?.recentSubmissions ?? [];
+              const acSet = new Set<string>();
+              for (const s of subs) {
+                if (s.verdict === 'OK' && s.creationTimeSeconds >= todayStartSec) {
+                  acSet.add(`${s.problem.contestId ?? ''}-${s.problem.index}`);
+                }
+              }
+              return {
+                handle: h,
+                avatar: cache?.info?.avatar,
+                rank: cache?.info?.rank,
+                rating: cache?.info?.rating,
+                solvedToday: acSet.size,
+              };
+            });
+
+            const sortedBySolved = [...memberStats].sort((a, b) => b.solvedToday - a.solvedToday);
+            const hardest = sortedBySolved[0];
+            const slacker = sortedBySolved[sortedBySolved.length - 1];
+            const isExpanded = expandedId === team.id;
+
             return (
               <div key={team.id} className={styles.teamCard}>
-                <div className={styles.teamHeader}>
-                  <h3 className={styles.teamName}>{team.name}</h3>
-                  <button onClick={() => handleDelete(team.id)} className={styles.deleteBtn}>删除</button>
+                <div
+                  className={styles.teamHeader}
+                  onClick={() => setExpandedId(isExpanded ? null : team.id)}
+                >
+                  <div className={styles.teamHeaderLeft}>
+                    <h3 className={styles.teamName}>{team.name}</h3>
+                    <span className={styles.expandHint}>{isExpanded ? '▼ 收起' : '▶ 展开详情'}</span>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(team.id); }}
+                    className={styles.deleteBtn}
+                  >删除</button>
                 </div>
                 <div className={styles.teamStats}>
                   <span className={styles.totalRating}>平均 Rating: {avgRating}</span>
@@ -186,7 +225,7 @@ export default function Teams() {
                       <div
                         key={h}
                         className={styles.memberItem}
-                        onClick={() => navigate(`/friends/${h}`)}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/friends/${h}`); }}
                       >
                         <img
                           src={info?.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
@@ -205,6 +244,82 @@ export default function Teams() {
                     );
                   })}
                 </div>
+
+                {isExpanded && (
+                  <div className={styles.dailySection}>
+                    <h4 className={styles.dailyTitle}>今日战况</h4>
+                    <div className={styles.dailyGrid}>
+                      <div className={styles.dailyCard}>
+                        <div className={styles.dailyLabel}>🔥 今日最卷</div>
+                        <div
+                          className={styles.dailyMember}
+                          onClick={() => navigate(`/friends/${hardest.handle}`)}
+                        >
+                          <img
+                            src={hardest.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                            className={styles.dailyAvatar}
+                            alt={hardest.handle}
+                          />
+                          <div className={styles.dailyInfo}>
+                            <span className={styles.dailyHandle}>{hardest.handle}</span>
+                            <span className={styles.dailySolved}>
+                              今日 AC <strong style={{ color: '#4ecca3' }}>{hardest.solvedToday}</strong> 题
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={styles.dailyCard}>
+                        <div className={styles.dailyLabel}>😴 今日最拉</div>
+                        <div
+                          className={styles.dailyMember}
+                          onClick={() => navigate(`/friends/${slacker.handle}`)}
+                        >
+                          <img
+                            src={slacker.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                            className={styles.dailyAvatar}
+                            alt={slacker.handle}
+                          />
+                          <div className={styles.dailyInfo}>
+                            <span className={styles.dailyHandle}>{slacker.handle}</span>
+                            <span className={styles.dailySolved}>
+                              今日 AC <strong style={{ color: slacker.solvedToday === 0 ? '#ff6b6b' : '#e0e0e0' }}>{slacker.solvedToday}</strong> 题
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <table className={styles.dailyTable}>
+                      <thead>
+                        <tr>
+                          <th>成员</th>
+                          <th>今日 AC</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedBySolved.map((m, i) => (
+                          <tr key={m.handle}>
+                            <td>
+                              <span style={{ marginRight: 6 }}>
+                                {i === 0 ? '🔥' : i === sortedBySolved.length - 1 ? '😴' : '  '}
+                              </span>
+                              {m.handle}
+                            </td>
+                            <td className={styles.dailyNum}>
+                              <span style={{
+                                color: m.solvedToday === 0 ? '#ff6b6b' : m.solvedToday === hardest.solvedToday ? '#4ecca3' : '#e0e0e0',
+                                fontWeight: 'bold',
+                              }}>
+                                {m.solvedToday}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             );
           })}
