@@ -1,6 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { Friend, Settings } from '../shared/types';
 
+export interface RefreshProgress {
+  handle?: string;
+  completed: number;
+  total: number;
+  errors: string[];
+}
+
 const api = {
   cf: {
     getUserInfo: (handles: string[]) => ipcRenderer.invoke('cf:getUserInfo', handles),
@@ -10,6 +17,11 @@ const api = {
     getFriends: (handle: string, apiKey: string, apiSecret: string) =>
       ipcRenderer.invoke('cf:getFriends', handle, apiKey, apiSecret),
     refreshAll: () => ipcRenderer.invoke('cf:refreshAll'),
+    onRefreshProgress: (callback: (progress: RefreshProgress) => void) => {
+      const handler = (_event: unknown, data: RefreshProgress) => callback(data);
+      ipcRenderer.on('cf:refreshProgress', handler);
+      return () => ipcRenderer.removeListener('cf:refreshProgress', handler);
+    },
   },
   store: {
     getFriends: () => ipcRenderer.invoke('store:getFriends'),

@@ -1,7 +1,18 @@
-import { ipcMain } from 'electron';
+import { ipcMain, BrowserWindow } from 'electron';
 import { StoreManager } from './store';
 import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends } from './cf-api';
 import type { Friend, FriendCache, Settings, CFUser } from '../shared/types';
+
+function sendProgress(progress: {
+  handle?: string;
+  completed: number;
+  total: number;
+  errors: string[];
+}): void {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    win.webContents.send('cf:refreshProgress', progress);
+  });
+}
 
 export function registerIpcHandlers(store: StoreManager): void {
   // ---- CF API ----
@@ -26,23 +37,41 @@ export function registerIpcHandlers(store: StoreManager): void {
     const handles = friends.map((f) => f.handle);
     if (handles.length === 0) return [];
 
-    // 1. 批量获取 user.info
+    const total = handles.length;
+    const errors: string[] = [];
+
+    // 1. 批量获取 user.info (单次请求)
     const infos: CFUser[] = await fetchUserInfo(handles);
 
-    // 2. 逐个获取 rating + status
+    // 2. 逐个获取 rating + status,每完成一个就推送进度
+    let completed = 0;
     for (const info of infos) {
-      const [ratingHistory, recentSubmissions] = await Promise.all([
-        fetchUserRating(info.handle),
-        fetchUserStatus(info.handle, 50),
-      ]);
-      const cache: FriendCache = {
-        handle: info.handle,
-        info,
-        ratingHistory,
-        recentSubmissions,
-        cachedAt: Date.now(),
-      };
-      store.setCache(info.handle, cache);
+      try {
+        const [ratingHistory, recentSubmissions] = await Promise.all([
+          fetchUserRating(info.handle),
+          fetchUserStatus(info.handle, 20),
+        ]);
+        const cache: FriendCache = {
+          handle: info.handle,
+          info,
+          ratingHistory,
+          recentSubmissions,
+          cachedAt: Date.now(),
+        };
+        store.setCache(info.handle, cache);
+      } catch (e) {
+        errors.push(info.handle);
+        // 即使失败也缓存 user.info,保证基础信息可见
+        store.setCache(info.handle, {
+          handle: info.handle,
+          info,
+          ratingHistory: [],
+          recentSubmissions: [],
+          cachedAt: Date.now(),
+        });
+      }
+      completed++;
+      sendProgress({ handle: info.handle, completed, total, errors });
     }
 
     const settings = store.getSettings();

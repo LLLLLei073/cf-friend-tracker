@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { Friend, FriendCache } from '../types';
 import { getRankColor } from '../utils/rank';
@@ -10,6 +10,8 @@ export default function Sidebar() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [caches, setCaches] = useState<Record<string, FriendCache>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null);
+  const [refreshingHandles, setRefreshingHandles] = useState<Set<string>>(new Set());
 
   const loadData = async () => {
     const fr = await window.api.store.getFriends();
@@ -22,8 +24,33 @@ export default function Sidebar() {
     loadData();
   }, [location.pathname]);
 
+  // 监听刷新进度事件
+  useEffect(() => {
+    const unsubscribe = window.api.cf.onRefreshProgress((p) => {
+      setProgress({ completed: p.completed, total: p.total });
+
+      // 该好友完成,立即更新缓存
+      if (p.handle) {
+        setRefreshingHandles((prev) => {
+          const next = new Set(prev);
+          next.delete(p.handle!);
+          return next;
+        });
+        window.api.store.getCache(p.handle).then((cache) => {
+          if (cache) {
+            setCaches((prev) => ({ ...prev, [p.handle!]: cache }));
+          }
+        });
+      }
+    });
+    return unsubscribe;
+  }, []);
+
   const handleRefresh = async () => {
     setRefreshing(true);
+    setProgress({ completed: 0, total: friends.length });
+    // 标记所有好友为刷新中
+    setRefreshingHandles(new Set(friends.map((f) => f.handle)));
     try {
       await window.api.cf.refreshAll();
       await loadData();
@@ -31,6 +58,8 @@ export default function Sidebar() {
       console.error('Refresh failed:', e);
     } finally {
       setRefreshing(false);
+      setProgress(null);
+      setRefreshingHandles(new Set());
     }
   };
 
@@ -48,6 +77,7 @@ export default function Sidebar() {
           const online = cache?.info
             ? Date.now() / 1000 - cache.info.lastOnlineTimeSeconds < 300
             : false;
+          const isRefreshing = refreshingHandles.has(f.handle);
           return (
             <div
               key={f.handle}
@@ -61,16 +91,22 @@ export default function Sidebar() {
               />
               <div className={styles.info}>
                 <span className={styles.handle}>{f.alias || f.handle}</span>
-                {rating !== undefined && (
+                {isRefreshing ? (
+                  <span className={styles.loadingText}>加载中...</span>
+                ) : rating !== undefined ? (
                   <span
                     className={styles.rating}
                     style={{ color: getRankColor(cache?.info?.rank) }}
                   >
                     {rating}
                   </span>
-                )}
+                ) : null}
               </div>
-              <span className={`${styles.dot} ${online ? styles.online : ''}`} />
+              {isRefreshing ? (
+                <span className={styles.spinner} />
+              ) : (
+                <span className={`${styles.dot} ${online ? styles.online : ''}`} />
+              )}
             </div>
           );
         })}
@@ -79,7 +115,9 @@ export default function Sidebar() {
       <div className={styles.actions}>
         <button onClick={() => navigate('/add')} className={styles.btn}>+ 添加</button>
         <button onClick={handleRefresh} disabled={refreshing} className={styles.btn}>
-          {refreshing ? '刷新中...' : '↻ 刷新'}
+          {refreshing && progress
+            ? `刷新中 ${progress.completed}/${progress.total}`
+            : '↻ 刷新'}
         </button>
         <button onClick={() => navigate('/settings')} className={styles.btn}>⚙ 设置</button>
       </div>

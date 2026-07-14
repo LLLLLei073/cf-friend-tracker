@@ -107,3 +107,24 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.loadingText {
+  font-size: 11px;
+  color: #606080;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #304060;
+  border-top-color: #4ecca3;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
