@@ -75,7 +75,16 @@ export default function FriendDetail() {
       <div className={styles.header}>
         <img src={info.avatar} className={styles.avatar} alt={info.handle} />
         <div className={styles.headerInfo}>
-          <h2 className={styles.handle}>{info.handle}</h2>
+          <h2 className={styles.handle}>
+            <a
+              href={`https://codeforces.com/profile/${info.handle}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.profileLink}
+            >
+              {info.handle}
+            </a>
+          </h2>
           {info.organization && <p className={styles.org}>{info.organization}</p>}
           <p className={styles.rank} style={{ color: getRankColor(info.rank) }}>
             {getRankLabel(info.rank)} · {info.rating ?? 'N/A'}
@@ -117,7 +126,14 @@ export default function FriendDetail() {
                   {s.verdict === 'OK' ? 'AC' : s.verdict}
                 </span>
                 <span className={styles.problem}>
-                  {s.problem.contestId}{s.problem.index} - {s.problem.name}
+                  <a
+                    href={`https://codeforces.com/problemset/problem/${s.problem.contestId}/${s.problem.index}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.problemLink}
+                  >
+                    {s.problem.contestId}{s.problem.index} - {s.problem.name}
+                  </a>
                 </span>
                 <span className={styles.lang}>{s.language}</span>
                 <span className={styles.time}>

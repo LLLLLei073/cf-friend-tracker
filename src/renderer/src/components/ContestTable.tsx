@@ -28,7 +28,16 @@ export default function ContestTable({ data }: Props) {
           const delta = c.newRating - c.oldRating;
           return (
             <tr key={i}>
-              <td>{c.contestName}</td>
+              <td>
+                <a
+                  href={`https://codeforces.com/contest/${c.contestId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.contestLink}
+                >
+                  {c.contestName}
+                </a>
+              </td>
               <td>{c.rank}</td>
               <td className={delta > 0 ? styles.up : delta < 0 ? styles.down : ''}>
                 {delta > 0 ? '+' : ''}{delta}

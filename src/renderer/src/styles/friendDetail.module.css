@@ -167,3 +167,31 @@
   color: #606080;
   padding: 12px;
 }
+
+.contestLink {
+  color: #4ecca3;
+  text-decoration: none;
+}
+
+.contestLink:hover {
+  text-decoration: underline;
+}
+
+.profileLink {
+  color: #e0e0e0;
+  text-decoration: none;
+}
+
+.profileLink:hover {
+  color: #4ecca3;
+}
+
+.problemLink {
+  color: #e0e0e0;
+  text-decoration: none;
+}
+
+.problemLink:hover {
+  color: #4ecca3;
+  text-decoration: underline;
+}
