@@ -21,6 +21,8 @@ export default function Sidebar() {
   const [lastRefreshAt, setLastRefreshAt] = useState(0);
   // 用于定时刷新"距上次刷新"的显示
   const [now, setNow] = useState(Date.now());
+  // 导航区收起状态
+  const [navCollapsed, setNavCollapsed] = useState(false);
 
   // 搜索 & 排序
   const [searchText, setSearchText] = useState('');
@@ -356,27 +358,34 @@ export default function Sidebar() {
       </div>
 
       <div className={styles.actions}>
-        <button onClick={() => navigate('/add')} className={location.pathname === '/add' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-          <span className={styles.btnIcon}>＋</span> 添加好友
+        <button onClick={() => setNavCollapsed(!navCollapsed)} className={styles.collapseToggle}>
+          {navCollapsed ? '▶ 导航' : '▼ 导航'}
         </button>
-        <button onClick={() => navigate('/leaderboard')} className={location.pathname === '/leaderboard' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-          <span className={styles.btnIcon}>🏆</span> 排行榜
-        </button>
-        <button onClick={() => navigate('/teams')} className={location.pathname === '/teams' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-          <span className={styles.btnIcon}>👥</span> 团队
-        </button>
-        <button onClick={() => navigate('/contests')} className={location.pathname === '/contests' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-          <span className={styles.btnIcon}>📅</span> 近期比赛
-        </button>
-        <button onClick={() => navigate('/compare')} className={location.pathname === '/compare' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-          <span className={styles.btnIcon}>📊</span> 好友对比
-        </button>
-        <button onClick={() => navigate('/report')} className={location.pathname === '/report' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-          <span className={styles.btnIcon}>📝</span> 周报/月报
-        </button>
-        <button onClick={() => navigate('/settings')} className={location.pathname === '/settings' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-          <span className={styles.btnIcon}>⚙</span> 设置
-        </button>
+        {!navCollapsed && (
+          <>
+            <button onClick={() => navigate('/add')} className={location.pathname === '/add' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+              <span className={styles.btnIcon}>＋</span> 添加好友
+            </button>
+            <button onClick={() => navigate('/leaderboard')} className={location.pathname === '/leaderboard' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+              <span className={styles.btnIcon}>🏆</span> 排行榜
+            </button>
+            <button onClick={() => navigate('/teams')} className={location.pathname === '/teams' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+              <span className={styles.btnIcon}>👥</span> 团队
+            </button>
+            <button onClick={() => navigate('/contests')} className={location.pathname === '/contests' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+              <span className={styles.btnIcon}>📅</span> 近期比赛
+            </button>
+            <button onClick={() => navigate('/compare')} className={location.pathname === '/compare' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+              <span className={styles.btnIcon}>📊</span> 好友对比
+            </button>
+            <button onClick={() => navigate('/report')} className={location.pathname === '/report' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+              <span className={styles.btnIcon}>📝</span> 周报/月报
+            </button>
+            <button onClick={() => navigate('/settings')} className={location.pathname === '/settings' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
+              <span className={styles.btnIcon}>⚙</span> 设置
+            </button>
+          </>
+        )}
         <button onClick={() => handleRefresh()} disabled={refreshing} className={styles.refreshBtn}>
           {refreshing && progress
             ? `刷新中 ${progress.completed}/${progress.total}`

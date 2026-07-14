@@ -196,6 +196,22 @@
   border-top: 1px solid var(--border);
 }
 
+.collapseToggle {
+  padding: 5px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  text-align: left;
+  transition: color var(--transition);
+}
+
+.collapseToggle:hover {
+  color: var(--text);
+}
+
 .myProfile {
   display: flex;
   align-items: center;
