@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Friend, FriendCache, CFSubmission } from '../types';
+import type { Friend, FriendCache, Settings as SettingsType } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import styles from '../styles/leaderboard.module.css';
 
@@ -9,6 +9,7 @@ type Tab = 'solved' | 'rating';
 interface SolvedEntry {
   handle: string;
   alias: string;
+  isMe: boolean;
   avatar?: string;
   rank?: string;
   rating?: number;
@@ -18,6 +19,7 @@ interface SolvedEntry {
 interface RatingEntry {
   handle: string;
   alias: string;
+  isMe: boolean;
   avatar?: string;
   rank?: string;
   rating?: number;
@@ -29,6 +31,7 @@ export default function Leaderboard() {
   const [tab, setTab] = useState<Tab>('solved');
   const [friends, setFriends] = useState<Friend[]>([]);
   const [caches, setCaches] = useState<Record<string, FriendCache>>({});
+  const [myHandle, setMyHandle] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -36,15 +39,26 @@ export default function Leaderboard() {
       setFriends(fr);
       const c = await window.api.store.getAllCache();
       setCaches(c);
+      const s: SettingsType = await window.api.store.getSettings();
+      setMyHandle(s.myHandle);
     })();
   }, []);
+
+  // 合并:自己 + 好友(去重)
+  const allPeople = useMemo(() => {
+    const me = myHandle ? [{ handle: myHandle, alias: myHandle, isMe: true }] : [];
+    const fr = friends
+      .filter((f) => f.handle !== myHandle)
+      .map((f) => ({ handle: f.handle, alias: f.alias || f.handle, isMe: false }));
+    return [...me, ...fr];
+  }, [friends, myHandle]);
 
   // 近两天做题排行:统计最近2天内 AC 的不重复题目数
   const solvedRanking = useMemo<SolvedEntry[]>(() => {
     const twoDaysAgo = Math.floor(Date.now() / 1000) - 2 * 24 * 3600;
-    const entries = friends
-      .map((f) => {
-        const cache = caches[f.handle];
+    return allPeople
+      .map((p) => {
+        const cache = caches[p.handle];
         const subs = cache?.recentSubmissions ?? [];
         const acProblems = new Set<string>();
         for (const s of subs) {
@@ -54,8 +68,9 @@ export default function Leaderboard() {
           }
         }
         return {
-          handle: f.handle,
-          alias: f.alias || f.handle,
+          handle: p.handle,
+          alias: p.alias,
+          isMe: p.isMe,
           avatar: cache?.info?.avatar,
           rank: cache?.info?.rank,
           rating: cache?.info?.rating,
@@ -64,17 +79,17 @@ export default function Leaderboard() {
       })
       .filter((e) => e.solvedCount > 0)
       .sort((a, b) => b.solvedCount - a.solvedCount);
-    return entries;
-  }, [friends, caches]);
+  }, [allPeople, caches]);
 
   // Rating 排行:按当前 rating 降序
   const ratingRanking = useMemo<RatingEntry[]>(() => {
-    return friends
-      .map((f) => {
-        const cache = caches[f.handle];
+    return allPeople
+      .map((p) => {
+        const cache = caches[p.handle];
         return {
-          handle: f.handle,
-          alias: f.alias || f.handle,
+          handle: p.handle,
+          alias: p.alias,
+          isMe: p.isMe,
           avatar: cache?.info?.avatar,
           rank: cache?.info?.rank,
           rating: cache?.info?.rating,
@@ -83,7 +98,7 @@ export default function Leaderboard() {
       })
       .filter((e) => e.rating !== undefined)
       .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-  }, [friends, caches]);
+  }, [allPeople, caches]);
 
   return (
     <div>
@@ -131,6 +146,7 @@ export default function Leaderboard() {
                           alt={e.handle}
                         />
                         <span>{e.alias}</span>
+                        {e.isMe && <span className={styles.meTag}>我</span>}
                       </div>
                     </td>
                     <td style={{ color: getRankColor(e.rank) }}>
@@ -176,6 +192,7 @@ export default function Leaderboard() {
                           alt={e.handle}
                         />
                         <span>{e.alias}</span>
+                        {e.isMe && <span className={styles.meTag}>我</span>}
                       </div>
                     </td>
                     <td style={{ color: getRankColor(e.rank) }}>

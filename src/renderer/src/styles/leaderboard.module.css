@@ -115,3 +115,15 @@
   padding: 60px 20px;
   color: #606080;
 }
+
+.meTag {
+  display: inline-block;
+  background: #4ecca3;
+  color: #1a1a2e;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
