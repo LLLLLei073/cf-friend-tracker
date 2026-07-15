@@ -98,8 +98,15 @@ async function cfRequest<T>(
         throw new Error(resp.data.comment || 'API request failed');
       } catch (e) {
         lastError = e as Error;
-        if (axios.isAxiosError(e) && attempt === 0) {
-          // 网络错误不重试
+
+        // 提取 CF API 返回的具体错误信息
+        if (axios.isAxiosError(e)) {
+          const cfError = (e.response?.data as CFApiResponse<T> | undefined);
+          if (cfError?.comment) {
+            // CF API 返回了明确的错误信息
+            throw new Error(cfError.comment);
+          }
+          // 纯网络错误(超时、DNS 等), 不重试
           throw new Error(`网络错误: ${(e as Error).message}`);
         }
       }
