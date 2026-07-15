@@ -22,8 +22,6 @@ process.on('uncaughtException', (err) => {
 const store = new StoreManager();
 registerIpcHandlers(store);
 
-let win: BrowserWindow | null = null;
-
 function createWindow(): void {
   const savedState = store.getWindowState();
   const win = new BrowserWindow({
@@ -40,28 +38,35 @@ function createWindow(): void {
     },
   });
 
-  // 保存窗口状态 (防抖: 避免频繁写入触发 EPERM)
-  let saveTimer: NodeJS.Timeout | null = null;
-  const saveWindowState = () => {
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      try {
-        const bounds = win.getBounds();
-        store.setWindowState({
-          width: bounds.width,
-          height: bounds.height,
-          x: bounds.x,
-          y: bounds.y,
-        });
-      } catch (e) {
-        console.warn('Failed to save window state:', e);
-      }
-    }, 500);
+  // 保存窗口状态
+  const persistBounds = () => {
+    try {
+      const bounds = win.getBounds();
+      store.setWindowState({
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+      });
+    } catch (e) {
+      console.warn('Failed to save window state:', e);
+    }
   };
 
-  win.on('resize', saveWindowState);
-  win.on('move', saveWindowState);
-  win.on('close', saveWindowState);
+  // resize/move 用防抖, 避免频繁写入触发 EPERM
+  let saveTimer: NodeJS.Timeout | null = null;
+  const saveWindowStateDebounced = () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(persistBounds, 500);
+  };
+
+  win.on('resize', saveWindowStateDebounced);
+  win.on('move', saveWindowStateDebounced);
+  // close 时同步保存, 避免防抖延迟导致窗口状态丢失
+  win.on('close', () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    persistBounds();
+  });
 
   // 开发环境加载 dev server,生产环境加载打包文件
   if (process.env['ELECTRON_RENDERER_URL']) {

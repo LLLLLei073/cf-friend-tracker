@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { Friend, FriendCache, CFUser } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
+import { NO_AVATAR } from '../utils/helpers';
 import styles from '../styles/sidebar.module.css';
 
 // 排序方式
@@ -301,7 +302,7 @@ export default function Sidebar() {
               onContextMenu={(e) => handleContextMenu(e, f)}
             >
               <img
-                src={cache?.info?.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                src={cache?.info?.avatar || NO_AVATAR}
                 className={styles.avatar}
                 alt={f.handle}
               />
@@ -335,7 +336,7 @@ export default function Sidebar() {
         {myInfo ? (
           <>
             <img
-              src={myInfo.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+              src={myInfo.avatar || NO_AVATAR}
               className={styles.myAvatar}
               alt={myInfo.handle}
             />

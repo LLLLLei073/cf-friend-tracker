@@ -1,50 +1,65 @@
-import { contextBridge, ipcRenderer } from 'electron';
-import type { Friend, Settings, Team, WindowState } from '../shared/types';
-
-export interface RefreshProgress {
-  handle?: string;
-  completed: number;
-  total: number;
-  errors: string[];
-}
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
+import type {
+  CFContest,
+  CFRatingChange,
+  CFSubmission,
+  CFUser,
+  Friend,
+  FriendCache,
+  RefreshProgress,
+  Settings,
+  SyncResult,
+  Team,
+  WindowState,
+} from '../shared/types';
 
 const api = {
   cf: {
-    getUserInfo: (handles: string[]) => ipcRenderer.invoke('cf:getUserInfo', handles),
-    getUserRating: (handle: string) => ipcRenderer.invoke('cf:getUserRating', handle),
-    getUserStatus: (handle: string, count?: number) =>
+    getUserInfo: (handles: string[]): Promise<CFUser[]> =>
+      ipcRenderer.invoke('cf:getUserInfo', handles),
+    getUserRating: (handle: string): Promise<CFRatingChange[]> =>
+      ipcRenderer.invoke('cf:getUserRating', handle),
+    getUserStatus: (handle: string, count?: number): Promise<CFSubmission[]> =>
       ipcRenderer.invoke('cf:getUserStatus', handle, count),
-    getFriends: (handle: string, apiKey: string, apiSecret: string) =>
+    getFriends: (handle: string, apiKey: string, apiSecret: string): Promise<string[]> =>
       ipcRenderer.invoke('cf:getFriends', handle, apiKey, apiSecret),
-    refreshAll: () => ipcRenderer.invoke('cf:refreshAll'),
-    refreshMyProfile: () => ipcRenderer.invoke('cf:refreshMyProfile'),
-    syncFriendsAuto: () => ipcRenderer.invoke('cf:syncFriendsAuto'),
-    getContests: () => ipcRenderer.invoke('cf:getContests'),
-    onRefreshProgress: (callback: (progress: RefreshProgress) => void) => {
-      const handler = (_event: unknown, data: RefreshProgress) => callback(data);
+    refreshAll: (): Promise<CFUser[]> => ipcRenderer.invoke('cf:refreshAll'),
+    refreshMyProfile: (): Promise<CFUser | null> => ipcRenderer.invoke('cf:refreshMyProfile'),
+    syncFriendsAuto: (): Promise<SyncResult> => ipcRenderer.invoke('cf:syncFriendsAuto'),
+    getContests: (): Promise<CFContest[]> => ipcRenderer.invoke('cf:getContests'),
+    onRefreshProgress: (callback: (progress: RefreshProgress) => void): (() => void) => {
+      const handler = (_event: IpcRendererEvent, data: RefreshProgress) => callback(data);
       ipcRenderer.on('cf:refreshProgress', handler);
       return () => ipcRenderer.removeListener('cf:refreshProgress', handler);
     },
   },
   store: {
-    getFriends: () => ipcRenderer.invoke('store:getFriends'),
-    addFriend: (friend: Friend) => ipcRenderer.invoke('store:addFriend', friend),
-    removeFriend: (handle: string) => ipcRenderer.invoke('store:removeFriend', handle),
-    updateFriend: (handle: string, alias: string) => ipcRenderer.invoke('store:updateFriend', handle, alias),
-    getCache: (handle: string) => ipcRenderer.invoke('store:getCache', handle),
-    getAllCache: () => ipcRenderer.invoke('store:getAllCache'),
-    clearCache: () => ipcRenderer.invoke('store:clearCache'),
-    getSettings: () => ipcRenderer.invoke('store:getSettings'),
-    setSettings: (settings: Settings) => ipcRenderer.invoke('store:setSettings', settings),
-    getTeams: () => ipcRenderer.invoke('store:getTeams'),
-    addTeam: (team: Team) => ipcRenderer.invoke('store:addTeam', team),
-    updateTeam: (team: Team) => ipcRenderer.invoke('store:updateTeam', team),
-    removeTeam: (id: string) => ipcRenderer.invoke('store:removeTeam', id),
-    getWindowState: () => ipcRenderer.invoke('store:getWindowState'),
-    setWindowState: (state: WindowState) => ipcRenderer.invoke('store:setWindowState', state),
-    getViewedRatings: () => ipcRenderer.invoke('store:getViewedRatings'),
-    setViewedRating: (handle: string, rating: number) => ipcRenderer.invoke('store:setViewedRating', handle, rating),
-    removeViewedRating: (handle: string) => ipcRenderer.invoke('store:removeViewedRating', handle),
+    getFriends: (): Promise<Friend[]> => ipcRenderer.invoke('store:getFriends'),
+    addFriend: (friend: Friend): Promise<boolean> => ipcRenderer.invoke('store:addFriend', friend),
+    removeFriend: (handle: string): Promise<boolean> =>
+      ipcRenderer.invoke('store:removeFriend', handle),
+    updateFriend: (handle: string, alias: string): Promise<boolean> =>
+      ipcRenderer.invoke('store:updateFriend', handle, alias),
+    getCache: (handle: string): Promise<FriendCache | undefined> =>
+      ipcRenderer.invoke('store:getCache', handle),
+    getAllCache: (): Promise<Record<string, FriendCache>> => ipcRenderer.invoke('store:getAllCache'),
+    clearCache: (): Promise<boolean> => ipcRenderer.invoke('store:clearCache'),
+    getSettings: (): Promise<Settings> => ipcRenderer.invoke('store:getSettings'),
+    setSettings: (settings: Settings): Promise<boolean> =>
+      ipcRenderer.invoke('store:setSettings', settings),
+    getTeams: (): Promise<Team[]> => ipcRenderer.invoke('store:getTeams'),
+    addTeam: (team: Team): Promise<boolean> => ipcRenderer.invoke('store:addTeam', team),
+    updateTeam: (team: Team): Promise<boolean> => ipcRenderer.invoke('store:updateTeam', team),
+    removeTeam: (id: string): Promise<boolean> => ipcRenderer.invoke('store:removeTeam', id),
+    getWindowState: (): Promise<WindowState | null> => ipcRenderer.invoke('store:getWindowState'),
+    setWindowState: (state: WindowState): Promise<boolean> =>
+      ipcRenderer.invoke('store:setWindowState', state),
+    getViewedRatings: (): Promise<Record<string, number>> =>
+      ipcRenderer.invoke('store:getViewedRatings'),
+    setViewedRating: (handle: string, rating: number): Promise<boolean> =>
+      ipcRenderer.invoke('store:setViewedRating', handle, rating),
+    removeViewedRating: (handle: string): Promise<boolean> =>
+      ipcRenderer.invoke('store:removeViewedRating', handle),
   },
 };
 

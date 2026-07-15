@@ -1,17 +1,59 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { StoreManager } from './store';
 import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests } from './cf-api';
-import type { Friend, FriendCache, Settings, CFUser, Team, WindowState } from '../shared/types';
+import type {
+  Friend,
+  Settings,
+  CFUser,
+  Team,
+  WindowState,
+  SyncResult,
+  RefreshProgress,
+} from '../shared/types';
 
-function sendProgress(progress: {
-  handle?: string;
-  completed: number;
-  total: number;
-  errors: string[];
-}): void {
+function sendProgress(progress: RefreshProgress): void {
   BrowserWindow.getAllWindows().forEach((win) => {
     win.webContents.send('cf:refreshProgress', progress);
   });
+}
+
+/**
+ * 刷新单个用户缓存: 获取 rating + status 并写入缓存。
+ * 失败时抛出错误, 由调用方决定如何处理。
+ */
+async function refreshUserCache(store: StoreManager, info: CFUser): Promise<void> {
+  const [ratingHistory, recentSubmissions] = await Promise.all([
+    fetchUserRating(info.handle),
+    fetchUserStatus(info.handle, 20),
+  ]);
+  store.setCache(info.handle, {
+    handle: info.handle,
+    info,
+    ratingHistory,
+    recentSubmissions,
+    cachedAt: Date.now(),
+  });
+}
+
+/**
+ * 安全刷新用户缓存: 调用 refreshUserCache, 失败时仍存储基础信息(空 ratingHistory
+ * 和 recentSubmissions), 保证基础信息可见。返回是否成功获取完整数据。
+ */
+async function refreshUserCacheSafe(store: StoreManager, info: CFUser): Promise<boolean> {
+  try {
+    await refreshUserCache(store, info);
+    return true;
+  } catch {
+    // 即使失败也缓存 user.info, 保证基础信息可见
+    store.setCache(info.handle, {
+      handle: info.handle,
+      info,
+      ratingHistory: [],
+      recentSubmissions: [],
+      cachedAt: Date.now(),
+    });
+    return false;
+  }
 }
 
 export function registerIpcHandlers(store: StoreManager): void {
@@ -41,35 +83,19 @@ export function registerIpcHandlers(store: StoreManager): void {
     const errors: string[] = [];
 
     // 1. 批量获取 user.info (单次请求)
-    const infos: CFUser[] = await fetchUserInfo(handles);
+    let infos: CFUser[];
+    try {
+      infos = await fetchUserInfo(handles);
+    } catch (e) {
+      console.error('fetchUserInfo failed:', e);
+      throw e;
+    }
 
     // 2. 逐个获取 rating + status,每完成一个就推送进度
     let completed = 0;
     for (const info of infos) {
-      try {
-        const [ratingHistory, recentSubmissions] = await Promise.all([
-          fetchUserRating(info.handle),
-          fetchUserStatus(info.handle, 20),
-        ]);
-        const cache: FriendCache = {
-          handle: info.handle,
-          info,
-          ratingHistory,
-          recentSubmissions,
-          cachedAt: Date.now(),
-        };
-        store.setCache(info.handle, cache);
-      } catch (e) {
-        errors.push(info.handle);
-        // 即使失败也缓存 user.info,保证基础信息可见
-        store.setCache(info.handle, {
-          handle: info.handle,
-          info,
-          ratingHistory: [],
-          recentSubmissions: [],
-          cachedAt: Date.now(),
-        });
-      }
+      const ok = await refreshUserCacheSafe(store, info);
+      if (!ok) errors.push(info.handle);
       completed++;
       sendProgress({ handle: info.handle, completed, total, errors });
     }
@@ -149,20 +175,8 @@ export function registerIpcHandlers(store: StoreManager): void {
     try {
       const infos = await fetchUserInfo([settings.myHandle]);
       if (infos.length === 0) return null;
-      const info = infos[0];
-      const [ratingHistory, recentSubmissions] = await Promise.all([
-        fetchUserRating(info.handle),
-        fetchUserStatus(info.handle, 20),
-      ]);
-      const cache: FriendCache = {
-        handle: info.handle,
-        info,
-        ratingHistory,
-        recentSubmissions,
-        cachedAt: Date.now(),
-      };
-      store.setCache(info.handle, cache);
-      return info;
+      await refreshUserCache(store, infos[0]);
+      return infos[0];
     } catch {
       return null;
     }
@@ -171,7 +185,7 @@ export function registerIpcHandlers(store: StoreManager): void {
   // ---- 自动同步好友数据(保存设置时调用) ----
   // 配置了 API 时:拉取 CF 关注列表,删除本地不在关注列表中的好友,同步剩余好友数据
   // 未配置 API 时:仅同步已有关注好友的数据,不删除
-  ipcMain.handle('cf:syncFriendsAuto', async () => {
+  ipcMain.handle('cf:syncFriendsAuto', async (): Promise<SyncResult> => {
     const settings = store.getSettings();
     if (!settings.myHandle) {
       return { synced: 0, removed: 0, skipped: true, error: '未配置 Handle' };
@@ -218,29 +232,9 @@ export function registerIpcHandlers(store: StoreManager): void {
 
       let completed = 0;
       for (const info of infos) {
-        try {
-          const [ratingHistory, recentSubmissions] = await Promise.all([
-            fetchUserRating(info.handle),
-            fetchUserStatus(info.handle, 20),
-          ]);
-          store.setCache(info.handle, {
-            handle: info.handle,
-            info,
-            ratingHistory,
-            recentSubmissions,
-            cachedAt: Date.now(),
-          });
-          synced++;
-        } catch {
-          errors.push(info.handle);
-          store.setCache(info.handle, {
-            handle: info.handle,
-            info,
-            ratingHistory: [],
-            recentSubmissions: [],
-            cachedAt: Date.now(),
-          });
-        }
+        const ok = await refreshUserCacheSafe(store, info);
+        if (ok) synced++;
+        else errors.push(info.handle);
         completed++;
         sendProgress({ handle: info.handle, completed, total, errors });
       }
@@ -254,18 +248,7 @@ export function registerIpcHandlers(store: StoreManager): void {
     try {
       const infos = await fetchUserInfo([settings.myHandle]);
       if (infos.length > 0) {
-        const info = infos[0];
-        const [ratingHistory, recentSubmissions] = await Promise.all([
-          fetchUserRating(info.handle),
-          fetchUserStatus(info.handle, 20),
-        ]);
-        store.setCache(info.handle, {
-          handle: info.handle,
-          info,
-          ratingHistory,
-          recentSubmissions,
-          cachedAt: Date.now(),
-        });
+        await refreshUserCache(store, infos[0]);
       }
     } catch {
       // 忽略自身刷新失败
@@ -285,6 +268,7 @@ export function registerIpcHandlers(store: StoreManager): void {
         return endTime > now; // 还没结束的
       }).sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
     } catch (e) {
+      console.error('fetchContests failed:', e);
       return [];
     }
   });

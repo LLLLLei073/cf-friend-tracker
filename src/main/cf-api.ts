@@ -70,7 +70,7 @@ async function cfRequest<T>(
       allParams.time = time;
 
       // 生成 apiSig
-      const rand = crypto.randomBytes(3).toString('hex'); // 6 chars
+      const rand = crypto.randomBytes(3).toString('hex');
       const sortedParams = Object.keys(allParams)
         .sort()
         .map((k) => `${k}=${allParams[k]}`)
@@ -97,18 +97,18 @@ async function cfRequest<T>(
         }
         throw new Error(resp.data.comment || 'API request failed');
       } catch (e) {
+        // 非 axios 错误(主动 throw 的业务错误)直接抛出, 不进入重试
+        if (!axios.isAxiosError(e)) throw e;
         lastError = e as Error;
 
         // 提取 CF API 返回的具体错误信息
-        if (axios.isAxiosError(e)) {
-          const cfError = (e.response?.data as CFApiResponse<T> | undefined);
-          if (cfError?.comment) {
-            // CF API 返回了明确的错误信息
-            throw new Error(cfError.comment);
-          }
-          // 纯网络错误(超时、DNS 等), 不重试
-          throw new Error(`网络错误: ${(e as Error).message}`);
+        const cfError = e.response?.data as CFApiResponse<T> | undefined;
+        if (cfError?.comment) {
+          // CF API 返回了明确的错误信息
+          throw new Error(cfError.comment);
         }
+        // 纯网络错误(超时、DNS 等), 不重试
+        throw new Error(`网络错误: ${(e as Error).message}`);
       }
     }
     throw lastError ?? new Error('API request failed');

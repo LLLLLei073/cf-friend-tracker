@@ -39,7 +39,6 @@ describe('StoreManager', () => {
 
   beforeEach(() => {
     store = new StoreManager();
-    store.clearAll();
   });
 
   describe('friends', () => {

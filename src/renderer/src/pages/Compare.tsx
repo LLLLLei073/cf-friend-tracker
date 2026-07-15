@@ -9,42 +9,15 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import type { Friend, FriendCache, CFSubmission, CFRatingChange } from '../types';
+import type { FriendCache, CFRatingChange } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
+import { NO_AVATAR, countACProblems } from '../utils/helpers';
+import { useAppData } from '../hooks/useAppData';
 import styles from '../styles/compare.module.css';
 
 const COLOR_A = '#F5C518';
 const COLOR_B = '#3B6FE0';
 const DAY = 24 * 3600;
-const NO_AVATAR = 'https://userpic.codeforces.org/no-avatar.jpg';
-
-interface AcStats {
-  last7: number;
-  last30: number;
-  total: number;
-}
-
-// 统计最近7天 / 30天 / 总 AC 题数(按题目去重)
-function computeACStats(subs: CFSubmission[]): AcStats {
-  const nowSec = Math.floor(Date.now() / 1000);
-  const since7 = nowSec - 7 * DAY;
-  const since30 = nowSec - 30 * DAY;
-  const set7 = new Set<string>();
-  const set30 = new Set<string>();
-  const setAll = new Set<string>();
-  for (const s of subs) {
-    if (s.verdict !== 'OK') continue;
-    const key = `${s.problem.contestId ?? ''}-${s.problem.index}`;
-    setAll.add(key);
-    if (s.creationTimeSeconds >= since30) {
-      set30.add(key);
-      if (s.creationTimeSeconds >= since7) {
-        set7.add(key);
-      }
-    }
-  }
-  return { last7: set7.size, last30: set30.size, total: setAll.size };
-}
 
 // 平均每场 rating 变化
 function avgRatingDelta(history: CFRatingChange[]): number | null {
@@ -138,24 +111,13 @@ interface MetricRow {
 }
 
 export default function Compare() {
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [myHandle, setMyHandle] = useState('');
+  const { friends, myHandle } = useAppData();
   const [handleA, setHandleA] = useState('');
   const [handleB, setHandleB] = useState('');
   const [cacheA, setCacheA] = useState<FriendCache | null>(null);
   const [cacheB, setCacheB] = useState<FriendCache | null>(null);
   const [loadingA, setLoadingA] = useState(false);
   const [loadingB, setLoadingB] = useState(false);
-
-  // 加载好友列表与自己的 handle
-  useEffect(() => {
-    (async () => {
-      const fr = await window.api.store.getFriends();
-      setFriends(fr);
-      const s = await window.api.store.getSettings();
-      setMyHandle(s?.myHandle ?? '');
-    })();
-  }, []);
 
   // 加载 A 的缓存
   useEffect(() => {
@@ -232,8 +194,14 @@ export default function Compare() {
   // 做题与比赛统计
   const statsA = useMemo(() => {
     if (!cacheA) return null;
+    const subs = cacheA.recentSubmissions ?? [];
+    const nowSec = Math.floor(Date.now() / 1000);
     return {
-      ac: computeACStats(cacheA.recentSubmissions ?? []),
+      ac: {
+        last7: countACProblems(subs, nowSec - 7 * DAY),
+        last30: countACProblems(subs, nowSec - 30 * DAY),
+        total: countACProblems(subs),
+      },
       avgDelta: avgRatingDelta(cacheA.ratingHistory ?? []),
       contests: (cacheA.ratingHistory ?? []).length,
     };
@@ -241,8 +209,14 @@ export default function Compare() {
 
   const statsB = useMemo(() => {
     if (!cacheB) return null;
+    const subs = cacheB.recentSubmissions ?? [];
+    const nowSec = Math.floor(Date.now() / 1000);
     return {
-      ac: computeACStats(cacheB.recentSubmissions ?? []),
+      ac: {
+        last7: countACProblems(subs, nowSec - 7 * DAY),
+        last30: countACProblems(subs, nowSec - 30 * DAY),
+        total: countACProblems(subs),
+      },
       avgDelta: avgRatingDelta(cacheB.ratingHistory ?? []),
       contests: (cacheB.ratingHistory ?? []).length,
     };

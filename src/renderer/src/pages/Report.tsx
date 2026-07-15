@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Friend, FriendCache, Settings as SettingsType, Team } from '../types';
+import type { Team } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
+import { NO_AVATAR, countACProblems, getMedalClass } from '../utils/helpers';
+import { useAppData } from '../hooks/useAppData';
 import styles from '../styles/report.module.css';
 
 type Range = 'week' | 'month';
@@ -38,20 +40,12 @@ const DAY_SECONDS = 24 * 3600;
 export default function Report() {
   const navigate = useNavigate();
   const [range, setRange] = useState<Range>('week');
-  const [caches, setCaches] = useState<Record<string, FriendCache>>({});
-  const [myHandle, setMyHandle] = useState('');
+  const { friends, caches, myHandle } = useAppData();
   const [teams, setTeams] = useState<Team[]>([]);
-  const [friends, setFriends] = useState<Friend[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
 
   useEffect(() => {
     (async () => {
-      const fr = await window.api.store.getFriends();
-      setFriends(fr);
-      const c = await window.api.store.getAllCache();
-      setCaches(c);
-      const s: SettingsType = await window.api.store.getSettings();
-      setMyHandle(s.myHandle);
       const t = await window.api.store.getTeams();
       setTeams(t);
       if (t.length > 0) setSelectedTeamId(t[0].id);
@@ -93,21 +87,15 @@ export default function Report() {
       .map((p) => {
         const cache = caches[p.handle];
         const subs = cache?.recentSubmissions ?? [];
-        const acProblems = new Set<string>();
-        for (const s of subs) {
-          if (s.verdict === 'OK' && s.creationTimeSeconds >= cutoff) {
-            const key = `${s.problem.contestId ?? ''}-${s.problem.index}`;
-            acProblems.add(key);
-          }
-        }
+        const acCount = countACProblems(subs, cutoff);
         return {
           handle: p.handle,
           alias: p.alias,
           isMe: p.isMe,
           avatar: cache?.info?.avatar,
           rank: cache?.info?.rank,
-          acCount: acProblems.size,
-          dailyAvg: acProblems.size / days,
+          acCount,
+          dailyAvg: acCount / days,
         };
       })
       .sort((a, b) => b.acCount - a.acCount);
@@ -232,6 +220,8 @@ export default function Report() {
     return parts.join('，') + '。';
   }, [summary, solvedRanking, ratingRanking, rangeLabel]);
 
+  // 过滤出有 AC 记录的排行(避免重复计算)
+  const activeSolvedRanking = solvedRanking.filter((e) => e.acCount > 0);
   const hasData = solvedRanking.length > 0 || ratingRanking.length > 0;
 
   if (teams.length === 0) {
@@ -314,7 +304,7 @@ export default function Report() {
 
           {/* 做题排行 */}
           <h3 className={styles.sectionTitle}>做题排行</h3>
-          {solvedRanking.filter((e) => e.acCount > 0).length === 0 ? (
+          {activeSolvedRanking.length === 0 ? (
             <p className={styles.subEmpty}>{rangeLabel}暂无 AC 记录。</p>
           ) : (
             <table className={styles.table}>
@@ -328,7 +318,7 @@ export default function Report() {
                 </tr>
               </thead>
               <tbody>
-                {solvedRanking.filter((e) => e.acCount > 0).map((e, i) => (
+                {activeSolvedRanking.map((e, i) => (
                   <tr
                     key={e.handle}
                     className={styles.row}
@@ -336,15 +326,7 @@ export default function Report() {
                   >
                     <td className={styles.rankCol}>
                       <span
-                        className={
-                          i === 0
-                            ? styles.medal1
-                            : i === 1
-                              ? styles.medal2
-                              : i === 2
-                                ? styles.medal3
-                                : styles.rankNum
-                        }
+                        className={getMedalClass(i, { gold: styles.medal1, silver: styles.medal2, bronze: styles.medal3, normal: styles.rankNum })}
                       >
                         {i + 1}
                       </span>
@@ -352,7 +334,7 @@ export default function Report() {
                     <td>
                       <div className={styles.userCell}>
                         <img
-                          src={e.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                          src={e.avatar || NO_AVATAR}
                           className={styles.avatar}
                           alt={e.handle}
                         />
@@ -398,15 +380,7 @@ export default function Report() {
                   >
                     <td className={styles.rankCol}>
                       <span
-                        className={
-                          i === 0
-                            ? styles.medal1
-                            : i === 1
-                              ? styles.medal2
-                              : i === 2
-                                ? styles.medal3
-                                : styles.rankNum
-                        }
+                        className={getMedalClass(i, { gold: styles.medal1, silver: styles.medal2, bronze: styles.medal3, normal: styles.rankNum })}
                       >
                         {i + 1}
                       </span>
@@ -414,7 +388,7 @@ export default function Report() {
                     <td>
                       <div className={styles.userCell}>
                         <img
-                          src={e.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                          src={e.avatar || NO_AVATAR}
                           className={styles.avatar}
                           alt={e.handle}
                         />

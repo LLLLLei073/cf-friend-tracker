@@ -3,3 +3,8 @@ out/
 dist/
 *.log
 .DS_Store
+.env
+.env.*
+*.tsbuildinfo
+.vscode/
+.idea/

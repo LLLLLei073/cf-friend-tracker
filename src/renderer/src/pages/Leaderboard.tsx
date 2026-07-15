@@ -1,7 +1,9 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Friend, FriendCache, Settings as SettingsType } from '../types';
+import type { FriendCache } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
+import { NO_AVATAR, countACProblems, getMedalClass } from '../utils/helpers';
+import { useAppData } from '../hooks/useAppData';
 import styles from '../styles/leaderboard.module.css';
 
 type Tab = 'solved' | 'rating';
@@ -29,20 +31,7 @@ interface RatingEntry {
 export default function Leaderboard() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('solved');
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [caches, setCaches] = useState<Record<string, FriendCache>>({});
-  const [myHandle, setMyHandle] = useState('');
-
-  useEffect(() => {
-    (async () => {
-      const fr = await window.api.store.getFriends();
-      setFriends(fr);
-      const c = await window.api.store.getAllCache();
-      setCaches(c);
-      const s: SettingsType = await window.api.store.getSettings();
-      setMyHandle(s.myHandle);
-    })();
-  }, []);
+  const { friends, caches, myHandle } = useAppData();
 
   // 合并:自己 + 好友(去重)
   const allPeople = useMemo(() => {
@@ -60,13 +49,6 @@ export default function Leaderboard() {
       .map((p) => {
         const cache = caches[p.handle];
         const subs = cache?.recentSubmissions ?? [];
-        const acProblems = new Set<string>();
-        for (const s of subs) {
-          if (s.verdict === 'OK' && s.creationTimeSeconds >= twoDaysAgo) {
-            const key = `${s.problem.contestId ?? ''}-${s.problem.index}`;
-            acProblems.add(key);
-          }
-        }
         return {
           handle: p.handle,
           alias: p.alias,
@@ -74,7 +56,7 @@ export default function Leaderboard() {
           avatar: cache?.info?.avatar,
           rank: cache?.info?.rank,
           rating: cache?.info?.rating,
-          solvedCount: acProblems.size,
+          solvedCount: countACProblems(subs, twoDaysAgo),
         };
       })
       .filter((e) => e.solvedCount > 0)
@@ -136,12 +118,12 @@ export default function Leaderboard() {
                 {solvedRanking.map((e, i) => (
                   <tr key={e.handle} className={styles.row} onClick={() => navigate(`/friends/${e.handle}`)}>
                     <td className={styles.rankCol}>
-                      <span className={i < 3 ? styles.medal : styles.rankNum}>{i + 1}</span>
+                      <span className={getMedalClass(i, { gold: styles.medal, silver: styles.medal, bronze: styles.medal, normal: styles.rankNum })}>{i + 1}</span>
                     </td>
                     <td>
                       <div className={styles.userCell}>
                         <img
-                          src={e.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                          src={e.avatar || NO_AVATAR}
                           className={styles.avatar}
                           alt={e.handle}
                         />
@@ -182,12 +164,12 @@ export default function Leaderboard() {
                 {ratingRanking.map((e, i) => (
                   <tr key={e.handle} className={styles.row} onClick={() => navigate(`/friends/${e.handle}`)}>
                     <td className={styles.rankCol}>
-                      <span className={i < 3 ? styles.medal : styles.rankNum}>{i + 1}</span>
+                      <span className={getMedalClass(i, { gold: styles.medal, silver: styles.medal, bronze: styles.medal, normal: styles.rankNum })}>{i + 1}</span>
                     </td>
                     <td>
                       <div className={styles.userCell}>
                         <img
-                          src={e.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                          src={e.avatar || NO_AVATAR}
                           className={styles.avatar}
                           alt={e.handle}
                         />

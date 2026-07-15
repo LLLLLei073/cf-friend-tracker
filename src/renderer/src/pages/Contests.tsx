@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { CFContest } from '../types';
 import styles from '../styles/contests.module.css';
 
@@ -119,11 +119,6 @@ export default function Contests() {
     return () => clearInterval(timer);
   }, []);
 
-  const sortedContests = useMemo(
-    () => [...contests].sort((a, b) => b.startTimeSeconds - a.startTimeSeconds),
-    [contests]
-  );
-
   const handleOpenContest = (id: number) => {
     window.open(`https://codeforces.com/contest/${id}`, '_blank');
   };
@@ -172,7 +167,7 @@ export default function Contests() {
         <div className={styles.emptyState}>暂无比赛数据,点击右上角刷新拉取。</div>
       ) : (
         <div className={styles.list}>
-          {sortedContests.map((c) => {
+          {contests.map((c) => {
             const status = getStatus(c);
             const cardClass = [
               styles.card,

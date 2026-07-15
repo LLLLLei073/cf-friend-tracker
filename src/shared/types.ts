@@ -91,8 +91,8 @@ export interface Team {
 export interface CFContest {
   id: number;
   name: string;
-  type: string;
-  phase: string; // BEFORE | CODING | PENDING_SYSTEM_TEST | SYSTEM_TEST | FINISHED
+  type: 'CF' | 'IOI' | 'ICPC';
+  phase: 'BEFORE' | 'CODING' | 'PENDING_SYSTEM_TEST' | 'SYSTEM_TEST' | 'FINISHED';
   durationSeconds: number;
   startTimeSeconds: number;
   relativeTimeSeconds: number;
@@ -104,4 +104,20 @@ export interface WindowState {
   height: number;
   x: number;
   y: number;
+}
+
+// 好友同步结果
+export interface SyncResult {
+  synced: number;
+  removed: number;
+  skipped: boolean;
+  error: string;
+}
+
+// 刷新进度通知
+export interface RefreshProgress {
+  handle?: string;
+  completed: number;
+  total: number;
+  errors: string[];
 }

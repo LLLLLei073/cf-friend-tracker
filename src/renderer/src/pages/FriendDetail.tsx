@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { FriendCache, CFProblem } from '../types';
-import { getRankColor, getRankLabel } from '../utils/rank';
+import { getRankColor, getRankLabel, getRatingColor } from '../utils/rank';
+import { NO_AVATAR } from '../utils/helpers';
 import RatingChart from '../components/RatingChart';
 import ContestTable from '../components/ContestTable';
 import styles from '../styles/friendDetail.module.css';
@@ -36,19 +37,6 @@ function getHeatLevel(count: number): number {
 }
 
 // --- Recommendation helpers ---
-
-function getRatingColor(rating?: number): string {
-  if (!rating) return '#9CA3AF';
-  if (rating < 1200) return '#9CA3AF';
-  if (rating < 1400) return '#2BA82B';
-  if (rating < 1600) return '#03A89E';
-  if (rating < 1900) return '#3B6FE0';
-  if (rating < 2100) return '#9333EA';
-  if (rating < 2300) return '#E8820C';
-  if (rating < 2400) return '#E8820C';
-  if (rating < 2600) return '#E5383B';
-  return '#C4181D';
-}
 
 interface RecommendedProblem {
   contestId: number;
@@ -313,7 +301,7 @@ export default function FriendDetail() {
     <div className={styles.detailLayout}>
       <div className={styles.detailContent}>
       <div className={styles.header}>
-        <img src={info.avatar} className={styles.avatar} alt={info.handle} />
+        <img src={info.avatar || NO_AVATAR} className={styles.avatar} alt={info.handle} />
         <div className={styles.headerInfo}>
           <h2 className={styles.handle}>
             <a

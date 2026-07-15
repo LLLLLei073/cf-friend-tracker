@@ -1,45 +1,39 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Team, Friend, FriendCache, Settings as SettingsType } from '../types';
+import type { Team } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
+import { NO_AVATAR, countACProblems } from '../utils/helpers';
+import { useAppData } from '../hooks/useAppData';
 import styles from '../styles/teams.module.css';
 
 const MAX_MEMBERS = 3;
 
 export default function Teams() {
   const navigate = useNavigate();
+  const { friends, caches, myHandle } = useAppData();
   const [teams, setTeams] = useState<Team[]>([]);
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [caches, setCaches] = useState<Record<string, FriendCache>>({});
-  const [myHandle, setMyHandle] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [teamName, setTeamName] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadTeams = async () => {
     const t = await window.api.store.getTeams();
     setTeams(t);
-    const fr = await window.api.store.getFriends();
-    setFriends(fr);
-    const c = await window.api.store.getAllCache();
-    setCaches(c);
-    const s: SettingsType = await window.api.store.getSettings();
-    setMyHandle(s.myHandle);
   };
 
   useEffect(() => {
-    loadData();
+    loadTeams();
   }, []);
 
   // 合并:自己 + 好友(去重)
-  const allOptions: { handle: string; alias: string; isMe: boolean }[] = [
+  const allOptions = useMemo(() => [
     ...(myHandle ? [{ handle: myHandle, alias: myHandle, isMe: true }] : []),
     ...friends
       .filter((f) => f.handle !== myHandle)
       .map((f) => ({ handle: f.handle, alias: f.alias || f.handle, isMe: false })),
-  ];
+  ], [friends, myHandle]);
 
   const toggleMember = (handle: string) => {
     setError('');
@@ -78,15 +72,20 @@ export default function Teams() {
     setTeamName('');
     setSelected(new Set());
     setShowCreate(false);
-    await loadData();
+    await loadTeams();
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('确定删除这个团队吗?')) {
       await window.api.store.removeTeam(id);
-      await loadData();
+      await loadTeams();
     }
   };
+
+  // 今日 AC 统计的时间起点(移到 map 外部避免重复计算)
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayStartSec = Math.floor(todayStart.getTime() / 1000);
 
   return (
     <div>
@@ -131,7 +130,7 @@ export default function Teams() {
                         onChange={() => toggleMember(opt.handle)}
                       />
                       <img
-                        src={info?.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                        src={info?.avatar || NO_AVATAR}
                         className={styles.pickAvatar}
                         alt={opt.handle}
                       />
@@ -171,25 +170,15 @@ export default function Teams() {
               : 0;
 
             // 计算今日 AC 题数
-            const todayStart = new Date();
-            todayStart.setHours(0, 0, 0, 0);
-            const todayStartSec = Math.floor(todayStart.getTime() / 1000);
-
             const memberStats = team.members.map((h) => {
               const cache = caches[h];
               const subs = cache?.recentSubmissions ?? [];
-              const acSet = new Set<string>();
-              for (const s of subs) {
-                if (s.verdict === 'OK' && s.creationTimeSeconds >= todayStartSec) {
-                  acSet.add(`${s.problem.contestId ?? ''}-${s.problem.index}`);
-                }
-              }
               return {
                 handle: h,
                 avatar: cache?.info?.avatar,
                 rank: cache?.info?.rank,
                 rating: cache?.info?.rating,
-                solvedToday: acSet.size,
+                solvedToday: countACProblems(subs, todayStartSec),
               };
             });
 
@@ -230,7 +219,7 @@ export default function Teams() {
                         onClick={(e) => { e.stopPropagation(); navigate(`/friends/${h}`); }}
                       >
                         <img
-                          src={info?.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                          src={info?.avatar || NO_AVATAR}
                           className={styles.memberAvatar}
                           alt={h}
                         />
@@ -260,7 +249,7 @@ export default function Teams() {
                             onClick={() => navigate(`/friends/${m.handle}`)}
                           >
                             <img
-                              src={m.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                              src={m.avatar || NO_AVATAR}
                               className={styles.dailyAvatar}
                               alt={m.handle}
                             />
@@ -283,7 +272,7 @@ export default function Teams() {
                             onClick={() => navigate(`/friends/${m.handle}`)}
                           >
                             <img
-                              src={m.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+                              src={m.avatar || NO_AVATAR}
                               className={styles.dailyAvatar}
                               alt={m.handle}
                             />
