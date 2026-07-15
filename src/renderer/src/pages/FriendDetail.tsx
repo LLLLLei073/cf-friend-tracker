@@ -285,16 +285,16 @@ export default function FriendDetail() {
   }, [cache]);
 
   if (loading && !cache) {
-    return <p style={{ color: '#B0A99E' }}>加载中...</p>;
+    return <p style={{ color: '#ABA496' }}>加载中...</p>;
   }
 
   if (error && !cache) {
     return (
       <div>
-        <p style={{ color: '#D9402F', marginBottom: 12 }}>错误: {error}</p>
+        <p style={{ color: '#C41E3A', marginBottom: 12 }}>错误: {error}</p>
         <button
           onClick={() => navigate('/friends')}
-          style={{ padding: '8px 16px', background: '#FDFCF8', border: '1px solid #D0CABE', color: '#3A352B', borderRadius: 12, cursor: 'pointer', fontSize: 13, boxShadow: '0 1px 2px rgba(60,50,30,0.04)' }}
+          style={{ padding: '8px 16px', background: '#FFFEF9', border: '1px solid #C9C1AE', color: '#2C2A26', borderRadius: 10, cursor: 'pointer', fontSize: 13, boxShadow: '0 1px 2px rgba(60,50,30,0.05)' }}
         >
           返回列表
         </button>
@@ -303,7 +303,7 @@ export default function FriendDetail() {
   }
 
   if (!cache) {
-    return <p style={{ color: '#B0A99E' }}>未找到数据</p>;
+    return <p style={{ color: '#ABA496' }}>未找到数据</p>;
   }
 
   const { info, ratingHistory, recentSubmissions, cachedAt } = cache;

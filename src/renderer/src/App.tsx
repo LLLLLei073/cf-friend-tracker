@@ -12,9 +12,16 @@ import Report from './pages/Report';
 
 export default function App() {
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div style={{ display: 'flex', height: '100vh', background: '#F7F4ED' }}>
       <Sidebar />
-      <main style={{ flex: 1, overflow: 'auto', padding: '28px 32px 40px' }}>
+      <main style={{
+        flex: 1,
+        overflow: 'auto',
+        padding: '28px 32px 40px',
+        backgroundColor: '#F7F4ED',
+        backgroundImage: 'repeating-linear-gradient(to bottom, transparent, transparent 27px, #D4D9C4 27px, #D4D9C4 28px)',
+        backgroundAttachment: 'local',
+      }}>
         <Routes>
           <Route path="/" element={<Navigate to="/friends" replace />} />
           <Route path="/friends" element={<FriendList />} />

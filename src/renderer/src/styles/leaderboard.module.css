@@ -1,17 +1,18 @@
 .heading {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   margin-bottom: 18px;
   color: var(--text);
   display: flex;
   align-items: center;
   gap: 10px;
+  font-family: var(--font-serif);
 }
 
 .heading::before {
   content: '';
   width: 4px;
-  height: 20px;
+  height: 22px;
   background: var(--accent);
   border-radius: 2px;
 }
@@ -48,11 +49,11 @@
   padding: 8px 18px;
   background: var(--bg-surface);
   border: none;
-  color: var(--text);
+  color: var(--accent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   font-family: inherit;
   box-shadow: var(--shadow-sm);
 }
@@ -72,7 +73,7 @@
   text-align: left;
   padding: 12px 14px;
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--border-strong);
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -118,7 +119,7 @@
   font-size: 12px;
   font-weight: 700;
   background: var(--accent);
-  color: #3A352B;
+  color: #FFFEF9;
 }
 
 .rankNum {
@@ -143,7 +144,8 @@
 .solvedCount {
   font-size: 18px;
   font-weight: 700;
-  color: var(--accent-text);
+  color: var(--accent);
+  font-family: var(--font-serif);
 }
 
 .maxRating {
@@ -165,8 +167,8 @@
 
 .meTag {
   display: inline-block;
-  background: var(--accent-dim);
-  color: var(--accent-text);
+  background: var(--accent);
+  color: #FFFEF9;
   font-size: 10px;
   font-weight: 700;
   padding: 2px 6px;

@@ -96,7 +96,7 @@ export default function Settings() {
         </button>
         {saved && <p className={styles.saved}>✓ 已保存</p>}
         {syncMsg && (
-          <p className={styles.saved} style={{ color: syncMsg.includes('失败') ? '#D9402F' : '#4A8A3A' }}>
+          <p className={styles.saved} style={{ color: syncMsg.includes('失败') ? '#C41E3A' : '#4A7C3A' }}>
             {syncMsg}
           </p>
         )}

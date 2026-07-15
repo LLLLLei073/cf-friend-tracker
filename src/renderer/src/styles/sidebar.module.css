@@ -3,80 +3,21 @@
   background: var(--bg-surface);
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--border);
   flex-shrink: 0;
   position: relative;
   z-index: 10;
-  box-shadow: 1px 0 8px rgba(60, 50, 30, 0.04), 2px 0 16px rgba(60, 50, 30, 0.03);
+  border-right: 2px solid var(--accent);
 }
 
 .title {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   padding: 20px 16px;
   text-align: center;
   border-bottom: 1px solid var(--border);
-  color: var(--text);
-  text-transform: uppercase;
-}
-
-.titleAccent {
-  color: var(--accent-text);
-}
-
-/* 搜索框 + 排序下拉工具栏 */
-.toolbar {
-  display: flex;
-  gap: 6px;
-  padding: 10px;
-  border-bottom: 1px solid var(--border);
-}
-
-.searchInput {
-  flex: 1;
-  min-width: 0;
-  padding: 7px 10px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-size: 13px;
-  font-family: inherit;
-  transition: all var(--transition);
-}
-
-.searchInput::placeholder {
-  color: var(--text-muted);
-}
-
-.searchInput:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-soft);
-}
-
-.sortSelect {
-  flex-shrink: 0;
-  max-width: 110px;
-  padding: 7px 8px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-size: 12px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all var(--transition);
-}
-
-.sortSelect:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.sortSelect:hover {
-  border-color: var(--border-strong);
+  color: var(--accent);
+  font-family: var(--font-serif);
 }
 
 .friendList {
@@ -106,12 +47,10 @@
 
 .friendItem:hover {
   background: var(--bg-hover);
-  box-shadow: var(--shadow-sm);
 }
 
 .friendItemActive {
   background: var(--accent-soft);
-  box-shadow: var(--shadow-sm);
 }
 
 .friendItemActive::before {
@@ -167,25 +106,9 @@
 }
 
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(74, 138, 58, 0.4); }
-  70% { box-shadow: 0 0 0 5px rgba(74, 138, 58, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(74, 138, 58, 0); }
-}
-
-/* Rating 变动小红点标记 */
-.ratingDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--down);
-  flex-shrink: 0;
-  box-shadow: 0 0 6px rgba(217, 64, 47, 0.5);
-  animation: ratingPulse 1.8s ease-in-out infinite;
-}
-
-@keyframes ratingPulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.25); opacity: 0.65; }
+  0% { box-shadow: 0 0 0 0 rgba(74, 124, 58, 0.4); }
+  70% { box-shadow: 0 0 0 5px rgba(74, 124, 58, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 124, 58, 0); }
 }
 
 .actions {
@@ -194,22 +117,6 @@
   flex-direction: column;
   gap: 3px;
   border-top: 1px solid var(--border);
-}
-
-.collapseToggle {
-  padding: 5px 12px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 12px;
-  font-family: inherit;
-  text-align: left;
-  transition: color var(--transition);
-}
-
-.collapseToggle:hover {
-  color: var(--text);
 }
 
 .myProfile {
@@ -295,14 +202,12 @@
 .btn:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text);
-  box-shadow: var(--shadow-sm);
 }
 
 .btnActive {
   background: var(--accent-soft);
   color: var(--accent-text);
   font-weight: 600;
-  box-shadow: var(--shadow-sm);
 }
 
 .btn:disabled {
@@ -319,7 +224,7 @@
   margin-top: 4px;
   background: var(--accent);
   border: none;
-  color: #3A352B;
+  color: #FFFEF9;
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 13px;
@@ -332,7 +237,6 @@
 .refreshBtn:hover:not(:disabled) {
   background: var(--accent-bright);
   box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
 }
 
 .refreshBtn:disabled {
@@ -349,7 +253,7 @@
   width: 14px;
   height: 14px;
   border: 2px solid var(--border);
-  border-top-color: var(--accent-text);
+  border-top-color: var(--accent);
   border-radius: 50%;
   flex-shrink: 0;
   animation: spin 0.6s linear infinite;
@@ -359,136 +263,4 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-/* 右键菜单 */
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 999;
-}
-
-.contextMenu {
-  position: fixed;
-  z-index: 1000;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md);
-  padding: 4px 0;
-  min-width: 150px;
-}
-
-.contextItem {
-  padding: 8px 16px;
-  font-size: 13px;
-  cursor: pointer;
-  color: var(--text);
-  transition: all var(--transition);
-}
-
-.contextItem:hover {
-  background: var(--bg-hover);
-}
-
-.contextDanger {
-  color: var(--down);
-}
-
-.contextDanger:hover {
-  background: rgba(217, 64, 47, 0.1);
-}
-
-/* 备注编辑弹窗 */
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 1001;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 24px;
-  width: 340px;
-  box-shadow: var(--shadow-md);
-}
-
-.modalTitle {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 6px;
-  color: var(--text);
-}
-
-.modalHandle {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 14px;
-}
-
-.modalInput {
-  width: 100%;
-  padding: 9px 12px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-size: 14px;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-
-.modalInput:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.modalActions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-
-.modalCancel {
-  padding: 7px 16px;
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 13px;
-  font-family: inherit;
-}
-
-.modalCancel:hover {
-  background: var(--bg-hover);
-}
-
-.modalConfirm {
-  padding: 7px 16px;
-  background: var(--accent);
-  border: none;
-  color: #3A352B;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: inherit;
-}
-
-.modalConfirm:hover {
-  background: var(--accent-bright);
 }

@@ -1,7 +1,23 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, dialog } from 'electron';
 import path from 'path';
 import { StoreManager } from './store';
 import { registerIpcHandlers } from './ipc-handlers';
+
+// 全局异常捕获: 防止 electron-store 写入 EPERM 等错误导致崩溃
+let hasShownError = false;
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  // EPERM 错误是 electron-store 原子写入时常见的临时性错误, 只记录不崩溃
+  if (err.message?.includes('EPERM') && err.message?.includes('.tmp')) {
+    console.warn('Store write EPERM (likely AV interference), ignoring.');
+    return;
+  }
+  // 其他严重错误: 只在第一次时弹窗提示
+  if (!hasShownError) {
+    hasShownError = true;
+    dialog.showErrorBox('应用错误', `发生了一个错误:\n${err.message}\n\n应用可能需要重启。`);
+  }
+});
 
 const store = new StoreManager();
 registerIpcHandlers(store);
@@ -24,15 +40,23 @@ function createWindow(): void {
     },
   });
 
-  // 保存窗口状态
+  // 保存窗口状态 (防抖: 避免频繁写入触发 EPERM)
+  let saveTimer: NodeJS.Timeout | null = null;
   const saveWindowState = () => {
-    const bounds = win.getBounds();
-    store.setWindowState({
-      width: bounds.width,
-      height: bounds.height,
-      x: bounds.x,
-      y: bounds.y,
-    });
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try {
+        const bounds = win.getBounds();
+        store.setWindowState({
+          width: bounds.width,
+          height: bounds.height,
+          x: bounds.x,
+          y: bounds.y,
+        });
+      } catch (e) {
+        console.warn('Failed to save window state:', e);
+      }
+    }, 500);
   };
 
   win.on('resize', saveWindowState);

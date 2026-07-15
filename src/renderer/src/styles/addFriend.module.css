@@ -1,17 +1,18 @@
 .heading {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   margin-bottom: 18px;
   color: var(--text);
   display: flex;
   align-items: center;
   gap: 10px;
+  font-family: var(--font-serif);
 }
 
 .heading::before {
   content: '';
   width: 4px;
-  height: 20px;
+  height: 22px;
   background: var(--accent);
   border-radius: 2px;
 }
@@ -48,11 +49,11 @@
   padding: 8px 18px;
   background: var(--bg-surface);
   border: none;
-  color: var(--text);
+  color: var(--accent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   font-family: inherit;
   box-shadow: var(--shadow-sm);
 }
@@ -133,7 +134,7 @@
   padding: 11px 22px;
   background: var(--accent);
   border: none;
-  color: #3A352B;
+  color: #FFFEF9;
   border-radius: var(--radius);
   cursor: pointer;
   font-size: 14px;
@@ -171,11 +172,11 @@
   font-size: 12px;
   color: var(--text-secondary);
   padding: 12px 14px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--note-yellow);
+  border: 1px solid #E6D88A;
   border-radius: var(--radius);
   line-height: 1.6;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-note);
 }
 
 .importList {

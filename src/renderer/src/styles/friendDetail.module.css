@@ -3,7 +3,7 @@
   gap: 18px;
   align-items: center;
   margin-bottom: 28px;
-  padding: 26px;
+  padding: 24px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -24,10 +24,11 @@
 }
 
 .handle {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   margin-bottom: 4px;
   color: var(--text);
+  font-family: var(--font-serif);
 }
 
 .org {
@@ -80,15 +81,16 @@
 }
 
 .sectionTitle {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
-  color: var(--accent-text);
+  color: var(--accent);
   margin-bottom: 14px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--accent);
   display: flex;
   align-items: center;
   gap: 8px;
+  font-family: var(--font-serif);
 }
 
 .table {
@@ -106,7 +108,7 @@
   text-align: left;
   padding: 10px 12px;
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--border-strong);
   font-weight: 600;
   font-size: 12px;
   text-transform: uppercase;
@@ -164,6 +166,7 @@
 .submission:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
+  border-color: var(--border-strong);
 }
 
 .verdict {
@@ -177,12 +180,12 @@
 }
 
 .ac {
-  background: rgba(74, 138, 58, 0.12);
+  background: rgba(74, 124, 58, 0.12);
   color: var(--up);
 }
 
 .notAc {
-  background: rgba(217, 64, 47, 0.12);
+  background: rgba(196, 30, 58, 0.12);
   color: var(--danger);
 }
 
@@ -218,7 +221,7 @@
 }
 
 .contestLink:hover {
-  color: var(--accent-text);
+  color: var(--accent);
 }
 
 .profileLink {
@@ -228,7 +231,7 @@
 }
 
 .profileLink:hover {
-  color: var(--accent-text);
+  color: var(--accent);
 }
 
 .problemLink {
@@ -238,221 +241,6 @@
 }
 
 .problemLink:hover {
-  color: var(--accent-text);
+  color: var(--accent);
   text-decoration: underline;
-}
-
-/* ===== 做题热力图 ===== */
-
-.heatmapWrap {
-  padding: 18px 20px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-}
-
-.heatmapBody {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.heatmapWeekdays {
-  display: grid;
-  grid-template-rows: repeat(7, 12px);
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.heatmapWeekdays span {
-  font-size: 9px;
-  line-height: 12px;
-  height: 12px;
-  color: var(--text-muted);
-}
-
-.heatmapGrid {
-  display: flex;
-  gap: 2px;
-}
-
-.heatmapWeek {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.heatmapCell {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-.heatLevel0 {
-  background: var(--border);
-}
-
-.heatLevel1 {
-  background: #B8D9B0;
-}
-
-.heatLevel2 {
-  background: #6FAA5E;
-}
-
-.heatLevel3 {
-  background: #3A7A2C;
-}
-
-.heatmapLegend {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 10px;
-  justify-content: flex-end;
-}
-
-.legendText {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin: 0 2px;
-}
-
-/* ===== 题目推荐 ===== */
-
-.recommendations {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-.recCard {
-  display: block;
-  padding: 12px 14px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  text-decoration: none;
-  transition: all var(--transition);
-  box-shadow: var(--shadow-sm);
-}
-
-.recCard:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-  border-color: var(--border-strong);
-}
-
-.recHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.recProblemName {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  line-height: 1.4;
-  flex: 1;
-  min-width: 0;
-  word-break: break-word;
-}
-
-.recCard:hover .recProblemName {
-  color: var(--accent-text);
-}
-
-.recRating {
-  font-size: 12px;
-  font-weight: 700;
-  padding: 1px 8px;
-  border-radius: 4px;
-  background: var(--bg-elevated);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.recTags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.recTag {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-}
-
-@media (max-width: 640px) {
-  .recommendations {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ===== 右侧导航栏 ===== */
-
-.detailLayout {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
-}
-
-.detailContent {
-  flex: 1;
-  min-width: 0;
-}
-
-.sideNav {
-  position: sticky;
-  top: 0;
-  flex-shrink: 0;
-  width: 140px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px 0;
-}
-
-.sideNavItem {
-  padding: 8px 14px;
-  font-size: 13px;
-  text-align: left;
-  background: transparent;
-  border: none;
-  border-left: 3px solid transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition);
-  font-family: inherit;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sideNavItem:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.sideNavActive {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  font-weight: 600;
-  border-left-color: var(--accent);
-}
-
-@media (max-width: 900px) {
-  .sideNav {
-    display: none;
-  }
 }

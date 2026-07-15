@@ -8,6 +8,31 @@ const DEFAULT_SETTINGS: Settings = {
   lastRefreshAt: 0,
 };
 
+// 安全写入: electron-store 的原子写入在 Windows 上可能因杀毒软件等触发 EPERM
+// 包装 store.set 使其在失败时自动重试几次, 避免崩溃
+function safeSet<T>(store: Store, key: string, value: T, retries = 3): void {
+  for (let i = 0; i < retries; i++) {
+    try {
+      store.set(key, value);
+      return;
+    } catch (e) {
+      const err = e as Error;
+      if (err.message?.includes('EPERM') && i < retries - 1) {
+        // 等待后重试
+        const wait = (i + 1) * 200;
+        const start = Date.now();
+        while (Date.now() - start < wait) {
+          // 同步等待
+        }
+        continue;
+      }
+      // 最后一次仍失败, 记录但不崩溃
+      console.error(`Store write failed for key "${key}":`, err.message);
+      return;
+    }
+  }
+}
+
 export class StoreManager {
   private store: Store;
 
@@ -36,17 +61,16 @@ export class StoreManager {
       return false; // duplicate
     }
     friends.push(friend);
-    this.store.set('friends', friends);
+    safeSet(this.store, 'friends', friends);
     return true;
   }
 
   removeFriend(handle: string): void {
     const friends = this.getFriends().filter((f) => f.handle !== handle);
-    this.store.set('friends', friends);
-    // also remove cache
+    safeSet(this.store, 'friends', friends);
     const cache = this.store.get('cache') as Record<string, FriendCache>;
     delete cache[handle];
-    this.store.set('cache', cache);
+    safeSet(this.store, 'cache', cache);
   }
 
   updateFriend(handle: string, alias: string): boolean {
@@ -54,7 +78,7 @@ export class StoreManager {
     const idx = friends.findIndex((f) => f.handle === handle);
     if (idx < 0) return false;
     friends[idx] = { ...friends[idx], alias };
-    this.store.set('friends', friends);
+    safeSet(this.store, 'friends', friends);
     return true;
   }
 
@@ -67,7 +91,7 @@ export class StoreManager {
   setCache(handle: string, data: FriendCache): void {
     const cache = this.store.get('cache') as Record<string, FriendCache>;
     cache[handle] = data;
-    this.store.set('cache', cache);
+    safeSet(this.store, 'cache', cache);
   }
 
   getAllCache(): Record<string, FriendCache> {
@@ -75,7 +99,7 @@ export class StoreManager {
   }
 
   clearCache(): void {
-    this.store.set('cache', {});
+    safeSet(this.store, 'cache', {});
   }
 
   // ---- Settings ----
@@ -84,7 +108,7 @@ export class StoreManager {
   }
 
   setSettings(settings: Settings): void {
-    this.store.set('settings', settings);
+    safeSet(this.store, 'settings', settings);
   }
 
   // ---- Util ----
@@ -101,7 +125,7 @@ export class StoreManager {
     const teams = this.getTeams();
     if (teams.some((t) => t.id === team.id)) return false;
     teams.push(team);
-    this.store.set('teams', teams);
+    safeSet(this.store, 'teams', teams);
     return true;
   }
 
@@ -110,13 +134,13 @@ export class StoreManager {
     const idx = teams.findIndex((t) => t.id === team.id);
     if (idx >= 0) {
       teams[idx] = team;
-      this.store.set('teams', teams);
+      safeSet(this.store, 'teams', teams);
     }
   }
 
   removeTeam(id: string): void {
     const teams = this.getTeams().filter((t) => t.id !== id);
-    this.store.set('teams', teams);
+    safeSet(this.store, 'teams', teams);
   }
 
   // ---- Window State ----
@@ -125,7 +149,7 @@ export class StoreManager {
   }
 
   setWindowState(state: WindowState): void {
-    this.store.set('windowState', state);
+    safeSet(this.store, 'windowState', state);
   }
 
   // ---- Viewed Ratings (for rating change indicator) ----
@@ -136,12 +160,12 @@ export class StoreManager {
   setViewedRating(handle: string, rating: number): void {
     const viewed = this.getViewedRatings();
     viewed[handle] = rating;
-    this.store.set('viewedRatings', viewed);
+    safeSet(this.store, 'viewedRatings', viewed);
   }
 
   removeViewedRating(handle: string): void {
     const viewed = this.getViewedRatings();
     delete viewed[handle];
-    this.store.set('viewedRatings', viewed);
+    safeSet(this.store, 'viewedRatings', viewed);
   }
 }
