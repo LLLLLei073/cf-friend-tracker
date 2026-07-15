@@ -20,6 +20,57 @@
   font-family: var(--font-serif);
 }
 
+/* ===== 搜索栏 + 排序 ===== */
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.searchInput {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-input, #1a1a2e);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color var(--transition);
+}
+
+.searchInput::placeholder {
+  color: var(--text-muted);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sortSelect {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--bg-input, #1a1a2e);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color var(--transition);
+}
+
+.sortSelect:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .friendList {
   flex: 1;
   overflow-y: auto;
