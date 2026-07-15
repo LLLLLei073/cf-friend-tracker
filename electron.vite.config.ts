@@ -30,6 +30,11 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, 'src/renderer/index.html'),
         },
+        output: {
+          entryFileNames: 'assets/index.js',
+          chunkFileNames: 'assets/[name].js',
+          assetFileNames: 'assets/[name][extname]',
+        },
       },
     },
     resolve: {
