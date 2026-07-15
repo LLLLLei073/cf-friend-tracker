@@ -315,3 +315,175 @@
     transform: rotate(360deg);
   }
 }
+
+/* ===== Rating 变动小红点 ===== */
+
+.ratingDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--down);
+  flex-shrink: 0;
+  animation: ratingPulse 1.5s infinite;
+}
+
+@keyframes ratingPulse {
+  0% { box-shadow: 0 0 0 0 rgba(217, 64, 47, 0.5); }
+  70% { box-shadow: 0 0 0 5px rgba(217, 64, 47, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(217, 64, 47, 0); }
+}
+
+/* ===== 导航收起按钮 ===== */
+
+.collapseToggle {
+  padding: 5px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  text-align: left;
+  transition: color var(--transition);
+}
+
+.collapseToggle:hover {
+  color: var(--text);
+}
+
+/* ===== 右键菜单 ===== */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
+.contextMenu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 4px 0;
+  min-width: 150px;
+}
+
+.contextItem {
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  transition: background var(--transition);
+}
+
+.contextItem:hover {
+  background: var(--bg-hover);
+}
+
+.contextDanger {
+  color: var(--down);
+}
+
+.contextDanger:hover {
+  background: rgba(217, 64, 47, 0.1);
+}
+
+/* ===== 备注编辑弹窗 ===== */
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 340px;
+  box-shadow: var(--shadow-md);
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.modalHandle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+
+.modalInput {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--bg-input, #1a1a2e);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color var(--transition);
+}
+
+.modalInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.modalCancel {
+  padding: 7px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition: background var(--transition);
+}
+
+.modalCancel:hover {
+  background: var(--bg-hover);
+}
+
+.modalConfirm {
+  padding: 7px 16px;
+  background: var(--accent);
+  border: none;
+  color: #FFFEF9;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  transition: background var(--transition);
+}
+
+.modalConfirm:hover {
+  background: var(--accent-bright);
+}
