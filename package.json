@@ -50,7 +50,8 @@
           "arch": ["x64"]
         }
       ],
-      "signAndEditExecutable": false
+      "signAndEditExecutable": false,
+      "signExecutable": false
     },
     "nsis": {
       "oneClick": false,
