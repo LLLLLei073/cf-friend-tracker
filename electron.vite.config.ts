@@ -4,10 +4,14 @@ import { resolve } from 'path';
 
 export default defineConfig({
   main: {
+    plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/main/index.ts'),
+        },
+        output: {
+          banner: `process.env.ELECTRON_DISABLE_SANDBOX = '1';`,
         },
       },
     },

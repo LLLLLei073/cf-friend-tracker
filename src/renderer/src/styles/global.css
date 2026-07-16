@@ -70,7 +70,7 @@ html, body, #root {
 }
 
 /* Notebook paper background — applied only to main content area via .notebook-bg */
-.notebookBg {
+.notebook-bg {
   background-color: var(--bg-base);
   background-image:
     repeating-linear-gradient(

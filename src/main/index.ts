@@ -1,7 +1,25 @@
 import { app, BrowserWindow, dialog } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { StoreManager } from './store';
 import { registerIpcHandlers } from './ipc-handlers';
+
+// 调试日志
+const logFile = path.join(app.getPath('userData'), 'debug.log');
+function debugLog(msg: string): void {
+  const line = `[${new Date().toISOString()}] ${msg}\n`;
+  try { fs.appendFileSync(logFile, line); } catch { /* ignore */ }
+}
+debugLog('=== App starting ===');
+debugLog(`Electron: ${process.versions.electron}, Node: ${process.versions.node}, Chromium: ${process.versions.chrome}`);
+debugLog(`Platform: ${process.platform}, Arch: ${process.arch}`);
+debugLog(`App path: ${app.getAppPath()}`);
+debugLog(`__dirname: ${__dirname}`);
+debugLog(`EXEC_PATH: ${process.execPath}`);
+
+// 未签名的 Electron 应用在 Windows 上需要禁用 Chromium 沙箱, 否则会崩溃
+app.commandLine.appendSwitch('no-sandbox');
+debugLog('no-sandbox switch added');
 
 // 全局异常捕获: 防止 electron-store 写入 EPERM 等错误导致崩溃
 let hasShownError = false;
@@ -20,10 +38,14 @@ process.on('uncaughtException', (err) => {
 });
 
 const store = new StoreManager();
+debugLog('StoreManager created');
 registerIpcHandlers(store);
+debugLog('IPC handlers registered');
 
 function createWindow(): void {
+  debugLog('createWindow called');
   const savedState = store.getWindowState();
+  debugLog(`Window state: ${JSON.stringify(savedState)}`);
   const win = new BrowserWindow({
     width: savedState?.width ?? 1100,
     height: savedState?.height ?? 750,
@@ -35,7 +57,19 @@ function createWindow(): void {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
+  });
+  debugLog('BrowserWindow created');
+
+  win.webContents.on('did-fail-load', (_e, code, desc) => {
+    debugLog(`did-fail-load: code=${code}, desc=${desc}`);
+  });
+  win.webContents.on('render-process-gone', (_e, details) => {
+    debugLog(`render-process-gone: ${JSON.stringify(details)}`);
+  });
+  win.webContents.on('console-message', (_e, level, msg) => {
+    debugLog(`renderer-console[${level}]: ${msg}`);
   });
 
   // 保存窗口状态
@@ -70,13 +104,19 @@ function createWindow(): void {
 
   // 开发环境加载 dev server,生产环境加载打包文件
   if (process.env['ELECTRON_RENDERER_URL']) {
+    debugLog(`Loading dev URL: ${process.env['ELECTRON_RENDERER_URL']}`);
     win.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {
-    win.loadFile(path.join(__dirname, '../renderer/index.html'));
+    const htmlPath = path.join(__dirname, '../renderer/index.html');
+    debugLog(`Loading file: ${htmlPath}`);
+    debugLog(`File exists: ${fs.existsSync(htmlPath)}`);
+    win.loadFile(htmlPath);
   }
+  debugLog('loadFile/loadURL called');
 }
 
 app.whenReady().then(() => {
+  debugLog('app.whenReady fired');
   createWindow();
 
   app.on('activate', () => {

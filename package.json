@@ -36,10 +36,12 @@
     "appId": "com.lei.cffriendtracker",
     "productName": "CF Friend Tracker",
     "directories": {
-      "output": "release"
+      "output": "C:/Users/60421/Desktop/cf-release"
     },
     "files": [
-      "out/**/*"
+      "out/**/*",
+      "package.json",
+      "node_modules/**/*"
     ],
     "win": {
       "target": [
