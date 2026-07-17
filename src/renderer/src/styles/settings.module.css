@@ -123,3 +123,252 @@
   border-color: var(--danger);
   box-shadow: var(--shadow-md);
 }
+
+/* ---- 应用更新 ---- */
+.updateSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.updateLabel {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.versionText {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.checkBtn {
+  padding: 9px 18px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+  align-self: flex-start;
+}
+
+.checkBtn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
+.checkBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.installBtn {
+  padding: 10px 20px;
+  background: var(--accent);
+  border: none;
+  color: #FFFEF9;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 700;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+  align-self: flex-start;
+}
+
+.installBtn:hover {
+  background: var(--accent-bright);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.updateMsg {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.updateOk {
+  font-size: 13px;
+  color: var(--up);
+  font-weight: 500;
+}
+
+.updateError {
+  font-size: 13px;
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.updateHint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.progressWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progressBar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-input);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+
+.progressDetail {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.releaseNotes {
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+
+.releaseNotes summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.releaseNotesContent {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* ---- 通知设置 ---- */
+.notifyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  gap: 12px;
+}
+
+/* ---- 主题设置 ---- */
+.themeRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.themeBtn {
+  padding: 10px 20px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.themeBtn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+}
+
+.themeActive {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* ---- 启动页面 ---- */
+.defaultPageSelect {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+
+.defaultPageSelect:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ---- 更新日志按钮 ---- */
+.changelogBtn {
+  padding: 8px 20px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.changelogBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.notifyLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  flex: 1;
+}
+
+.notifyToggle {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.notifyInput {
+  width: 80px;
+  padding: 6px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  text-align: center;
+}
+
+.notifyInput:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}

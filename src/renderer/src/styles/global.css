@@ -55,6 +55,45 @@
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
 }
 
+/* ---- 深色模式 ---- */
+:root.dark {
+  --bg-base: #1A1816;
+  --bg-surface: #252320;
+  --bg-elevated: #2D2A26;
+  --bg-hover: #353230;
+  --bg-input: #2D2A26;
+
+  --border: #3D3935;
+  --border-strong: #4A4540;
+  --rule-line: #2F2C28;
+
+  --text: #E8E4DC;
+  --text-secondary: #A8A096;
+  --text-muted: #6E6760;
+
+  --accent: #E0294A;
+  --accent-bright: #F03A5A;
+  --accent-dim: rgba(224, 41, 74, 0.15);
+  --accent-soft: #3A1E26;
+  --accent-text: #F0607A;
+
+  --note-yellow: #4A4430;
+  --note-green: #2A3A2C;
+  --note-pink: #3A2530;
+  --note-blue: #2A3540;
+
+  --danger: #F0607A;
+  --danger-soft: #3A1E26;
+  --up: #6BAF5A;
+  --down: #F0607A;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 4px 8px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-note: 0 1px 3px rgba(0, 0, 0, 0.4), 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
 * {
   margin: 0;
   padding: 0;

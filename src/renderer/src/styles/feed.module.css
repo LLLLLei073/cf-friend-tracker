@@ -1,0 +1,326 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.heading {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 18px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heading::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.section {
+  margin-bottom: 28px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionTitle::before {
+  content: '';
+  width: 3px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* ---- 今日谁最卷 ---- */
+.leaderRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.leaderCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.leaderCard:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.leaderRank {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.leaderAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.leaderInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.leaderName {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.leaderCount {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ---- 连续做题 ---- */
+.streakRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.streakCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.streakCard:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.streakAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.streakInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.streakName {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.streakDays {
+  font-size: 12px;
+  color: var(--up);
+  font-weight: 600;
+}
+
+.streakMax {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ---- 活动流 ---- */
+.feedHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.filterBtns {
+  display: flex;
+  gap: 4px;
+}
+
+.filterBtn {
+  padding: 4px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: inherit;
+}
+
+.filterBtn:hover {
+  background: var(--bg-hover);
+}
+
+.filterActive {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.empty {
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.timelineItem {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+}
+
+.timelineItem:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.timelineAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.timelineContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timelineHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.timelineName {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.timelineTime {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.timelineBody {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.timelineAction {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.contestName {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ratingChange {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.arrow {
+  color: var(--text-muted);
+}
+
+.delta {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.problemLink {
+  color: var(--accent-text);
+  text-decoration: none;
+  font-weight: 600;
+  transition: opacity var(--transition);
+}
+
+.problemLink:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.problemRating {
+  margin-left: 4px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .leaderRow {
+    flex-direction: column;
+  }
+
+  .streakRow {
+    grid-template-columns: 1fr;
+  }
+
+  .timelineBody {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}

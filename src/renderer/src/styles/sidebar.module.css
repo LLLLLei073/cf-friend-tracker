@@ -162,14 +162,6 @@
   100% { box-shadow: 0 0 0 0 rgba(74, 124, 58, 0); }
 }
 
-.actions {
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  border-top: 1px solid var(--border);
-}
-
 .myProfile {
   display: flex;
   align-items: center;
@@ -227,74 +219,6 @@
   color: var(--text-secondary);
 }
 
-.btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-secondary);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 13px;
-  text-align: left;
-  transition: all var(--transition);
-  font-family: inherit;
-}
-
-.btnIcon {
-  width: 16px;
-  text-align: center;
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.btn:hover:not(:disabled) {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.btnActive {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  font-weight: 600;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.refreshBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 9px 12px;
-  margin-top: 4px;
-  background: var(--accent);
-  border: none;
-  color: #FFFEF9;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: inherit;
-  transition: all var(--transition);
-  box-shadow: var(--shadow-sm);
-}
-
-.refreshBtn:hover:not(:disabled) {
-  background: var(--accent-bright);
-  box-shadow: var(--shadow-md);
-}
-
-.refreshBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .loadingText {
   font-size: 11px;
   color: var(--text-muted);
@@ -333,22 +257,202 @@
   100% { box-shadow: 0 0 0 0 rgba(217, 64, 47, 0); }
 }
 
-/* ===== 导航收起按钮 ===== */
+/* ===== 底部操作区 ===== */
 
-.collapseToggle {
-  padding: 5px 12px;
+.actions {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.bottomRow {
+  display: flex;
+  gap: 8px;
+}
+
+.navToggle {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.navToggle:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.navToggleIcon {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.refreshBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  height: 38px;
+  background: var(--accent);
+  border: none;
+  color: #FFFEF9;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.refreshBtn:hover:not(:disabled) {
+  background: var(--accent-bright);
+  box-shadow: var(--shadow-md);
+}
+
+.refreshBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refreshStatus {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ===== 悬浮导航面板 ===== */
+
+.navOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 998;
+}
+
+.navPanel {
+  position: fixed;
+  bottom: 70px;
+  left: 16px;
+  width: 240px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 14px;
+  z-index: 999;
+  animation: navPanelSlideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes navPanelSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.navPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.navPanelTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.5px;
+}
+
+.navPanelClose {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 12px;
-  font-family: inherit;
-  text-align: left;
-  transition: color var(--transition);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  transition: all var(--transition);
 }
 
-.collapseToggle:hover {
+.navPanelClose:hover {
+  background: var(--bg-hover);
   color: var(--text);
+}
+
+.navPanelGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.navCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: inherit;
+}
+
+.navCard:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.navCardActive {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.navCardActive .navCardIcon {
+  transform: scale(1.1);
+}
+
+.navCardIcon {
+  font-size: 20px;
+  transition: transform var(--transition);
+}
+
+.navCardLabel {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.navCardActive .navCardLabel {
+  color: var(--accent-text);
+  font-weight: 600;
 }
 
 /* ===== 右键菜单 ===== */

@@ -7,4 +7,9 @@ export type {
   FriendCache,
   Settings,
   CFContest,
+  UpdateStatus,
+  UpdateInfo,
+  UpdateProgress,
+  ContestPrediction,
+  PredictionResult,
 } from '../../shared/types';

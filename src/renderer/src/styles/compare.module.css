@@ -1,7 +1,7 @@
 .heading {
   font-size: 22px;
   font-weight: 700;
-  margin-bottom: 18px;
+  margin-bottom: 0;
   color: var(--text);
   display: flex;
   align-items: center;
@@ -14,6 +14,31 @@
   height: 20px;
   background: var(--accent);
   border-radius: 2px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.exportBtn {
+  padding: 6px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.exportBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 /* 选择器区域 */
@@ -211,6 +236,38 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* 自定义 Tooltip */
+.customTooltip {
+  background: #FDFCF8;
+  border: 1px solid #E2DED4;
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 2px 6px rgba(60,50,30,0.05), 0 8px 20px rgba(60,50,30,0.06);
+  font-size: 13px;
+  max-width: 280px;
+}
+
+.tooltipContestLink {
+  font-weight: 700;
+  color: #7A7268;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 2px;
+  word-break: break-word;
+  transition: color var(--transition);
+}
+
+.tooltipContestLink:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.tooltipDate {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
 /* 对比表格 */
 .table {
   width: 100%;
@@ -263,6 +320,14 @@
 
 .lower {
   color: var(--text-muted);
+}
+
+/* 分低的嘲讽标注 */
+.roast {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--danger);
+  font-weight: 600;
 }
 
 /* 响应式 */

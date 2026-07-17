@@ -13,6 +13,7 @@ import type { FriendCache, CFRatingChange } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import { NO_AVATAR, countACProblems } from '../utils/helpers';
 import { useAppData } from '../hooks/useAppData';
+import { exportCSV } from '../utils/export';
 import styles from '../styles/compare.module.css';
 
 const COLOR_A = '#F5C518';
@@ -178,17 +179,55 @@ export default function Compare() {
   const bothSelected = Boolean(handleA && handleB);
   const samePerson = Boolean(handleA && handleB && handleA === handleB);
 
-  // 合并两人 rating 历史为图表数据,以比赛序号作为 X 轴
+  // 合并两人最近10场 rating 历史为图表数据,按比赛时间排序
+  // 同一场比赛(contestId相同)只算一次
   const chartData = useMemo(() => {
     const ra = cacheA?.ratingHistory ?? [];
     const rb = cacheB?.ratingHistory ?? [];
-    const maxLen = Math.max(ra.length, rb.length);
-    if (maxLen === 0) return [];
-    return Array.from({ length: maxLen }, (_, i) => ({
-      idx: i + 1,
-      a: ra[i]?.newRating ?? null,
-      b: rb[i]?.newRating ?? null,
-    }));
+
+    // 各取最后10场
+    const lastA = ra.slice(-10);
+    const lastB = rb.slice(-10);
+
+    // 按 contestId 合并
+    const contestMap = new Map<
+      number,
+      {
+        time: number;
+        contestName: string;
+        contestId: number;
+        a: number | null;
+        b: number | null;
+      }
+    >();
+
+    for (const r of lastA) {
+      contestMap.set(r.contestId, {
+        time: r.ratingUpdateTimeSeconds,
+        contestName: r.contestName,
+        contestId: r.contestId,
+        a: r.newRating,
+        b: null,
+      });
+    }
+
+    for (const r of lastB) {
+      const existing = contestMap.get(r.contestId);
+      if (existing) {
+        existing.b = r.newRating;
+      } else {
+        contestMap.set(r.contestId, {
+          time: r.ratingUpdateTimeSeconds,
+          contestName: r.contestName,
+          contestId: r.contestId,
+          a: null,
+          b: r.newRating,
+        });
+      }
+    }
+
+    // 按时间排序
+    return Array.from(contestMap.values()).sort((a, b) => a.time - b.time);
   }, [cacheA, cacheB]);
 
   // 做题与比赛统计
@@ -242,9 +281,37 @@ export default function Compare() {
     ];
   }, [cacheA, cacheB, statsA, statsB]);
 
+  // 统计两人各自领先的项数
+  const { aWins, bWins } = useMemo(() => {
+    let aWins = 0;
+    let bWins = 0;
+    for (const row of tableRows) {
+      const side = betterSide(row.a, row.b);
+      if (side === 'a') aWins++;
+      else if (side === 'b') bWins++;
+    }
+    return { aWins, bWins };
+  }, [tableRows]);
+
+  // 导出对比数据为 CSV
+  const handleExportCompare = () => {
+    exportCSV(
+      ['指标', handleA, handleB],
+      tableRows.map((row) => [row.label, row.fmt(row.a), row.fmt(row.b)]),
+      `对比-${handleA}-vs-${handleB}`,
+    );
+  };
+
   return (
     <div>
-      <h2 className={styles.heading}>好友对比</h2>
+      <div className={styles.headerRow}>
+        <h2 className={styles.heading}>好友对比</h2>
+        {tableRows.length > 0 && (
+          <button className={styles.exportBtn} onClick={handleExportCompare}>
+            导出 CSV
+          </button>
+        )}
+      </div>
 
       {/* 选择好友 A / B */}
       <div className={styles.selectors}>
@@ -306,7 +373,7 @@ export default function Compare() {
 
           {/* Rating 历史曲线 */}
           <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Rating 历史曲线</h3>
+            <h3 className={styles.sectionTitle}>Rating 历史曲线（近10场）</h3>
             {chartData.length === 0 ? (
               <div className={styles.chartWrap}>
                 <p className={styles.hint}>暂无比赛记录</p>
@@ -317,13 +384,17 @@ export default function Compare() {
                   <LineChart data={chartData} margin={{ top: 10, right: 30, bottom: 10, left: 0 }}>
                     <CartesianGrid stroke="#E2DED4" strokeDasharray="3 3" vertical={false} />
                     <XAxis
-                      dataKey="idx"
+                      dataKey="time"
                       stroke="#B0A99E"
                       fontSize={11}
                       tickLine={false}
                       axisLine={{ stroke: '#E2DED4' }}
+                      tickFormatter={(v: number) => {
+                        const d = new Date(v * 1000);
+                        return `${d.getMonth() + 1}/${d.getDate()}`;
+                      }}
                       label={{
-                        value: '比赛序号',
+                        value: '比赛时间',
                         position: 'insideBottom',
                         offset: -2,
                         fill: '#B0A99E',
@@ -345,7 +416,39 @@ export default function Compare() {
                           '0 2px 6px rgba(60,50,30,0.05), 0 8px 20px rgba(60,50,30,0.06)',
                       }}
                       labelStyle={{ color: '#7A7268' }}
-                      labelFormatter={(v) => `第 ${v} 场`}
+                      labelFormatter={(v: number) => {
+                        const d = new Date(v * 1000);
+                        return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                      }}
+                      content={({ active, payload }: { active?: boolean; payload?: Array<{ payload: { contestId: number; contestName: string; time: number } }> }) => {
+                        if (!active || !payload || payload.length === 0) return null;
+                        const data = payload[0].payload;
+                        return (
+                          <div className={styles.customTooltip}>
+                            <a
+                              href={`https://codeforces.com/contest/${data.contestId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={styles.tooltipContestLink}
+                            >
+                              {data.contestName}
+                            </a>
+                            <p className={styles.tooltipDate}>
+                              {new Date(data.time * 1000).toLocaleDateString('zh-CN')}
+                            </p>
+                            {payload[0].payload.a != null && (
+                              <p style={{ color: COLOR_A, fontWeight: 600 }}>
+                                {handleA}: {payload[0].payload.a}
+                              </p>
+                            )}
+                            {payload[0].payload.b != null && (
+                              <p style={{ color: COLOR_B, fontWeight: 600 }}>
+                                {handleB}: {payload[0].payload.b}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }}
                     />
                     <Legend />
                     <Line
@@ -381,8 +484,14 @@ export default function Compare() {
               <thead>
                 <tr>
                   <th>指标</th>
-                  <th className={styles.valCol}>{handleA}</th>
-                  <th className={styles.valCol}>{handleB}</th>
+                  <th className={styles.valCol}>
+                    {handleA}
+                    {aWins < bWins && <span className={styles.roast}> 拉完了😂</span>}
+                  </th>
+                  <th className={styles.valCol}>
+                    {handleB}
+                    {bWins < aWins && <span className={styles.roast}> 拉完了😂</span>}
+                  </th>
                 </tr>
               </thead>
               <tbody>

@@ -1,7 +1,7 @@
 .heading {
   font-size: 24px;
   font-weight: 700;
-  margin-bottom: 18px;
+  margin-bottom: 0;
   color: var(--text);
   display: flex;
   align-items: center;
@@ -15,6 +15,31 @@
   height: 22px;
   background: var(--accent);
   border-radius: 2px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.exportBtn {
+  padding: 6px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.exportBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 .tabs {

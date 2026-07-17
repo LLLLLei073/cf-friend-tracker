@@ -1,6 +1,9 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { StoreManager } from './store';
 import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests } from './cf-api';
+import { checkForUpdates, installUpdate, getUpdateStatus } from './updater';
+import { checkRatingChanges, checkMilestones } from './notifier';
+import { predictContest } from './predictor';
 import type {
   Friend,
   Settings,
@@ -9,6 +12,9 @@ import type {
   WindowState,
   SyncResult,
   RefreshProgress,
+  UpdateStatus,
+  UpdateInfo,
+  ContestPrediction,
 } from '../shared/types';
 
 function sendProgress(progress: RefreshProgress): void {
@@ -79,6 +85,9 @@ export function registerIpcHandlers(store: StoreManager): void {
     const handles = friends.map((f) => f.handle);
     if (handles.length === 0) return [];
 
+    // 保存旧缓存用于变化检测
+    const oldCaches = store.getAllCache();
+
     const total = handles.length;
     const errors: string[] = [];
 
@@ -103,6 +112,10 @@ export function registerIpcHandlers(store: StoreManager): void {
     const settings = store.getSettings();
     settings.lastRefreshAt = Date.now();
     store.setSettings(settings);
+
+    // 刷新后检查通知
+    checkRatingChanges(store, oldCaches, settings);
+    checkMilestones(store, oldCaches);
 
     return infos;
   });
@@ -191,6 +204,9 @@ export function registerIpcHandlers(store: StoreManager): void {
       return { synced: 0, removed: 0, skipped: true, error: '未配置 Handle' };
     }
 
+    // 保存旧缓存用于变化检测
+    const oldCaches = store.getAllCache();
+
     let cfFriends: string[] | null = null;
 
     // 配置了 API 则拉取 CF 关注列表
@@ -254,6 +270,11 @@ export function registerIpcHandlers(store: StoreManager): void {
       // 忽略自身刷新失败
     }
 
+    // 刷新后检查通知
+    const currentSettings = store.getSettings();
+    checkRatingChanges(store, oldCaches, currentSettings);
+    checkMilestones(store, oldCaches);
+
     return { synced, removed, skipped: false, error: '' };
   });
 
@@ -296,5 +317,48 @@ export function registerIpcHandlers(store: StoreManager): void {
   ipcMain.handle('store:removeViewedRating', (_event, handle: string) => {
     store.removeViewedRating(handle);
     return true;
+  });
+
+  // ---- Updater (自动更新) ----
+  ipcMain.handle('updater:checkForUpdates', async () => {
+    await checkForUpdates();
+    return getUpdateStatus();
+  });
+
+  ipcMain.handle('updater:installUpdate', () => {
+    installUpdate();
+    return true;
+  });
+
+  ipcMain.handle('updater:getStatus', (): { status: UpdateStatus; info: UpdateInfo | null; error: string | null; appVersion: string } => {
+    return getUpdateStatus();
+  });
+
+  // ---- Notifications (通知) ----
+  ipcMain.handle('notify:test', async () => {
+    const { Notification } = await import('electron');
+    if (!Notification.isSupported()) return false;
+    const n = new Notification({
+      title: 'CF Friends 通知测试',
+      body: '如果你看到了这条通知，说明通知功能正常工作!',
+    });
+    n.show();
+    return true;
+  });
+
+  ipcMain.handle('notify:checkContests', async () => {
+    const { checkContestReminders } = await import('./notifier');
+    await checkContestReminders(store);
+    return true;
+  });
+
+  // ---- Rating Prediction (评级预测) ----
+  ipcMain.handle('predict:contest', async (_event, contestId: number, contestName: string): Promise<ContestPrediction> => {
+    const friends = store.getFriends();
+    const friendHandles = friends.map((f) => f.handle);
+    if (friendHandles.length === 0) {
+      return { contestId, contestName, predictions: [], totalParticipants: 0 };
+    }
+    return predictContest(contestId, contestName, friendHandles);
   });
 }

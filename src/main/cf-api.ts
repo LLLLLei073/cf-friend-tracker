@@ -6,6 +6,7 @@ import type {
   CFSubmission,
   CFApiResponse,
   CFContest,
+  CFContestStandings,
 } from '../shared/types';
 
 const API_BASE = 'https://codeforces.com/api';
@@ -137,4 +138,17 @@ export async function fetchFriends(
 
 export async function fetchContests(): Promise<CFContest[]> {
   return cfRequest<CFContest[]>('contest.list', {});
+}
+
+export async function fetchContestStandings(
+  contestId: number,
+  from = 1,
+  count = 10000
+): Promise<CFContestStandings> {
+  return cfRequest<CFContestStandings>('contest.standings', {
+    contestId: contestId.toString(),
+    from: from.toString(),
+    count: count.toString(),
+    showUnofficial: 'false',
+  });
 }

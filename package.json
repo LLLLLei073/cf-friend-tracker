@@ -1,6 +1,6 @@
 {
   "name": "cf-friend-tracker",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Codeforces 好友关注桌面应用",
   "author": "LLLLLei073",
   "main": "./out/main/index.js",
@@ -10,11 +10,13 @@
     "preview": "electron-vite preview",
     "test": "vitest run",
     "build:win": "electron-vite build && electron-builder --win --config",
-    "build:portable": "electron-vite build && electron-builder --win dir --config"
+    "build:portable": "electron-vite build && electron-builder --win dir --config",
+    "release": "electron-vite build && electron-builder --win --publish always"
   },
   "dependencies": {
     "axios": "^1.7.2",
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.3.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.24.0",
@@ -37,6 +39,11 @@
     "productName": "CF Friend Tracker",
     "directories": {
       "output": "C:/Users/60421/Desktop/cf-release"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "LLLLLei073",
+      "repo": "cf-friend-tracker"
     },
     "files": [
       "out/**/*",

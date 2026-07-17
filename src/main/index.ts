@@ -1,8 +1,10 @@
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, Notification } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { StoreManager } from './store';
 import { registerIpcHandlers } from './ipc-handlers';
+import { initUpdater } from './updater';
+import { startContestReminderTimer, stopContestReminderTimer } from './notifier';
 
 // 调试日志
 const logFile = path.join(app.getPath('userData'), 'debug.log');
@@ -119,6 +121,18 @@ app.whenReady().then(() => {
   debugLog('app.whenReady fired');
   createWindow();
 
+  // 初始化自动更新(生产模式启动后延迟自动检查)
+  initUpdater();
+  debugLog('Updater initialized');
+
+  // 请求通知权限并启动比赛提醒定时器
+  if (Notification.isSupported()) {
+    debugLog('Notification is supported');
+    startContestReminderTimer(store);
+  } else {
+    debugLog('Notification is NOT supported');
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -130,4 +144,8 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', () => {
+  stopContestReminderTimer();
 });

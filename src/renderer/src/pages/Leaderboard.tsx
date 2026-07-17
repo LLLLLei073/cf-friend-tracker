@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { FriendCache } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import { NO_AVATAR, countACProblems, getMedalClass } from '../utils/helpers';
 import { useAppData } from '../hooks/useAppData';
+import { exportCSV } from '../utils/export';
 import styles from '../styles/leaderboard.module.css';
 
 type Tab = 'solved' | 'rating';
@@ -82,9 +83,32 @@ export default function Leaderboard() {
       .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
   }, [allPeople, caches]);
 
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const handleExportCSV = () => {
+    if (tab === 'solved') {
+      exportCSV(
+        ['排名', 'Handle', '别名', 'Rating', '近两天 AC'],
+        solvedRanking.map((e, i) => [i + 1, e.handle, e.alias, e.rating ?? '', e.solvedCount]),
+        '排行榜-近两天做题',
+      );
+    } else {
+      exportCSV(
+        ['排名', 'Handle', '别名', 'Rating', '最高 Rating'],
+        ratingRanking.map((e, i) => [i + 1, e.handle, e.alias, e.rating ?? '', e.maxRating ?? '']),
+        '排行榜-Rating',
+      );
+    }
+  };
+
   return (
     <div>
-      <h2 className={styles.heading}>排行榜</h2>
+      <div className={styles.headerRow}>
+        <h2 className={styles.heading}>排行榜</h2>
+        <button className={styles.exportBtn} onClick={handleExportCSV}>
+          导出 CSV
+        </button>
+      </div>
       <div className={styles.tabs}>
         <button
           className={tab === 'solved' ? styles.activeTab : styles.tab}

@@ -1,8 +1,35 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 import type { FriendCache, CFProblem } from '../types';
 import { getRankColor, getRankLabel, getRatingColor } from '../utils/rank';
 import { NO_AVATAR } from '../utils/helpers';
+import {
+  aggregateTagStats,
+  getRadarData,
+  getWeakTags,
+  getDifficultyDistribution,
+  getVerdictDistribution,
+  getVerdictColor,
+  calculateStreak,
+} from '../utils/analytics';
 import RatingChart from '../components/RatingChart';
 import ContestTable from '../components/ContestTable';
 import styles from '../styles/friendDetail.module.css';
@@ -67,6 +94,7 @@ export default function FriendDetail() {
     { id: 'rating', label: 'Rating 曲线' },
     { id: 'contests', label: '最近比赛' },
     { id: 'heatmap', label: '做题热力图' },
+    { id: 'analytics', label: '标签分析' },
     { id: 'recommend', label: '题目推荐' },
     { id: 'submissions', label: '最近提交' },
   ];
@@ -187,6 +215,14 @@ export default function FriendDetail() {
     }
     return weeks;
   }, [heatmapData]);
+
+  // --- Analytics computation ---
+  const tagStats = useMemo(() => aggregateTagStats(cache?.recentSubmissions ?? []), [cache]);
+  const radarData = useMemo(() => getRadarData(tagStats), [tagStats]);
+  const weakTags = useMemo(() => getWeakTags(tagStats), [tagStats]);
+  const difficultyDistribution = useMemo(() => getDifficultyDistribution(cache?.recentSubmissions ?? []), [cache]);
+  const verdictDistribution = useMemo(() => getVerdictDistribution(cache?.recentSubmissions ?? []), [cache]);
+  const streak = useMemo(() => calculateStreak(cache?.recentSubmissions ?? []), [cache]);
 
   // --- Load recommendations when cache is available ---
   useEffect(() => {
@@ -377,6 +413,89 @@ export default function FriendDetail() {
         </div>
       </section>
 
+      {/* 标签分析 */}
+      <section className={styles.section} ref={(el) => { sectionRefs.current['analytics'] = el; }}>
+        <h3 className={styles.sectionTitle}>标签分析与做题习惯</h3>
+        <div className={styles.analyticsGrid}>
+          <div className={styles.chartCard}>
+            <h4 className={styles.chartTitle}>擅长标签 (AC 数)</h4>
+            <ResponsiveContainer width="100%" height={300}>
+              <RadarChart data={radarData}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="tag" tick={{ fontSize: 11, fill: '#8C857B' }} />
+                <PolarRadiusAxis tick={{ fontSize: 10, fill: '#ABA496' }} />
+                <Radar dataKey="ac" stroke="#F5C518" fill="#F5C518" fillOpacity={0.5} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className={styles.chartCard}>
+            <h4 className={styles.chartTitle}>难度分布 (AC 题)</h4>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={difficultyDistribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E3DECF" vertical={false} />
+                <XAxis dataKey="range" tick={{ fontSize: 10, fill: '#8C857B' }} angle={-20} textAnchor="end" height={50} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#8C857B' }} />
+                <Tooltip
+                  contentStyle={{
+                    background: '#FDFCF8',
+                    border: '1px solid #E2DED4',
+                    borderRadius: '12px',
+                  }}
+                />
+                <Bar dataKey="count" fill="#F5C518" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className={styles.chartCard}>
+            <h4 className={styles.chartTitle}>判定结果分布</h4>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={verdictDistribution}
+                  dataKey="count"
+                  nameKey="verdict"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  label={(entry: { verdict: string; percentage: number }) => `${entry.verdict} ${entry.percentage}%`}
+                >
+                  {verdictDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={getVerdictColor(entry.verdict)} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    background: '#FDFCF8',
+                    border: '1px solid #E2DED4',
+                    borderRadius: '12px',
+                  }}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className={styles.chartCard}>
+            <h4 className={styles.chartTitle}>数据概览</h4>
+            <div className={styles.statRow}>
+              <span className={styles.statLabel}>当前连续做题</span>
+              <span className={styles.statValue}>{streak.currentStreak} 天</span>
+            </div>
+            <div className={styles.statRow}>
+              <span className={styles.statLabel}>最长连续做题</span>
+              <span className={styles.statValue}>{streak.maxStreak} 天</span>
+            </div>
+            <div className={styles.statRow}>
+              <span className={styles.statLabel}>薄弱标签</span>
+              <div className={styles.weakTags}>
+                {weakTags.length > 0 ? weakTags.map((t) => (
+                  <span key={t.tag} className={styles.weakTag}>{t.tag}</span>
+                )) : <span style={{color: '#ABA496'}}>暂无</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* 题目推荐 */}
       <section className={styles.section} ref={(el) => { sectionRefs.current['recommend'] = el; }}>
         <h3 className={styles.sectionTitle}>你可能感兴趣的题目</h3>
@@ -475,7 +594,8 @@ export default function FriendDetail() {
             className={`${styles.sideNavItem} ${activeSection === item.id ? styles.sideNavActive : ''}`}
             onClick={() => scrollToSection(item.id)}
           >
-            {item.label}
+            <span className={styles.sideNavDot} />
+            <span className={styles.sideNavLabel}>{item.label}</span>
           </button>
         ))}
       </nav>

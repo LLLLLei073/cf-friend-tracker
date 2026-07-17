@@ -22,8 +22,7 @@ export default function Sidebar() {
   const [lastRefreshAt, setLastRefreshAt] = useState(0);
   // 用于定时刷新"距上次刷新"的显示
   const [now, setNow] = useState(Date.now());
-  // 导航区收起状态
-  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [navPanelOpen, setNavPanelOpen] = useState(false);
 
   // 搜索 & 排序
   const [searchText, setSearchText] = useState('');
@@ -359,42 +358,100 @@ export default function Sidebar() {
       </div>
 
       <div className={styles.actions}>
-        <button onClick={() => setNavCollapsed(!navCollapsed)} className={styles.collapseToggle}>
-          {navCollapsed ? '▶ 导航' : '▼ 导航'}
-        </button>
-        {!navCollapsed && (
-          <>
-            <button onClick={() => navigate('/add')} className={location.pathname === '/add' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-              <span className={styles.btnIcon}>＋</span> 添加好友
-            </button>
-            <button onClick={() => navigate('/leaderboard')} className={location.pathname === '/leaderboard' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-              <span className={styles.btnIcon}>🏆</span> 排行榜
-            </button>
-            <button onClick={() => navigate('/teams')} className={location.pathname === '/teams' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-              <span className={styles.btnIcon}>👥</span> 团队
-            </button>
-            <button onClick={() => navigate('/contests')} className={location.pathname === '/contests' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-              <span className={styles.btnIcon}>📅</span> 近期比赛
-            </button>
-            <button onClick={() => navigate('/compare')} className={location.pathname === '/compare' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-              <span className={styles.btnIcon}>📊</span> 好友对比
-            </button>
-            <button onClick={() => navigate('/report')} className={location.pathname === '/report' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-              <span className={styles.btnIcon}>📝</span> 周报/月报
-            </button>
-            <button onClick={() => navigate('/settings')} className={location.pathname === '/settings' ? `${styles.btn} ${styles.btnActive}` : styles.btn}>
-              <span className={styles.btnIcon}>⚙</span> 设置
-            </button>
-          </>
+        <div className={styles.bottomRow}>
+          <button
+            className={styles.navToggle}
+            onClick={() => setNavPanelOpen(!navPanelOpen)}
+            title="导航菜单"
+          >
+            <span className={styles.navToggleIcon}>{navPanelOpen ? '✕' : '☰'}</span>
+          </button>
+          <button onClick={() => handleRefresh()} disabled={refreshing} className={styles.refreshBtn}>
+            {refreshing && progress
+              ? `${progress.completed}/${progress.total}`
+              : '↻'}
+          </button>
+        </div>
+        {refreshing && progress && (
+          <p className={styles.refreshStatus}>
+            刷新中 {progress.completed}/{progress.total}
+          </p>
         )}
-        <button onClick={() => handleRefresh()} disabled={refreshing} className={styles.refreshBtn}>
-          {refreshing && progress
-            ? `刷新中 ${progress.completed}/${progress.total}`
-            : refreshHint
-              ? `↻ 刷新全部 (${refreshHint})`
-              : '↻ 刷新全部'}
-        </button>
+        {refreshHint && !refreshing && (
+          <p className={styles.refreshStatus}>{refreshHint}前刷新</p>
+        )}
       </div>
+
+      {/* 悬浮导航面板 */}
+      {navPanelOpen && (
+        <>
+          <div className={styles.navOverlay} onClick={() => setNavPanelOpen(false)} />
+          <div className={styles.navPanel}>
+            <div className={styles.navPanelHeader}>
+              <span className={styles.navPanelTitle}>导航</span>
+              <button className={styles.navPanelClose} onClick={() => setNavPanelOpen(false)}>✕</button>
+            </div>
+            <div className={styles.navPanelGrid}>
+              <button
+                className={`${styles.navCard} ${location.pathname === '/add' ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/add'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>＋</span>
+                <span className={styles.navCardLabel}>添加好友</span>
+              </button>
+              <button
+                className={`${styles.navCard} ${location.pathname === '/feed' ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/feed'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>📡</span>
+                <span className={styles.navCardLabel}>动态</span>
+              </button>
+              <button
+                className={`${styles.navCard} ${location.pathname === '/leaderboard' ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/leaderboard'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>🏆</span>
+                <span className={styles.navCardLabel}>排行榜</span>
+              </button>
+              <button
+                className={`${styles.navCard} ${location.pathname === '/teams' ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/teams'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>👥</span>
+                <span className={styles.navCardLabel}>团队</span>
+              </button>
+              <button
+                className={`${styles.navCard} ${location.pathname === '/contests' ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/contests'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>📅</span>
+                <span className={styles.navCardLabel}>近期比赛</span>
+              </button>
+              <button
+                className={`${styles.navCard} ${location.pathname === '/compare' ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/compare'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>📊</span>
+                <span className={styles.navCardLabel}>好友对比</span>
+              </button>
+              <button
+                className={`${styles.navCard} ${location.pathname === '/report' ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/report'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>📝</span>
+                <span className={styles.navCardLabel}>周报/月报</span>
+              </button>
+              <button
+                className={`${styles.navCard} ${location.pathname === '/settings' ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/settings'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>⚙</span>
+                <span className={styles.navCardLabel}>设置</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* 右键菜单 */}
       {contextMenu && (

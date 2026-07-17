@@ -11,6 +11,10 @@ import type {
   SyncResult,
   Team,
   WindowState,
+  UpdateStatus,
+  UpdateInfo,
+  UpdateProgress,
+  ContestPrediction,
 } from '../shared/types';
 
 const api = {
@@ -60,6 +64,36 @@ const api = {
       ipcRenderer.invoke('store:setViewedRating', handle, rating),
     removeViewedRating: (handle: string): Promise<boolean> =>
       ipcRenderer.invoke('store:removeViewedRating', handle),
+  },
+  updater: {
+    checkForUpdates: (): Promise<{ status: UpdateStatus; info: UpdateInfo | null; error: string | null; appVersion: string }> =>
+      ipcRenderer.invoke('updater:checkForUpdates'),
+    installUpdate: (): Promise<boolean> => ipcRenderer.invoke('updater:installUpdate'),
+    getStatus: (): Promise<{ status: UpdateStatus; info: UpdateInfo | null; error: string | null; appVersion: string }> =>
+      ipcRenderer.invoke('updater:getStatus'),
+    onStatus: (
+      callback: (data: { status: UpdateStatus; info: UpdateInfo | null; error: string | null }) => void,
+    ): (() => void) => {
+      const handler = (
+        _event: IpcRendererEvent,
+        data: { status: UpdateStatus; info: UpdateInfo | null; error: string | null },
+      ) => callback(data);
+      ipcRenderer.on('updater:status', handler);
+      return () => ipcRenderer.removeListener('updater:status', handler);
+    },
+    onProgress: (callback: (progress: UpdateProgress) => void): (() => void) => {
+      const handler = (_event: IpcRendererEvent, data: UpdateProgress) => callback(data);
+      ipcRenderer.on('updater:progress', handler);
+      return () => ipcRenderer.removeListener('updater:progress', handler);
+    },
+  },
+  notify: {
+    test: (): Promise<boolean> => ipcRenderer.invoke('notify:test'),
+    checkContests: (): Promise<boolean> => ipcRenderer.invoke('notify:checkContests'),
+  },
+  predict: {
+    contest: (contestId: number, contestName: string): Promise<ContestPrediction> =>
+      ipcRenderer.invoke('predict:contest', contestId, contestName),
   },
 };
 

@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Team } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import { NO_AVATAR, countACProblems, getMedalClass } from '../utils/helpers';
 import { useAppData } from '../hooks/useAppData';
+import { exportCSV, exportElementAsImage } from '../utils/export';
 import styles from '../styles/report.module.css';
 
 type Range = 'week' | 'month';
@@ -233,9 +234,38 @@ export default function Report() {
     );
   }
 
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const handleExportCSV = () => {
+    const rangeLabel = range === 'week' ? '周报' : '月报';
+    exportCSV(
+      ['排名', 'Handle', '别名', 'AC 题数', 'Rating'],
+      solvedRanking.map((e, i) => [i + 1, e.handle, e.alias, e.solvedCount, e.rating ?? '']),
+      `团队${rangeLabel}-${teamName}`,
+    );
+  };
+
+  const handleExportImage = async () => {
+    if (reportRef.current) {
+      try {
+        await exportElementAsImage(reportRef.current, `团队报告-${teamName}-${range === 'week' ? '周报' : '月报'}`);
+      } catch (e) {
+        console.error('export image failed:', e);
+      }
+    }
+  };
+
   return (
     <div>
-      <h2 className={styles.heading}>团队周报 / 月报</h2>
+      <div className={styles.headerRow}>
+        <h2 className={styles.heading}>团队周报 / 月报</h2>
+        {hasData && (
+          <div className={styles.exportBtns}>
+            <button className={styles.exportBtn} onClick={handleExportCSV}>导出 CSV</button>
+            <button className={styles.exportBtn} onClick={handleExportImage}>导出图片</button>
+          </div>
+        )}
+      </div>
 
       {/* 团队选择器 */}
       <div className={styles.teamSelector}>
@@ -272,7 +302,7 @@ export default function Report() {
           {rangeLabel}暂无数据，请先刷新拉取数据。
         </p>
       ) : (
-        <>
+        <div ref={reportRef}>
           {/* 总览卡片 */}
           <div className={styles.overview}>
             <div className={styles.overviewCard}>
@@ -444,7 +474,7 @@ export default function Report() {
           <div className={styles.summaryBox}>
             <p className={styles.summaryText}>{summaryText}</p>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

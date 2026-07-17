@@ -397,6 +397,84 @@
   white-space: nowrap;
 }
 
+/* ===== Analytics Section ===== */
+
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.chartCard {
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+}
+
+.chartCard:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.chartTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.statRow:last-child {
+  border-bottom: none;
+}
+
+.statLabel {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.statValue {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.weakTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+  max-width: 60%;
+}
+
+.weakTag {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(196, 30, 58, 0.08);
+  color: var(--danger);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ===== 右侧导航栏 ===== */
 
 .detailLayout {
@@ -414,17 +492,25 @@
   position: sticky;
   top: 0;
   flex-shrink: 0;
-  width: 130px;
+  width: 36px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding: 8px 6px;
+  transition: width var(--transition);
+  overflow: hidden;
+}
+
+.sideNav:hover {
+  width: 130px;
   padding: 8px 0;
 }
 
 .sideNavItem {
   display: flex;
   align-items: center;
-  padding: 9px 12px;
+  gap: 8px;
+  padding: 9px 8px;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-secondary);
@@ -436,7 +522,24 @@
   font-family: inherit;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.sideNavDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.sideNavLabel {
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.sideNav:hover .sideNavLabel {
+  opacity: 1;
 }
 
 .sideNavItem:hover {
@@ -448,6 +551,11 @@
   background: var(--accent-soft);
   color: var(--accent-text);
   font-weight: 600;
+}
+
+.sideNavActive .sideNavDot {
+  background: var(--accent);
+  transform: scale(1.3);
 }
 
 @media (max-width: 900px) {

@@ -6,6 +6,12 @@ const DEFAULT_SETTINGS: Settings = {
   apiKey: '',
   apiSecret: '',
   lastRefreshAt: 0,
+  theme: 'system',
+  defaultPage: 'friends',
+  lastViewedChangelog: '',
+  notifyRatingChange: true,
+  notifyContestStart: true,
+  contestNotifyMinutes: 30,
 };
 
 // 持久化数据的 schema, 用于让 electron-store 的 get/set 获得类型安全
