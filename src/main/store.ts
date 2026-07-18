@@ -88,6 +88,16 @@ export class StoreManager {
     return true;
   }
 
+  // 切换好友的特别关注状态
+  setFriendStarred(handle: string, starred: boolean): boolean {
+    const friends = this.getFriends();
+    const idx = friends.findIndex((f) => f.handle === handle);
+    if (idx < 0) return false;
+    friends[idx] = { ...friends[idx], starred };
+    safeSet(this.store, 'friends', friends);
+    return true;
+  }
+
   // ---- Cache ----
   getCache(handle: string): FriendCache | undefined {
     const cache = this.store.get('cache');

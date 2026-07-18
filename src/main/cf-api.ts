@@ -57,6 +57,27 @@ export class RequestQueue {
 
 const requestQueue = new RequestQueue();
 
+/**
+ * 判断是否为可重试的网络错误(超时、连接重置、TLS 断开、5xx 等)。
+ * CF API 经常因网络波动失败, 对这类错误重试可显著提升成功率。
+ */
+function isRetryableNetworkError(e: unknown): boolean {
+  if (!axios.isAxiosError(e)) return false;
+  const code = (e as { code?: string }).code;
+  if (code && ['ECONNABORTED', 'ETIMEDOUT', 'ECONNRESET', 'EPIPE', 'EAI_AGAIN'].includes(code)) {
+    return true;
+  }
+  const status = e.response?.status ?? 0;
+  if (status >= 500 && status < 600) {
+    return true;
+  }
+  // 无 response 的网络错误(TLS 握手失败、socket 断开等)可重试
+  if (!e.response) {
+    return true;
+  }
+  return false;
+}
+
 async function cfRequest<T>(
   method: string,
   params: Record<string, string>,
@@ -85,14 +106,15 @@ async function cfRequest<T>(
     const url = `${API_BASE}/${method}?${query}`;
 
     let lastError: Error | null = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const MAX_ATTEMPTS = 3;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       try {
-        const resp = await axios.get<CFApiResponse<T>>(url, { timeout: 10000 });
+        const resp = await axios.get<CFApiResponse<T>>(url, { timeout: 15000 });
         if (resp.data.status === 'OK' && resp.data.result !== undefined) {
           return resp.data.result;
         }
-        // Call limit exceeded -> retry once
-        if (resp.data.comment === 'Call limit exceeded' && attempt === 0) {
+        // Call limit exceeded -> 退避后重试
+        if (resp.data.comment === 'Call limit exceeded' && attempt < MAX_ATTEMPTS - 1) {
           await new Promise((r) => setTimeout(r, 3000));
           continue;
         }
@@ -102,13 +124,18 @@ async function cfRequest<T>(
         if (!axios.isAxiosError(e)) throw e;
         lastError = e as Error;
 
-        // 提取 CF API 返回的具体错误信息
+        // CF API 返回明确错误信息(业务错误), 不重试
         const cfError = e.response?.data as CFApiResponse<T> | undefined;
         if (cfError?.comment) {
-          // CF API 返回了明确的错误信息
           throw new Error(cfError.comment);
         }
-        // 纯网络错误(超时、DNS 等), 不重试
+
+        // 纯网络错误(超时、TLS 断开、ECONNRESET 等): 指数退避重试
+        if (isRetryableNetworkError(e) && attempt < MAX_ATTEMPTS - 1) {
+          const backoff = 1000 * Math.pow(2, attempt); // 1s, 2s
+          await new Promise((r) => setTimeout(r, backoff));
+          continue;
+        }
         throw new Error(`网络错误: ${(e as Error).message}`);
       }
     }

@@ -28,6 +28,7 @@ const api = {
     getFriends: (handle: string, apiKey: string, apiSecret: string): Promise<string[]> =>
       ipcRenderer.invoke('cf:getFriends', handle, apiKey, apiSecret),
     refreshAll: (): Promise<CFUser[]> => ipcRenderer.invoke('cf:refreshAll'),
+    refreshStarred: (): Promise<CFUser[]> => ipcRenderer.invoke('cf:refreshStarred'),
     refreshMyProfile: (): Promise<CFUser | null> => ipcRenderer.invoke('cf:refreshMyProfile'),
     syncFriendsAuto: (): Promise<SyncResult> => ipcRenderer.invoke('cf:syncFriendsAuto'),
     getContests: (): Promise<CFContest[]> => ipcRenderer.invoke('cf:getContests'),
@@ -44,6 +45,8 @@ const api = {
       ipcRenderer.invoke('store:removeFriend', handle),
     updateFriend: (handle: string, alias: string): Promise<boolean> =>
       ipcRenderer.invoke('store:updateFriend', handle, alias),
+    setFriendStarred: (handle: string, starred: boolean): Promise<boolean> =>
+      ipcRenderer.invoke('store:setFriendStarred', handle, starred),
     getCache: (handle: string): Promise<FriendCache | undefined> =>
       ipcRenderer.invoke('store:getCache', handle),
     getAllCache: (): Promise<Record<string, FriendCache>> => ipcRenderer.invoke('store:getAllCache'),

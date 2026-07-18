@@ -100,6 +100,14 @@ export function registerIpcHandlers(store: StoreManager): void {
       throw e;
     }
 
+    // starred 排前面: 让特别关注的好友优先完成刷新
+    const starredSet = new Set(friends.filter((f) => f.starred).map((f) => f.handle));
+    infos.sort((a, b) => {
+      const sa = starredSet.has(a.handle) ? 0 : 1;
+      const sb = starredSet.has(b.handle) ? 0 : 1;
+      return sa - sb;
+    });
+
     // 2. 逐个获取 rating + status,每完成一个就推送进度
     let completed = 0;
     for (const info of infos) {
@@ -114,6 +122,41 @@ export function registerIpcHandlers(store: StoreManager): void {
     store.setSettings(settings);
 
     // 刷新后检查通知
+    checkRatingChanges(store, oldCaches, settings);
+    checkMilestones(store, oldCaches);
+
+    return infos;
+  });
+
+  // ---- 仅刷新特别关注的好友 (节省资源: 不拉取非 starred 好友) ----
+  ipcMain.handle('cf:refreshStarred', async () => {
+    const friends = store.getFriends();
+    const starredFriends = friends.filter((f) => f.starred);
+    const handles = starredFriends.map((f) => f.handle);
+    if (handles.length === 0) return [];
+
+    const oldCaches = store.getAllCache();
+    const total = handles.length;
+    const errors: string[] = [];
+
+    let infos: CFUser[];
+    try {
+      infos = await fetchUserInfo(handles);
+    } catch (e) {
+      console.error('fetchUserInfo(starred) failed:', e);
+      throw e;
+    }
+
+    let completed = 0;
+    for (const info of infos) {
+      const ok = await refreshUserCacheSafe(store, info);
+      if (!ok) errors.push(info.handle);
+      completed++;
+      sendProgress({ handle: info.handle, completed, total, errors });
+    }
+
+    // 注意: 仅刷新 starred 不更新 lastRefreshAt, 避免干扰全量刷新的时间记录
+    const settings = store.getSettings();
     checkRatingChanges(store, oldCaches, settings);
     checkMilestones(store, oldCaches);
 
@@ -136,6 +179,10 @@ export function registerIpcHandlers(store: StoreManager): void {
 
   ipcMain.handle('store:updateFriend', (_event, handle: string, alias: string) => {
     return store.updateFriend(handle, alias);
+  });
+
+  ipcMain.handle('store:setFriendStarred', (_event, handle: string, starred: boolean) => {
+    return store.setFriendStarred(handle, starred);
   });
 
   // ---- Store: Cache ----
@@ -289,8 +336,9 @@ export function registerIpcHandlers(store: StoreManager): void {
         return endTime > now; // 还没结束的
       }).sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
     } catch (e) {
+      // 不吞错误: 把真实错误抛给前端, 区分"无比赛"与"请求失败"
       console.error('fetchContests failed:', e);
-      return [];
+      throw new Error(`获取比赛列表失败: ${(e as Error).message}`);
     }
   });
 

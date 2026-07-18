@@ -56,6 +56,8 @@ export interface Friend {
   handle: string;
   alias: string;
   addedAt: number;
+  // 特别关注: starred 好友在列表中置顶显示, 且可一键仅刷新这些好友(节省资源)
+  starred?: boolean;
 }
 
 export interface FriendCache {
