@@ -591,3 +591,55 @@
 .modalConfirm:hover {
   background: var(--accent-bright);
 }
+
+/* ===== 特别关注星标 ===== */
+
+.starIcon {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 11px;
+  color: var(--accent);
+  flex-shrink: 0;
+  text-shadow: 0 0 4px var(--accent-soft);
+  pointer-events: none;
+}
+
+/* starred 好友置顶高亮: 左侧星标色边 */
+.friendItemStarred {
+  background: linear-gradient(90deg, var(--accent-soft) 0%, transparent 60%);
+}
+
+.friendItemStarred:hover {
+  background: linear-gradient(90deg, var(--accent-soft) 0%, var(--bg-hover) 60%);
+}
+
+/* 仅刷新特别关注按钮 */
+.starRefreshBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 10px;
+  height: 38px;
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+
+.starRefreshBtn:hover:not(:disabled) {
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+.starRefreshBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

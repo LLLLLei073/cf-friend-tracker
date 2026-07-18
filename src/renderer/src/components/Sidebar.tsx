@@ -193,6 +193,35 @@ export default function Sidebar() {
     }
   };
 
+  // 切换特别关注状态
+  const handleToggleStar = async (handle: string) => {
+    setContextMenu(null);
+    const friend = friends.find((f) => f.handle === handle);
+    if (!friend) return;
+    const next = !friend.starred;
+    await window.api.store.setFriendStarred(handle, next);
+    await loadData();
+  };
+
+  // 仅刷新特别关注的好友(节省资源: 不拉取非 starred 好友)
+  const handleRefreshStarred = async () => {
+    const starred = friends.filter((f) => f.starred);
+    if (starred.length === 0) return;
+    setRefreshing(true);
+    setProgress({ completed: 0, total: starred.length });
+    setRefreshingHandles(new Set(starred.map((f) => f.handle)));
+    try {
+      await window.api.cf.refreshStarred();
+      await loadData();
+    } catch (e) {
+      console.error('Refresh starred failed:', e);
+    } finally {
+      setRefreshing(false);
+      setProgress(null);
+      setRefreshingHandles(new Set());
+    }
+  };
+
   // 点击好友: 进入详情页并标记 rating 已查看,消除小红点
   const handleFriendClick = async (friend: Friend) => {
     const cache = caches[friend.handle];
@@ -234,6 +263,13 @@ export default function Sidebar() {
       });
     }
     // default: 保持添加顺序(friends 数组本身就是添加顺序)
+
+    // 特别关注始终置顶(在任意排序之后,再按 starred 稳定排序到前面)
+    sorted.sort((a, b) => {
+      const sa = a.starred ? 0 : 1;
+      const sb = b.starred ? 0 : 1;
+      return sa - sb;
+    });
     return sorted;
   }, [friends, caches, searchText, sortBy]);
 
@@ -296,7 +332,7 @@ export default function Sidebar() {
           return (
             <div
               key={f.handle}
-              className={`${styles.friendItem} ${location.pathname === `/friends/${f.handle}` ? styles.friendItemActive : ''}`}
+              className={`${styles.friendItem} ${location.pathname === `/friends/${f.handle}` ? styles.friendItemActive : ''} ${f.starred ? styles.friendItemStarred : ''}`}
               onClick={() => handleFriendClick(f)}
               onContextMenu={(e) => handleContextMenu(e, f)}
             >
@@ -318,6 +354,7 @@ export default function Sidebar() {
                   </span>
                 ) : null}
               </div>
+              {f.starred && <span className={styles.starIcon} title="特别关注">★</span>}
               {isRefreshing ? (
                 <span className={styles.spinner} />
               ) : ratingChanged ? (
@@ -366,6 +403,16 @@ export default function Sidebar() {
           >
             <span className={styles.navToggleIcon}>{navPanelOpen ? '✕' : '☰'}</span>
           </button>
+          {friends.some((f) => f.starred) ? (
+            <button
+              onClick={handleRefreshStarred}
+              disabled={refreshing}
+              className={styles.starRefreshBtn}
+              title="仅刷新特别关注的好友(更快、省资源)"
+            >
+              ★ 刷新特别关注
+            </button>
+          ) : null}
           <button onClick={() => handleRefresh()} disabled={refreshing} className={styles.refreshBtn}>
             {refreshing && progress
               ? `${progress.completed}/${progress.total}`
@@ -461,6 +508,14 @@ export default function Sidebar() {
             className={styles.contextMenu}
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
+            <div
+              className={styles.contextItem}
+              onClick={() => handleToggleStar(contextMenu.handle)}
+            >
+              {friends.find((f) => f.handle === contextMenu.handle)?.starred
+                ? '★ 取消特别关注'
+                : '☆ 设为特别关注'}
+            </div>
             <div
               className={styles.contextItem}
               onClick={() => {
