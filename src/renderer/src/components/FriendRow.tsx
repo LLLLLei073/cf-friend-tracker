@@ -6,6 +6,7 @@ import styles from '../styles/friendList.module.css';
 interface Props {
   friend: Friend;
   cache?: FriendCache;
+  onToggleStar?: (handle: string, starred: boolean) => void;
 }
 
 function formatRelativeTime(seconds: number): string {
@@ -15,7 +16,7 @@ function formatRelativeTime(seconds: number): string {
   return `${Math.floor(diff / 86400)} 天前`;
 }
 
-export default function FriendRow({ friend, cache }: Props) {
+export default function FriendRow({ friend, cache, onToggleStar }: Props) {
   const navigate = useNavigate();
   const info = cache?.info;
   const online = info ? Date.now() / 1000 - info.lastOnlineTimeSeconds < 300 : false;
@@ -24,8 +25,13 @@ export default function FriendRow({ friend, cache }: Props) {
       cache.ratingHistory[cache.ratingHistory.length - 1].oldRating
     : 0;
 
+  const handleToggleStar = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleStar?.(friend.handle, !friend.starred);
+  };
+
   return (
-    <div className={styles.row} onClick={() => navigate(`/friends/${friend.handle}`)}>
+    <div className={`${styles.row} ${friend.starred ? styles.rowStarred : ''}`} onClick={() => navigate(`/friends/${friend.handle}`)}>
       <img
         src={info?.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
         className={styles.avatar}
@@ -49,6 +55,13 @@ export default function FriendRow({ friend, cache }: Props) {
             {delta > 0 ? '↑' : '↓'} {Math.abs(delta)}
           </span>
         )}
+        <button
+          className={styles.starBtn}
+          onClick={handleToggleStar}
+          title={friend.starred ? '取消特别关注' : '设为特别关注'}
+        >
+          {friend.starred ? '★' : '☆'}
+        </button>
         <span className={`${styles.statusDot} ${online ? styles.online : ''}`}
           title={info ? `最近在线: ${formatRelativeTime(info.lastOnlineTimeSeconds)}` : ''}
         />

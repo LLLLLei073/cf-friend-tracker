@@ -106,7 +106,10 @@ export default function Contests() {
       const sorted = [...data].sort((a, b) => b.startTimeSeconds - a.startTimeSeconds);
       setContests(sorted);
     } catch (e) {
-      setError(`加载失败: ${(e as Error).message}`);
+      // 去掉 Electron IPC 自动添加的 "Error invoking remote method '...': " 前缀
+      let msg = (e as Error).message || String(e);
+      msg = msg.replace(/^Error invoking remote method '[^']+':\s*/i, '');
+      setError(`加载失败: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -186,7 +189,8 @@ export default function Contests() {
       {loading && contests.length === 0 ? (
         <div className={styles.emptyState}>加载中...</div>
       ) : contests.length === 0 ? (
-        <div className={styles.emptyState}>暂无比赛数据,点击右上角刷新拉取。</div>
+        // 有错误时不显示"暂无比赛",避免与错误提示重复造成误导
+        error ? null : <div className={styles.emptyState}>暂无比赛数据,点击右上角刷新拉取。</div>
       ) : (
         <div className={styles.list}>
           {contests.map((c) => {

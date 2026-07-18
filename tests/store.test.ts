@@ -78,6 +78,22 @@ describe('StoreManager', () => {
       store.removeFriend('tourist');
       expect(store.getCache('tourist')).toBeUndefined();
     });
+
+    it('toggles friend starred state', () => {
+      store.addFriend({ handle: 'tourist', alias: '', addedAt: 1 });
+      // 默认未特别关注
+      expect(store.getFriends()[0].starred).toBeFalsy();
+      // 设为特别关注
+      expect(store.setFriendStarred('tourist', true)).toBe(true);
+      expect(store.getFriends()[0].starred).toBe(true);
+      // 取消特别关注
+      expect(store.setFriendStarred('tourist', false)).toBe(true);
+      expect(store.getFriends()[0].starred).toBe(false);
+    });
+
+    it('returns false when toggling star for unknown friend', () => {
+      expect(store.setFriendStarred('nobody', true)).toBe(false);
+    });
   });
 
   describe('cache', () => {

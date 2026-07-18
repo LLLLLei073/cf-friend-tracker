@@ -20,6 +20,12 @@ export default function FriendList() {
     })();
   }, []);
 
+  const handleToggleStar = async (handle: string, starred: boolean) => {
+    await window.api.store.setFriendStarred(handle, starred);
+    const fr = await window.api.store.getFriends();
+    setFriends(fr);
+  };
+
   const filtered = useMemo(() => {
     let list = friends.filter(
       (f) =>
@@ -39,6 +45,12 @@ export default function FriendList() {
       const ta = ca?.info?.lastOnlineTimeSeconds ?? 0;
       const tb = cb?.info?.lastOnlineTimeSeconds ?? 0;
       return tb - ta;
+    });
+    // 特别关注始终置顶(稳定排序, 不破坏已有排序)
+    list.sort((a, b) => {
+      const sa = a.starred ? 0 : 1;
+      const sb = b.starred ? 0 : 1;
+      return sa - sb;
     });
     return list;
   }, [friends, caches, search, sortKey]);
@@ -72,7 +84,12 @@ export default function FriendList() {
       ) : (
         <div className={styles.list}>
           {filtered.map((f) => (
-            <FriendRow key={f.handle} friend={f} cache={caches[f.handle]} />
+            <FriendRow
+              key={f.handle}
+              friend={f}
+              cache={caches[f.handle]}
+              onToggleStar={handleToggleStar}
+            />
           ))}
         </div>
       )}

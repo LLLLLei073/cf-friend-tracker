@@ -1,6 +1,6 @@
 {
   "name": "cf-friend-tracker",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Codeforces 好友关注桌面应用",
   "author": "LLLLLei073",
   "main": "./out/main/index.js",
@@ -48,7 +48,15 @@
     "files": [
       "out/**/*",
       "package.json",
-      "node_modules/**/*"
+      "node_modules/**/*",
+      "!node_modules/**/*.{md,ts,flow,flow.js,coffee,map}",
+      "!node_modules/**/test/**",
+      "!node_modules/**/tests/**",
+      "!node_modules/**/__tests__/**",
+      "!node_modules/**/.bin/**",
+      "!node_modules/**/README*",
+      "!node_modules/**/CHANGELOG*",
+      "!node_modules/**/LICENSE*"
     ],
     "win": {
       "target": [
@@ -65,7 +73,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "CF Friend Tracker"
+      "shortcutName": "CF Friend Tracker",
+      "differentialPackage": false
     }
   }
 }
