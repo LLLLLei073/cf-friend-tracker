@@ -44,6 +44,7 @@ export default function Report() {
   const { friends, caches, myHandle } = useAppData();
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -233,8 +234,6 @@ export default function Report() {
       </div>
     );
   }
-
-  const reportRef = useRef<HTMLDivElement>(null);
 
   const handleExportCSV = () => {
     const rangeLabel = range === 'week' ? '周报' : '月报';
