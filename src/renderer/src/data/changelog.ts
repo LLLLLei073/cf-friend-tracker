@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.2.4',
+    date: '2026-07-26',
+    title: '补丁修复：更新日志崩溃',
+    features: [],
+    fixes: [
+      { icon: '🐛', text: '修复设置页点击「查看更新日志」崩溃的问题（v1.2.1 条目缺 features 字段导致 entry.features.map 抛错）' },
+    ],
+  },
+  {
     version: '1.2.2',
     date: '2026-07-26',
     title: '团队 AI 分析与报告导出',
