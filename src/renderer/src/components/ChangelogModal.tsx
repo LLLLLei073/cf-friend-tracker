@@ -27,7 +27,7 @@ export default function ChangelogModal({ onClose, initialVersion }: ChangelogMod
               </div>
               <h3 className={styles.entryTitle}>{entry.title}</h3>
               <ul className={styles.featureList}>
-                {entry.features.map((f, i) => (
+                {(entry.features || []).map((f, i) => (
                   <li key={i} className={styles.featureItem}>
                     <span className={styles.featureIcon}>{f.icon}</span>
                     <span className={styles.featureText}>{f.text}</span>

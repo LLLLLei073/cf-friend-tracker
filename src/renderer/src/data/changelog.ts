@@ -24,6 +24,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: '1.2.1',
     date: '2026-07-25',
     title: '稳定性修复',
+    features: [],
     fixes: [
       { icon: '🐛', text: '修复团队周报/月报页面 React hooks 顺序错误导致的打开即闪退问题' },
     ],
