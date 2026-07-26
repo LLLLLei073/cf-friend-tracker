@@ -25,16 +25,16 @@ export default function Settings() {
   const statusRef = useRef<UpdateStatus>('idle');
   const [notifyTestMsg, setNotifyTestMsg] = useState('');
   const [showChangelog, setShowChangelog] = useState(false);
+  const firstLoadRef = useRef(true);
+
+  // AI 接口测试
+  const [aiTesting, setAiTesting] = useState(false);
+  const [aiTestMsg, setAiTestMsg] = useState('');
 
   useEffect(() => {
-    // 获取设置
     (async () => {
       const s = await window.api.store.getSettings();
       setSettings(s);
-    })();
-
-    // 获取更新状态
-    (async () => {
       const result = await window.api.updater.getStatus();
       setUpdateStatus(result.status);
       setUpdateInfo(result.info);
@@ -69,10 +69,15 @@ export default function Settings() {
   }, []);
 
   // 主题、默认页面、通知设置变化时自动保存（即时生效）
+  // 首次从存储加载时跳过写盘,避免无意义回写(在 EPERM 环境下会触发长时间阻塞)
   useEffect(() => {
     if (!settings) return;
+    if (firstLoadRef.current) {
+      firstLoadRef.current = false;
+      return;
+    }
     window.api.store.setSettings(settings);
-  }, [settings?.theme, settings?.defaultPage, settings?.notifyRatingChange, settings?.notifyContestStart, settings?.contestNotifyMinutes]);
+  }, [settings?.theme, settings?.defaultPage, settings?.notifyRatingChange, settings?.notifyContestStart, settings?.contestNotifyMinutes, settings?.launchRefreshStarredOnly, settings?.aiApiBase, settings?.aiApiKey, settings?.aiModel]);
 
   const handleSave = async () => {
     if (!settings) return;
@@ -141,6 +146,20 @@ export default function Settings() {
       setNotifyTestMsg(`测试失败: ${(e as Error).message}`);
     }
     setTimeout(() => setNotifyTestMsg(''), 4000);
+  };
+
+  const handleTestAI = async () => {
+    setAiTesting(true);
+    setAiTestMsg('');
+    try {
+      const result = await window.api.ai.testConnection();
+      setAiTestMsg(result.ok ? '✓ 连接成功，AI 接口配置正常' : `✗ ${result.error ?? '连接失败'}`);
+    } catch (e) {
+      setAiTestMsg(`✗ 测试失败: ${(e as Error).message}`);
+    } finally {
+      setAiTesting(false);
+      setTimeout(() => setAiTestMsg(''), 6000);
+    }
   };
 
   // 渲染更新状态文本
@@ -309,6 +328,76 @@ export default function Settings() {
             <option value="report">周报/月报</option>
           </select>
           <p className={styles.hint}>下次打开应用时自动跳转到此页面</p>
+        </div>
+
+        <hr className={styles.divider} />
+
+        {/* ---- 开机自动刷新策略 ---- */}
+        <div className={styles.updateSection}>
+          <label className={styles.updateLabel}>开机自动刷新</label>
+          <div className={styles.notifyRow}>
+            <label className={styles.notifyLabel}>只刷新特别关注的好友（更快、省资源）</label>
+            <input
+              type="checkbox"
+              checked={settings.launchRefreshStarredOnly}
+              onChange={(e) => setSettings({ ...settings, launchRefreshStarredOnly: e.target.checked })}
+              className={styles.notifyToggle}
+            />
+          </div>
+          <p className={styles.hint}>开启后，距上次刷新超过 30 分钟的开机会仅刷新标★的好友；未设置特别关注时仍刷新全部。</p>
+        </div>
+
+        <hr className={styles.divider} />
+
+        {/* ---- AI 接口设置 ---- */}
+        <div className={styles.updateSection}>
+          <label className={styles.updateLabel}>AI 接口</label>
+          <p className={styles.updateHint}>配置 OpenAI 兼容的接口后，可在「团队」页使用 AI 分析、推荐题单与知识点清单。</p>
+
+          <div className={styles.field}>
+            <label>API 地址</label>
+            <input
+              type="text"
+              value={settings.aiApiBase}
+              onChange={(e) => setSettings({ ...settings, aiApiBase: e.target.value })}
+              placeholder="https://api.openai.com/v1"
+              className={styles.input}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label>API Key</label>
+            <input
+              type="password"
+              value={settings.aiApiKey}
+              onChange={(e) => setSettings({ ...settings, aiApiKey: e.target.value })}
+              placeholder="sk-..."
+              className={styles.input}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label>模型名称</label>
+            <input
+              type="text"
+              value={settings.aiModel}
+              onChange={(e) => setSettings({ ...settings, aiModel: e.target.value })}
+              placeholder="gpt-4o-mini"
+              className={styles.input}
+            />
+          </div>
+
+          <button onClick={handleTestAI} className={styles.checkBtn} disabled={aiTesting}>
+            {aiTesting ? '测试中...' : '测试连接'}
+          </button>
+          {aiTestMsg && (
+            <p
+              className={styles.updateMsg}
+              style={{ color: aiTestMsg.startsWith('✓') ? '#4A7C3A' : '#C41E3A' }}
+            >
+              {aiTestMsg}
+            </p>
+          )}
         </div>
 
         <hr className={styles.divider} />

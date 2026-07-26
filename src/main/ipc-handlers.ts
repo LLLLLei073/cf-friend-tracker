@@ -1,14 +1,20 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, dialog } from 'electron';
+import fs from 'fs';
 import { StoreManager } from './store';
 import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests } from './cf-api';
 import { checkForUpdates, installUpdate, getUpdateStatus } from './updater';
 import { checkRatingChanges, checkMilestones } from './notifier';
 import { predictContest } from './predictor';
+import { analyzeTeam, testAIConnection, buildReportMarkdown, buildReportExcelBuffer } from './ai';
 import type {
   Friend,
   Settings,
   CFUser,
   Team,
+  TeamAIResult,
+  AIConnectionResult,
+  AIExportResult,
+  AIExportFormat,
   WindowState,
   SyncResult,
   RefreshProgress,
@@ -408,5 +414,101 @@ export function registerIpcHandlers(store: StoreManager): void {
       return { contestId, contestName, predictions: [], totalParticipants: 0 };
     }
     return predictContest(contestId, contestName, friendHandles);
+  });
+
+  // ---- Team AI Analysis (团队 AI 分析, 含历史记录与导出) ----
+  // 读取某团队的 AI 分析历史(最新的在前), 不触发新请求
+  ipcMain.handle('ai:getTeamAIHistory', (_event, teamId: string): TeamAIResult[] => {
+    return store.getTeamAIHistory(teamId);
+  });
+
+  // 重新生成团队 AI 分析: 取队伍成员缓存 + 当前设置, 调用 AI, 写入历史并返回新结果
+  ipcMain.handle('ai:analyzeTeam', async (_event, teamId: string): Promise<TeamAIResult> => {
+    const teams = store.getTeams();
+    const team = teams.find((t) => t.id === teamId);
+    if (!team) throw new Error('团队不存在');
+    if (team.members.length === 0) throw new Error('团队没有成员');
+
+    const settings = store.getSettings();
+    const allCache = store.getAllCache();
+    const members = team.members.map((handle) => ({ handle, cache: allCache[handle] }));
+
+    const result = await analyzeTeam(team.name, members, settings);
+    store.addTeamAIResult(teamId, result);
+    return result;
+  });
+
+  // 删除指定历史记录(按生成时间戳匹配)
+  ipcMain.handle('ai:removeTeamAIResult', (_event, teamId: string, generatedAt: number) => {
+    store.removeTeamAIResult(teamId, generatedAt);
+    return true;
+  });
+
+  // 清空某团队的全部 AI 分析历史
+  ipcMain.handle('ai:clearTeamAIHistory', (_event, teamId: string) => {
+    store.clearTeamAIHistory(teamId);
+    return true;
+  });
+
+  // 导出指定报告为文件(弹出保存对话框, 支持 Markdown / Excel 两种格式)
+  ipcMain.handle(
+    'ai:exportReport',
+    async (_event, teamName: string, result: TeamAIResult, format: AIExportFormat): Promise<AIExportResult> => {
+      try {
+        const stamp = new Date(result.generatedAt)
+          .toISOString()
+          .slice(0, 16)
+          .replace(/[:T]/g, '-');
+        // 文件名里的非法字符做简单清理
+        const safeName = (teamName || 'team').replace(/[\\/:*?"<>|]/g, '_');
+
+        let content: string | Buffer;
+        let defaultName: string;
+        let filterName: string;
+        let ext: string;
+        if (format === 'excel') {
+          content = buildReportExcelBuffer(teamName, result);
+          defaultName = `${safeName}_AI报告_${stamp}.xlsx`;
+          filterName = 'Excel 工作簿';
+          ext = 'xlsx';
+        } else {
+          content = buildReportMarkdown(teamName, result);
+          defaultName = `${safeName}_AI报告_${stamp}.md`;
+          filterName = 'Markdown';
+          ext = 'md';
+        }
+
+        const opts = {
+          title: '导出 AI 报告',
+          defaultPath: defaultName,
+          filters: [
+            { name: filterName, extensions: [ext] },
+            ...(format === 'excel'
+              ? [{ name: '所有文件', extensions: ['*'] }]
+              : [{ name: '所有文件', extensions: ['*'] }]),
+          ],
+        };
+        const win = BrowserWindow.getFocusedWindow();
+        const res = win
+          ? await dialog.showSaveDialog(win, opts)
+          : await dialog.showSaveDialog(opts);
+
+        if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+        if (typeof content === 'string') {
+          fs.writeFileSync(res.filePath, content, 'utf-8');
+        } else {
+          fs.writeFileSync(res.filePath, content);
+        }
+        return { ok: true, path: res.filePath };
+      } catch (e) {
+        return { ok: false, error: (e as Error).message };
+      }
+    }
+  );
+
+  // 测试 AI 接口连通性
+  ipcMain.handle('ai:testConnection', async (): Promise<AIConnectionResult> => {
+    const settings = store.getSettings();
+    return testAIConnection(settings);
   });
 }

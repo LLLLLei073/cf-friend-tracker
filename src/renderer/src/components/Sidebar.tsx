@@ -119,7 +119,13 @@ export default function Sidebar() {
         // 先加载好友列表,确保刷新进度显示正确
         const fr = await window.api.store.getFriends();
         if (fr.length > 0) {
-          handleRefresh(fr);
+          const starred = fr.filter((f) => f.starred);
+          // 开启"仅刷新特别关注"且存在特别关注好友时,只刷新这些;否则刷新全部
+          if (settings.launchRefreshStarredOnly && starred.length > 0) {
+            handleRefreshStarred(fr);
+          } else {
+            handleRefresh(fr);
+          }
         }
       }
     })();
@@ -204,8 +210,10 @@ export default function Sidebar() {
   };
 
   // 仅刷新特别关注的好友(节省资源: 不拉取非 starred 好友)
-  const handleRefreshStarred = async () => {
-    const starred = friends.filter((f) => f.starred);
+  const handleRefreshStarred = async (friendList?: Friend[]) => {
+    // 支持传入好友列表(开机自动刷新时 state 可能还未更新)
+    const fr = friendList ?? friends;
+    const starred = fr.filter((f) => f.starred);
     if (starred.length === 0) return;
     setRefreshing(true);
     setProgress({ completed: 0, total: starred.length });
@@ -405,8 +413,8 @@ export default function Sidebar() {
           </button>
           {friends.some((f) => f.starred) ? (
             <button
-              onClick={handleRefreshStarred}
-              disabled={refreshing}
+            onClick={() => handleRefreshStarred()}
+            disabled={refreshing}
               className={styles.starRefreshBtn}
               title="仅刷新特别关注的好友(更快、省资源)"
             >

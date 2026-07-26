@@ -10,6 +10,10 @@ import type {
   Settings,
   SyncResult,
   Team,
+  TeamAIResult,
+  AIConnectionResult,
+  AIExportResult,
+  AIExportFormat,
   WindowState,
   UpdateStatus,
   UpdateInfo,
@@ -97,6 +101,20 @@ const api = {
   predict: {
     contest: (contestId: number, contestName: string): Promise<ContestPrediction> =>
       ipcRenderer.invoke('predict:contest', contestId, contestName),
+  },
+  ai: {
+    analyzeTeam: (teamId: string): Promise<TeamAIResult> =>
+      ipcRenderer.invoke('ai:analyzeTeam', teamId),
+    getTeamAIHistory: (teamId: string): Promise<TeamAIResult[]> =>
+      ipcRenderer.invoke('ai:getTeamAIHistory', teamId),
+    removeTeamAIResult: (teamId: string, generatedAt: number): Promise<boolean> =>
+      ipcRenderer.invoke('ai:removeTeamAIResult', teamId, generatedAt),
+    clearTeamAIHistory: (teamId: string): Promise<boolean> =>
+      ipcRenderer.invoke('ai:clearTeamAIHistory', teamId),
+    exportReport: (teamName: string, result: TeamAIResult, format: AIExportFormat): Promise<AIExportResult> =>
+      ipcRenderer.invoke('ai:exportReport', teamName, result, format),
+    testConnection: (): Promise<AIConnectionResult> =>
+      ipcRenderer.invoke('ai:testConnection'),
   },
 };
 

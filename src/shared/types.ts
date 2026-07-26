@@ -80,6 +80,13 @@ export interface Settings {
   notifyRatingChange: boolean;
   notifyContestStart: boolean;
   contestNotifyMinutes: number; // 赛前几分钟提醒
+  // 开机自动刷新策略: true 时距上次刷新超过30分钟的开机仅刷新特别关注的好友,
+  // 未设置特别关注的好友时回退为刷新全部(保证仍有数据更新)。
+  launchRefreshStarredOnly: boolean;
+  // ---- AI 接口配置 (OpenAI 兼容的 chat completions 端点) ----
+  aiApiBase: string;   // 如 https://api.openai.com/v1
+  aiApiKey: string;    // API Key
+  aiModel: string;     // 模型名称, 如 gpt-4o-mini
 }
 
 export interface CFApiResponse<T> {
@@ -210,3 +217,48 @@ export interface ContestPrediction {
   predictions: PredictionResult[];
   totalParticipants: number;
 }
+
+// ---- 团队 AI 分析 ----
+
+// 推荐题单中的单个题单
+export interface AIProblemSet {
+  title: string;        // 题单名称
+  topic: string;        // 涉及知识点
+  difficulty: string;   // 难度区间, 如 "1400-1600"
+  reason: string;       // 推荐理由
+  problems: string[];   // 题目编号, 如 ["1234A", "1567B"]
+}
+
+// 知识点清单中的单个知识点
+export interface AIKnowledgePoint {
+  topic: string;        // 知识点名称
+  description: string;  // 需要掌握的内容
+  members: string[];    // 需要加强该知识点的成员 handle
+  priority: 'high' | 'medium' | 'low';
+}
+
+// 团队 AI 分析完整结果
+export interface TeamAIResult {
+  analysis: string;          // 整体分析报告
+  problemSets: AIProblemSet[];   // 推荐题单
+  knowledgePoints: AIKnowledgePoint[]; // 知识点清单
+  generatedAt: number;       // 生成时间戳
+  model: string;             // 使用的模型
+}
+
+// AI 连接测试结果
+export interface AIConnectionResult {
+  ok: boolean;
+  error?: string;
+}
+
+// 报告导出结果
+export interface AIExportResult {
+  ok: boolean;
+  path?: string;     // 导出成功的文件路径
+  error?: string;
+  canceled?: boolean; // 用户取消保存
+}
+
+// 报告导出格式
+export type AIExportFormat = 'markdown' | 'excel';

@@ -1,5 +1,5 @@
 import Store from 'electron-store';
-import type { Friend, FriendCache, Settings, Team, WindowState } from '../shared/types';
+import type { Friend, FriendCache, Settings, Team, TeamAIResult, WindowState } from '../shared/types';
 
 const DEFAULT_SETTINGS: Settings = {
   myHandle: '',
@@ -12,6 +12,10 @@ const DEFAULT_SETTINGS: Settings = {
   notifyRatingChange: true,
   notifyContestStart: true,
   contestNotifyMinutes: 30,
+  launchRefreshStarredOnly: true,
+  aiApiBase: 'https://api.openai.com/v1',
+  aiApiKey: '',
+  aiModel: 'gpt-4o-mini',
 };
 
 // 持久化数据的 schema, 用于让 electron-store 的 get/set 获得类型安全
@@ -22,6 +26,7 @@ type StoreSchema = {
   teams: Team[];
   windowState: WindowState | null;
   viewedRatings: Record<string, number>;
+  aiResults: Record<string, TeamAIResult[]>; // 团队 AI 分析历史, key = teamId, 新的在前
 };
 
 // 安全写入: electron-store 的原子写入在 Windows 上可能因杀毒软件等触发 EPERM。
@@ -52,6 +57,7 @@ export class StoreManager {
         teams: [],
         windowState: null,
         viewedRatings: {},
+        aiResults: {},
       },
     });
   }
@@ -178,5 +184,47 @@ export class StoreManager {
     const viewed = this.getViewedRatings();
     delete viewed[handle];
     safeSet(this.store, 'viewedRatings', viewed);
+  }
+
+  // ---- Team AI Results (团队 AI 分析历史记录, 每队一个数组, 新的在前) ----
+  getTeamAIHistory(teamId: string): TeamAIResult[] {
+    const results = this.store.get('aiResults');
+    const val = results[teamId] as unknown;
+    if (!val) return [];
+    // 向后兼容: 旧版存的是单个对象
+    if (Array.isArray(val)) return val as TeamAIResult[];
+    return [val] as TeamAIResult[];
+  }
+
+  addTeamAIResult(teamId: string, result: TeamAIResult): void {
+    const results = this.store.get('aiResults');
+    const existing = results[teamId] as unknown;
+    const arr: TeamAIResult[] = Array.isArray(existing)
+      ? (existing as TeamAIResult[])
+      : existing
+        ? [existing as TeamAIResult]
+        : [];
+    arr.unshift(result);
+    // 限制最多保留 20 条, 避免无限增长
+    if (arr.length > 20) arr.length = 20;
+    results[teamId] = arr;
+    safeSet(this.store, 'aiResults', results);
+  }
+
+  removeTeamAIResult(teamId: string, generatedAt: number): void {
+    const results = this.store.get('aiResults');
+    const existing = results[teamId] as unknown;
+    if (!existing) return;
+    const arr = (
+      Array.isArray(existing) ? (existing as TeamAIResult[]) : [existing as TeamAIResult]
+    ).filter((r) => r.generatedAt !== generatedAt);
+    results[teamId] = arr;
+    safeSet(this.store, 'aiResults', results);
+  }
+
+  clearTeamAIHistory(teamId: string): void {
+    const results = this.store.get('aiResults');
+    delete results[teamId];
+    safeSet(this.store, 'aiResults', results);
   }
 }

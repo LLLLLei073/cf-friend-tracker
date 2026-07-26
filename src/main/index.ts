@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, Notification } from 'electron';
 import path from 'path';
+import os from 'os';
 import fs from 'fs';
 import { StoreManager } from './store';
 import { registerIpcHandlers } from './ipc-handlers';
@@ -22,6 +23,21 @@ debugLog(`EXEC_PATH: ${process.execPath}`);
 // 未签名的 Electron 应用在 Windows 上需要禁用 Chromium 沙箱, 否则会崩溃
 app.commandLine.appendSwitch('no-sandbox');
 debugLog('no-sandbox switch added');
+
+// 本机安全软件/实时防护(Windows Defender / 第三方杀软实时扫描)会拦截对
+// AppData\Roaming\cf-friend-tracker 目录下部分文件的写入, 导致 Chromium 网络服务
+// 写缓存索引失败( Failed to write the temporary index file / Network service crashed ),
+// 渲染进程无法通过 HTTP 加载 dev server 页面, 表现为启动期白屏。
+// 将 Chromium 磁盘缓存重定向到用户可写的临时目录, 使索引文件能正常写出, 规避崩溃。
+try {
+  const chromiumCacheDir = path.join(os.tmpdir(), 'cf-friend-tracker-chromium');
+  fs.mkdirSync(chromiumCacheDir, { recursive: true });
+  app.commandLine.appendSwitch('disk-cache-dir', chromiumCacheDir);
+  debugLog(`disk-cache-dir set to: ${chromiumCacheDir}`);
+} catch (e) {
+  debugLog(`disk-cache-dir setup failed: ${String(e)}`);
+}
+app.commandLine.appendSwitch('disable-gpu');
 
 // 全局异常捕获: 防止 electron-store 写入 EPERM 等错误导致崩溃
 let hasShownError = false;
