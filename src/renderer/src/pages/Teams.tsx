@@ -1,5 +1,7 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import type { ChangeEvent, CompositionEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toPng } from 'html-to-image';
 import type { Team, TeamAIResult, AIProblemSet, AIKnowledgePoint, AIExportFormat } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import { NO_AVATAR, countACProblems } from '../utils/helpers';
@@ -27,7 +29,7 @@ function problemUrl(code: string): string | null {
 }
 
 /** 单个团队的 AI 分析区块: 维护历史记录、导出与查看 */
-function TeamAISection({ team, aiReady }: { team: Team; aiReady: boolean }) {
+function TeamAISection({ team, aiReady, onTeamUpdate }: { team: Team; aiReady: boolean; onTeamUpdate?: (t: Team) => void }) {
   const [history, setHistory] = useState<TeamAIResult[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -35,6 +37,7 @@ function TeamAISection({ team, aiReady }: { team: Team; aiReady: boolean }) {
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState('');
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const loadHistory = async () => {
     const list = await window.api.ai.getTeamAIHistory(team.id);
@@ -90,13 +93,32 @@ function TeamAISection({ team, aiReady }: { team: Team; aiReady: boolean }) {
     setExporting(true);
     setExportMsg('');
     try {
-      const res = await window.api.ai.exportReport(team.name, cur, format);
-      if (res.ok) {
-        setExportMsg(`✓ 已导出到: ${res.path}`);
-      } else if (res.canceled) {
-        setExportMsg('');
+      if (format === 'image') {
+        if (!reportRef.current) throw new Error('报告尚未渲染, 请稍候再试');
+        // 用当前主题背景色作为画布底, 保证文字在图片中可读
+        const bg = getComputedStyle(document.body).backgroundColor || '#FFFEF9';
+        const dataUrl = await toPng(reportRef.current, {
+          backgroundColor: bg,
+          pixelRatio: 2,
+          cacheBust: true,
+        });
+        const res = await window.api.ai.exportReport(team.name, cur, 'image', dataUrl, team.goal);
+        if (res.ok) {
+          setExportMsg(`✓ 已导出图片到: ${res.path}`);
+        } else if (res.canceled) {
+          setExportMsg('');
+        } else {
+          setExportMsg(`✗ 导出失败: ${res.error ?? '未知错误'}`);
+        }
       } else {
-        setExportMsg(`✗ 导出失败: ${res.error ?? '未知错误'}`);
+        const res = await window.api.ai.exportReport(team.name, cur, format, undefined, team.goal);
+        if (res.ok) {
+          setExportMsg(`✓ 已导出到: ${res.path}`);
+        } else if (res.canceled) {
+          setExportMsg('');
+        } else {
+          setExportMsg(`✗ 导出失败: ${res.error ?? '未知错误'}`);
+        }
       }
     } catch (e) {
       setExportMsg(`✗ 导出失败: ${(e as Error).message}`);
@@ -108,8 +130,46 @@ function TeamAISection({ team, aiReady }: { team: Team; aiReady: boolean }) {
 
   const selected = history[selectedIdx];
 
+  // 目标输入框本地草稿：避免中文输入法组合期间把父级状态(setTeams 经异步写文件)回灌进 value 导致拼音重复
+  const [goalDraft, setGoalDraft] = useState(team.goal ?? '');
+  const [composing, setComposing] = useState(false);
+  useEffect(() => {
+    setGoalDraft(team.goal ?? '');
+  }, [team.id, team.goal]);
+
+  const commitGoal = (val: string) => {
+    onTeamUpdate?.({ ...team, goal: val });
+  };
+  const handleGoalChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setGoalDraft(val); // 同步更新本地受控值(受 React composition 保护, 不会干扰输入法)
+    if (!composing) commitGoal(val); // 非组合输入(英文/数字/已定稿)才提交父级
+  };
+  const handleGoalCompositionStart = () => setComposing(true);
+  const handleGoalCompositionEnd = (e: CompositionEvent<HTMLInputElement>) => {
+    setComposing(false);
+    const val = e.currentTarget.value;
+    setGoalDraft(val);
+    commitGoal(val); // 拼音选字完成后一次性提交, 避免每次按键都跨进程写文件+setTeams
+  };
+
   return (
     <div className={styles.aiSection}>
+      <div className={styles.goalEdit}>
+        <label className={styles.goalLabel} htmlFor={`goal-${team.id}`}>🎯 团队目标</label>
+        <input
+          id={`goal-${team.id}`}
+          className={styles.goalInput}
+          type="text"
+          value={goalDraft}
+          placeholder="如：冲击 Div.2 前 500 / 两周内全员蓝名"
+          onChange={handleGoalChange}
+          onCompositionStart={handleGoalCompositionStart}
+          onCompositionEnd={handleGoalCompositionEnd}
+        />
+        <span className={styles.goalHint}>AI 分析将围绕此目标给出建议与推荐题库</span>
+      </div>
+
       <div className={styles.aiHeader}>
         <h4 className={styles.aiTitle}>🤖 AI 教练分析</h4>
         <div className={styles.aiHeaderBtns}>
@@ -139,6 +199,9 @@ function TeamAISection({ team, aiReady }: { team: Team; aiReady: boolean }) {
                   </button>
                   <button className={styles.exportMenuItem} onClick={() => handleExport('excel')}>
                     📊 Excel (.xlsx)
+                  </button>
+                  <button className={styles.exportMenuItem} onClick={() => handleExport('image')}>
+                    🖼️ 图片 (.png)
                   </button>
                 </div>
               </>
@@ -181,7 +244,13 @@ function TeamAISection({ team, aiReady }: { team: Team; aiReady: boolean }) {
       )}
 
       {selected && !loading && (
-        <div className={styles.aiBody}>
+        <div className={styles.aiBody} ref={reportRef}>
+          <div className={styles.aiCaptureHead}>
+            <div className={styles.aiCaptureTitle}>{team.name} · AI 分析报告</div>
+            {team.goal?.trim() && (
+              <div className={styles.aiCaptureGoal}>🎯 目标：{team.goal.trim()}</div>
+            )}
+          </div>
           <section className={styles.aiBlock}>
             <h5 className={styles.aiBlockTitle}>📊 整体分析</h5>
             <p className={styles.aiAnalysis}>{selected.analysis}</p>
@@ -275,6 +344,7 @@ export default function Teams() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [teamName, setTeamName] = useState('');
+  const [teamGoal, setTeamGoal] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -333,9 +403,11 @@ export default function Teams() {
       name: teamName.trim(),
       members: Array.from(selected),
       createdAt: Date.now(),
+      goal: teamGoal.trim() || undefined,
     };
     await window.api.store.addTeam(team);
     setTeamName('');
+    setTeamGoal('');
     setSelected(new Set());
     setShowCreate(false);
     await loadTeams();
@@ -348,6 +420,12 @@ export default function Teams() {
     }
   };
 
+  // 更新团队(目标等字段), 持久化并同步本地列表, 供 TeamAISection 编辑目标时回调
+  const handleTeamUpdate = async (updated: Team) => {
+    await window.api.store.updateTeam(updated);
+    setTeams((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+  };
+
   // 今日 AC 统计的时间起点(移到 map 外部避免重复计算)
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -357,7 +435,7 @@ export default function Teams() {
     <div>
       <h2 className={styles.heading}>团队</h2>
 
-      <button onClick={() => { setShowCreate(!showCreate); setSelected(new Set()); setError(''); }} className={styles.createBtn}>
+      <button onClick={() => { setShowCreate(!showCreate); setSelected(new Set()); setTeamGoal(''); setError(''); }} className={styles.createBtn}>
         {showCreate ? '取消' : '+ 创建团队'}
       </button>
 
@@ -370,6 +448,18 @@ export default function Teams() {
               value={teamName}
               onChange={(e) => setTeamName(e.target.value)}
               placeholder="给团队起个名字"
+              className={styles.input}
+            />
+          </div>
+          <div className={styles.field}>
+            <label>
+              团队目标（选填，AI 分析将围绕目标给出建议与推荐题库）
+            </label>
+            <input
+              type="text"
+              value={teamGoal}
+              onChange={(e) => setTeamGoal(e.target.value)}
+              placeholder="如：冲击 Div.2 前 500"
               className={styles.input}
             />
           </div>
@@ -582,7 +672,7 @@ export default function Teams() {
                       </tbody>
                     </table>
 
-                    <TeamAISection team={team} aiReady={aiReady} />
+                    <TeamAISection team={team} aiReady={aiReady} onTeamUpdate={handleTeamUpdate} />
                   </div>
                 )}
               </div>

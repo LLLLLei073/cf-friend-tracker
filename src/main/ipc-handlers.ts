@@ -434,7 +434,7 @@ export function registerIpcHandlers(store: StoreManager): void {
     const allCache = store.getAllCache();
     const members = team.members.map((handle) => ({ handle, cache: allCache[handle] }));
 
-    const result = await analyzeTeam(team.name, members, effectiveSettings);
+    const result = await analyzeTeam(team.name, members, effectiveSettings, team.goal);
     store.addTeamAIResult(teamId, result);
     return result;
   });
@@ -451,10 +451,18 @@ export function registerIpcHandlers(store: StoreManager): void {
     return true;
   });
 
-  // 导出指定报告为文件(弹出保存对话框, 支持 Markdown / Excel 两种格式)
+  // 导出指定报告为文件(弹出保存对话框, 支持 Markdown / Excel / 图片 三种格式)
+  // format 为 'image' 时, imageData 需传入渲染端截图得到的 PNG dataURL(base64), 主进程仅负责解码保存
   ipcMain.handle(
     'ai:exportReport',
-    async (_event, teamName: string, result: TeamAIResult, format: AIExportFormat): Promise<AIExportResult> => {
+    async (
+      _event,
+      teamName: string,
+      result: TeamAIResult,
+      format: AIExportFormat,
+      imageData?: string,
+      goal?: string
+    ): Promise<AIExportResult> => {
       try {
         const stamp = new Date(result.generatedAt)
           .toISOString()
@@ -467,13 +475,22 @@ export function registerIpcHandlers(store: StoreManager): void {
         let defaultName: string;
         let filterName: string;
         let ext: string;
-        if (format === 'excel') {
-          content = buildReportExcelBuffer(teamName, result);
+        if (format === 'image') {
+          if (!imageData || !imageData.startsWith('data:image/')) {
+            return { ok: false, error: '图片数据无效, 请重试' };
+          }
+          const base64 = imageData.replace(/^data:image\/\w+;base64,/, '');
+          content = Buffer.from(base64, 'base64');
+          defaultName = `${safeName}_AI报告_${stamp}.png`;
+          filterName = 'PNG 图片';
+          ext = 'png';
+        } else if (format === 'excel') {
+          content = buildReportExcelBuffer(teamName, result, goal);
           defaultName = `${safeName}_AI报告_${stamp}.xlsx`;
           filterName = 'Excel 工作簿';
           ext = 'xlsx';
         } else {
-          content = buildReportMarkdown(teamName, result);
+          content = buildReportMarkdown(teamName, result, goal);
           defaultName = `${safeName}_AI报告_${stamp}.md`;
           filterName = 'Markdown';
           ext = 'md';

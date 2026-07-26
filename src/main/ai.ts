@@ -281,15 +281,23 @@ const SYSTEM_PROMPT = `你是一位经验丰富的算法竞赛(ICPC / Codeforces
 - knowledgePoints 给出 4-8 个知识点, members 填写需要加强该知识点的成员 handle (必须来自给定成员);
 - problems 中的题目编号尽量使用真实存在的 Codeforces 题目 (contestId+index, 如 1234A); 如不确定可留空数组;
 - 难度区间应匹配成员当前水平, 略高于平均 rating 以达到训练效果;
-- 所有文本使用简体中文。`;
+- 所有文本使用简体中文。
+
+关于「团队目标」: 如果用户在请求中提供了团队目标, 你必须让分析与建议紧密围绕该目标展开——
+- 在 analysis 中明确点明该目标, 并评估队伍当前状态距离目标的差距;
+- problemSets 的推荐题单应直接服务于该目标(例如目标为「冲击 Div.2 前 500」则重点推荐比赛策略、罚时控制、高频考点题单);
+- knowledgePoints 应优先列出阻碍达成该目标的知识点;
+- 如果未提供目标, 则按常规给出通用训练建议。`;
 
 /**
  * 分析一支队伍: 根据成员缓存数据调用 AI 生成分析报告、推荐题单与知识点清单。
+ * @param goal 团队训练目标(可选), AI 会围绕目标给出建议与推荐题库
  */
 export async function analyzeTeam(
   teamName: string,
   members: { handle: string; cache?: FriendCache }[],
-  settings: Settings
+  settings: Settings,
+  goal?: string
 ): Promise<TeamAIResult> {
   if (!settings.aiApiBase || !settings.aiApiKey || !settings.aiModel) {
     throw new Error('未配置 AI 接口, 请先在设置中填写 API 地址、API Key 和模型名称');
@@ -299,7 +307,11 @@ export async function analyzeTeam(
     .map((m) => summarizeMember(m.handle, m.cache))
     .join('\n\n');
 
-  const userPrompt = `队伍名称: ${teamName}\n成员数: ${members.length}\n\n以下是各成员的 Codeforces 数据摘要(基于近期提交与 rating 历史):\n\n${memberSummaries}\n\n请基于以上数据返回 JSON 分析结果。`;
+  const goalLine = goal && goal.trim()
+    ? `\n\n团队目标: ${goal.trim()}\n请严格围绕上述目标给出分析、建议与推荐题单。`
+    : '';
+
+  const userPrompt = `队伍名称: ${teamName}\n成员数: ${members.length}\n\n以下是各成员的 Codeforces 数据摘要(基于近期提交与 rating 历史):\n\n${memberSummaries}${goalLine}\n\n请基于以上数据返回 JSON 分析结果。`;
 
   const content = await chatComplete(
     settings,
@@ -332,8 +344,9 @@ function problemLink(code: string): string {
 
 /**
  * 把一次团队 AI 分析结果整理成 Markdown 文档。
+ * @param goal 团队训练目标(可选), 写入报告头部
  */
-export function buildReportMarkdown(teamName: string, result: TeamAIResult): string {
+export function buildReportMarkdown(teamName: string, result: TeamAIResult, goal?: string): string {
   const lines: string[] = [];
   const genTime = new Date(result.generatedAt).toLocaleString();
 
@@ -341,6 +354,9 @@ export function buildReportMarkdown(teamName: string, result: TeamAIResult): str
   lines.push('');
   lines.push(`> 生成时间：${genTime}  `);
   lines.push(`> 使用模型：${result.model}`);
+  if (goal && goal.trim()) {
+    lines.push(`> 团队目标：${goal.trim()}`);
+  }
   lines.push('');
   lines.push('---');
   lines.push('');
@@ -405,7 +421,7 @@ export function buildReportMarkdown(teamName: string, result: TeamAIResult): str
  * 生成 4 个 sheet: 概览 / 整体分析 / 推荐题单 / 知识点清单。
  * 使用 SheetJS (xlsx), 纯内存构建, 不触碰磁盘。
  */
-export function buildReportExcelBuffer(teamName: string, result: TeamAIResult): Buffer {
+export function buildReportExcelBuffer(teamName: string, result: TeamAIResult, goal?: string): Buffer {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   let XLSX: typeof import('xlsx');
   try {
@@ -418,13 +434,15 @@ export function buildReportExcelBuffer(teamName: string, result: TeamAIResult): 
   const genTime = new Date(result.generatedAt).toLocaleString();
 
   // Sheet 1: 概览
-  const overview = XLSX.utils.aoa_to_sheet([
+  const overviewRows: (string | number)[][] = [
     ['团队名称', teamName],
     ['生成时间', genTime],
     ['使用模型', result.model],
-    ['推荐题单数', result.problemSets.length],
-    ['知识点数', result.knowledgePoints.length],
-  ]);
+  ];
+  if (goal && goal.trim()) overviewRows.push(['团队目标', goal.trim()]);
+  overviewRows.push(['推荐题单数', result.problemSets.length]);
+  overviewRows.push(['知识点数', result.knowledgePoints.length]);
+  const overview = XLSX.utils.aoa_to_sheet(overviewRows);
   overview['!cols'] = [{ wch: 14 }, { wch: 40 }];
   XLSX.utils.book_append_sheet(wb, overview, '概览');
 

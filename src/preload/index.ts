@@ -114,8 +114,8 @@ const api = {
       ipcRenderer.invoke('ai:removeTeamAIResult', teamId, id),
     clearTeamAIHistory: (teamId: string): Promise<boolean> =>
       ipcRenderer.invoke('ai:clearTeamAIHistory', teamId),
-    exportReport: (teamName: string, result: TeamAIResult, format: AIExportFormat): Promise<AIExportResult> =>
-      ipcRenderer.invoke('ai:exportReport', teamName, result, format),
+    exportReport: (teamName: string, result: TeamAIResult, format: AIExportFormat, imageData?: string, goal?: string): Promise<AIExportResult> =>
+      ipcRenderer.invoke('ai:exportReport', teamName, result, format, imageData, goal),
     testConnection: (settings?: Settings): Promise<AIConnectionResult> =>
       ipcRenderer.invoke('ai:testConnection', settings),
   },

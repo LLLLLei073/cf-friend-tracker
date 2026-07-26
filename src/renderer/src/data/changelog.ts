@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.2.6',
+    date: '2026-07-26',
+    title: '团队目标与 AI 报告图片导出',
+    features: [
+      { icon: '🎯', text: '团队可设置「目标」，AI 分析 / 推荐题单 / 知识点清单将围绕该目标给出针对性建议与题库' },
+      { icon: '🖼️', text: '团队 AI 报告新增图片(PNG)导出形式，一键将分析报告截图保存为图片' },
+    ],
+    fixes: [
+      { icon: '🐛', text: '修复团队目标输入框在中文输入法下拼音重复的问题（组合输入期间不再触发状态回灌）' },
+    ],
+  },
+  {
     version: '1.2.5',
     date: '2026-07-26',
     title: '代码健壮性修复与打包优化',

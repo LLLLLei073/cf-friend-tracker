@@ -101,6 +101,7 @@ export interface Team {
   name: string;
   members: string[]; // CF handles, 最多 3 个
   createdAt: number;
+  goal?: string; // 团队训练目标, 供 AI 分析围绕目标给出建议与推荐题单
 }
 
 // 比赛
@@ -262,4 +263,4 @@ export interface AIExportResult {
 }
 
 // 报告导出格式
-export type AIExportFormat = 'markdown' | 'excel';
+export type AIExportFormat = 'markdown' | 'excel' | 'image';
