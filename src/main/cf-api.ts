@@ -179,3 +179,19 @@ export async function fetchContestStandings(
     showUnofficial: 'false',
   });
 }
+
+// problemset.problems 的返回（result 部分）
+export interface CFProblemStat {
+  contestId?: number;
+  index: string;
+  solvedCount: number;
+}
+export interface CFProblemsetResult {
+  problems: import('../shared/types').CFProblem[];
+  problemStatistics: CFProblemStat[];
+}
+
+// 获取全部题目元信息（含标签/难度/通过人数）。数据量较大, 由调用方负责缓存。
+export async function fetchProblemset(): Promise<CFProblemsetResult> {
+  return cfRequest<CFProblemsetResult>('problemset.problems', {});
+}

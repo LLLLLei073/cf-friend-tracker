@@ -74,7 +74,7 @@ export interface Settings {
   apiSecret: string;
   lastRefreshAt: number;
   theme: 'light' | 'dark' | 'system';
-  defaultPage: 'friends' | 'feed' | 'leaderboard' | 'teams' | 'contests' | 'report';
+  defaultPage: 'friends' | 'feed' | 'leaderboard' | 'teams' | 'contests' | 'report' | 'problems';
   lastViewedChangelog: string; // 最后查看过的更新日志版本
   // 通知配置
   notifyRatingChange: boolean;
@@ -87,6 +87,9 @@ export interface Settings {
   aiApiBase: string;   // 如 https://api.openai.com/v1
   aiApiKey: string;    // API Key
   aiModel: string;     // 模型名称, 如 gpt-4o-mini
+  // ---- C++ 编译器路径 (代码运行功能使用) ----
+  // 留空则自动探测 MinGW g++ (D:\mingw64\bin\g++.exe / C:\mingw64\bin\g++.exe) 或系统 PATH
+  cppCompilerPath: string;
 }
 
 export interface CFApiResponse<T> {
@@ -264,3 +267,70 @@ export interface AIExportResult {
 
 // 报告导出格式
 export type AIExportFormat = 'markdown' | 'excel' | 'image';
+
+// ---- 题目浏览 / 代码运行 ----
+
+// 单个样例测试（输入 + 期望输出）
+export interface SampleTest {
+  input: string;
+  output: string;
+}
+
+// 题面缓存：抓取并清洗后的题目正文 + 样例
+export interface ProblemStatement {
+  contestId: number;
+  index: string; // 题号, 如 "A"
+  name: string;
+  html: string; // .problem-statement 内部 HTML（已清洗, 可注入渲染）
+  samples: SampleTest[];
+  cachedAt: number; // 写入缓存时间
+  fetchedAt: number; // 实际抓取时间
+  translation?: ProblemTranslation; // AI 中文翻译（缓存后离线可看）
+}
+
+// 题面的 AI 中文翻译结果
+export interface ProblemTranslation {
+  html: string; // 翻译后的 HTML（结构、公式与原文保持一致）
+  model: string; // 使用的模型
+  translatedAt: number;
+}
+
+// 题目列表中用于浏览的轻量项（来自 problemset.problems）
+export interface ProblemListItem {
+  contestId: number;
+  index: string;
+  name: string;
+  rating?: number;
+  tags: string[];
+  type: string;
+  solvedCount?: number; // 来自 problemStatistics
+}
+
+// 题目列表筛选条件
+export interface ProblemFilter {
+  keyword?: string; // 匹配题名 或 "contestId+index"（如 1234A / 1234）
+  tag?: string;
+  minRating?: number;
+  maxRating?: number;
+}
+
+// 单个样例的运行结果
+export interface RunResult {
+  index: number; // 第几个样例（从 0 开始）
+  input: string;
+  expected: string;
+  actual: string;
+  passed: boolean;
+  exitCode: number | null;
+  error?: string; // 编译错误 / 运行异常信息
+  timedOut?: boolean;
+  timeMs?: number;
+}
+
+// 运行全部样例的结果
+export interface RunAllResult {
+  results: RunResult[];
+  compileError?: string; // 编译失败时的错误信息
+  allPassed: boolean;
+  compilerPath: string | null;
+}

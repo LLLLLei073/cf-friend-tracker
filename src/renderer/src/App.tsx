@@ -12,6 +12,8 @@ import Contests from './pages/Contests';
 import Compare from './pages/Compare';
 import Report from './pages/Report';
 import Feed from './pages/Feed';
+import Problems from './pages/Problems';
+import ProblemView from './pages/ProblemView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ChangelogModal from './components/ChangelogModal';
 import { CHANGELOG } from './data/changelog';
@@ -94,6 +96,8 @@ export default function App() {
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/teams" element={<Teams />} />
           <Route path="/contests" element={<Contests />} />
+          <Route path="/problems" element={<Problems />} />
+          <Route path="/problems/:contestId/:index" element={<ProblemView />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/report" element={<Report />} />
           <Route path="/add" element={<AddFriend />} />

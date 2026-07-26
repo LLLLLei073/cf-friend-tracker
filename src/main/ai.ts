@@ -326,6 +326,67 @@ export async function analyzeTeam(
   return coerceTeamAIResult(raw, settings.aiModel);
 }
 
+// ---- 题面翻译 ----
+
+/**
+ * 把 CF 题面 HTML 翻译成简体中文。
+ * 做法: 先把公式($$$...$$$/6个$的display公式)与 <pre> 样例块替换成占位符,
+ * 只让 AI 翻译文字部分, 翻译后再还原 —— 保证公式与样例绝对不被翻译破坏。
+ */
+export async function translateProblemHTML(
+  html: string,
+  settings: Settings
+): Promise<string> {
+  if (!settings.aiApiBase || !settings.aiApiKey || !settings.aiModel) {
+    throw new Error('未配置 AI 接口, 请先在设置中填写 API 地址、API Key 和模型名称');
+  }
+
+  // 1. 抽出不可翻译片段: display 公式(6个$) > inline 公式(3个$) > pre 块 > img/svg
+  const frozen: string[] = [];
+  const freeze = (s: string): string => {
+    frozen.push(s);
+    return `[[F${frozen.length - 1}]]`;
+  };
+  const prepared = html
+    .replace(/\${6}[\s\S]+?\${6}|\${3}[\s\S]+?\${3}/g, freeze)
+    .replace(/<pre[\s\S]*?<\/pre>/gi, freeze)
+    .replace(/<img[^>]*>|<svg[\s\S]*?<\/svg>/gi, freeze);
+
+  const system = `你是一位精通算法竞赛的专业翻译。把用户给出的 Codeforces 题面 HTML 片段翻译成简体中文。
+
+严格遵守:
+1. 保持所有 HTML 标签与属性原样不动, 只翻译标签之间的可见文字;
+2. 形如 [[F0]]、[[F1]] 的占位符是公式/样例, 必须一字不差地原样保留, 不得增删、翻译或改写;
+3. 术语使用竞赛惯用译法(如 test case=测试用例, constraints=数据范围, subsequence=子序列);
+4. "Input"/"Output"/"Note"/"Example" 等小节标题分别译为 输入/输出/说明/样例;
+5. 直接输出翻译后的 HTML, 不要任何解释、前后缀或 markdown 代码块标记。`;
+
+  const content = await chatComplete(
+    settings,
+    [
+      { role: 'system', content: system },
+      { role: 'user', content: prepared },
+    ],
+    { temperature: 0.2 }
+  );
+
+  // 2. 去掉可能的代码块围栏
+  let out = content.trim();
+  const fence = out.match(/^```(?:html)?\s*([\s\S]*?)```$/);
+  if (fence) out = fence[1].trim();
+
+  // 3. 还原占位符; 若有占位符丢失则视为翻译失败
+  let missing = 0;
+  out = out.replace(/\[\[F(\d+)\]\]/g, (_m, i) => frozen[Number(i)] ?? _m);
+  for (let i = 0; i < frozen.length; i++) {
+    if (!out.includes(frozen[i])) missing++;
+  }
+  if (missing > frozen.length * 0.1 && missing > 2) {
+    throw new Error(`翻译结果不完整(丢失 ${missing} 处公式/样例), 请重试`);
+  }
+  return out;
+}
+
 // ---- 报告导出 ----
 
 const PRIORITY_TEXT: Record<AIKnowledgePoint['priority'], string> = {

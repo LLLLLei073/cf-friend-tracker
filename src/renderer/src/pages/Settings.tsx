@@ -78,7 +78,7 @@ export default function Settings() {
       return;
     }
     window.api.store.setSettings(settings);
-  }, [settings?.theme, settings?.defaultPage, settings?.notifyRatingChange, settings?.notifyContestStart, settings?.contestNotifyMinutes, settings?.launchRefreshStarredOnly, settings?.aiApiBase, settings?.aiApiKey, settings?.aiModel]);
+  }, [settings?.theme, settings?.defaultPage, settings?.notifyRatingChange, settings?.notifyContestStart, settings?.contestNotifyMinutes, settings?.launchRefreshStarredOnly, settings?.aiApiBase, settings?.aiApiKey, settings?.aiModel, settings?.cppCompilerPath]);
 
   const handleSave = async () => {
     if (!settings) return;
@@ -327,6 +327,7 @@ export default function Settings() {
             <option value="teams">团队</option>
             <option value="contests">近期比赛</option>
             <option value="report">周报/月报</option>
+            <option value="problems">题目练习</option>
           </select>
           <p className={styles.hint}>下次打开应用时自动跳转到此页面</p>
         </div>
@@ -399,6 +400,25 @@ export default function Settings() {
               {aiTestMsg}
             </p>
           )}
+        </div>
+
+        <hr className={styles.divider} />
+
+        {/* ---- 代码运行 (C++ 编译器) ---- */}
+        <div className={styles.updateSection}>
+          <label className={styles.updateLabel}>代码运行 (C++)</label>
+          <p className={styles.updateHint}>在「题目练习」页写 C++ 代码并对拍样例时使用。留空则自动探测系统 PATH 中的 g++；如未加入 PATH，请填写 g++ 可执行文件的完整路径。</p>
+
+          <div className={styles.field}>
+            <label>g++ 编译器路径</label>
+            <input
+              type="text"
+              value={settings.cppCompilerPath}
+              onChange={(e) => setSettings({ ...settings, cppCompilerPath: e.target.value })}
+              placeholder="留空自动探测，或如 D:\\mingw64\\bin\\g++.exe"
+              className={styles.input}
+            />
+          </div>
         </div>
 
         <hr className={styles.divider} />

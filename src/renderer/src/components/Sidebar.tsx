@@ -483,6 +483,13 @@ export default function Sidebar() {
                 <span className={styles.navCardLabel}>近期比赛</span>
               </button>
               <button
+                className={`${styles.navCard} ${location.pathname.startsWith('/problems') ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/problems'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>✎</span>
+                <span className={styles.navCardLabel}>刷题</span>
+              </button>
+              <button
                 className={`${styles.navCard} ${location.pathname === '/compare' ? styles.navCardActive : ''}`}
                 onClick={() => { navigate('/compare'); setNavPanelOpen(false); }}
               >

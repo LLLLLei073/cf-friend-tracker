@@ -5,7 +5,10 @@ import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends, fetchCon
 import { checkForUpdates, installUpdate, getUpdateStatus } from './updater';
 import { checkRatingChanges, checkMilestones } from './notifier';
 import { predictContest } from './predictor';
-import { analyzeTeam, testAIConnection, buildReportMarkdown, buildReportExcelBuffer } from './ai';
+import { analyzeTeam, testAIConnection, buildReportMarkdown, buildReportExcelBuffer, translateProblemHTML } from './ai';
+import { fetchProblemList, refreshProblemList, fetchProblemStatement } from './problem-fetcher';
+import { runCode, detectCompiler } from './code-runner';
+import { getCode, setCode, setStatement } from './problem-store';
 import type {
   Friend,
   Settings,
@@ -21,6 +24,7 @@ import type {
   UpdateStatus,
   UpdateInfo,
   ContestPrediction,
+  SampleTest,
 } from '../shared/types';
 
 function sendProgress(progress: RefreshProgress): void {
@@ -347,6 +351,82 @@ export function registerIpcHandlers(store: StoreManager): void {
       throw new Error(`获取比赛列表失败: ${(e as Error).message}`);
     }
   });
+
+  // ---- 题目浏览 / 代码运行 ----
+  // 获取题目列表（优先本地缓存, 首次会拉取全量 problemset）
+  ipcMain.handle('problem:getList', async (): Promise<import('../shared/types').ProblemListItem[]> => {
+    try {
+      return await fetchProblemList(false);
+    } catch (e) {
+      throw new Error(`获取题目列表失败: ${(e as Error).message}`);
+    }
+  });
+
+  // 强制刷新题目列表
+  ipcMain.handle('problem:refreshList', async (): Promise<import('../shared/types').ProblemListItem[]> => {
+    try {
+      return await refreshProblemList();
+    } catch (e) {
+      throw new Error(`刷新题目列表失败: ${(e as Error).message}`);
+    }
+  });
+
+  // 获取题面（优先本地缓存, 否则抓取 CF 页面并解析）
+  ipcMain.handle(
+    'problem:getStatement',
+    async (_event, contestId: number, index: string): Promise<import('../shared/types').ProblemStatement> => {
+      try {
+        return await fetchProblemStatement(contestId, index);
+      } catch (e) {
+        throw new Error(`获取题面失败: ${(e as Error).message}`);
+      }
+    },
+  );
+
+  // 运行 C++ 代码并对所有样例对拍
+  ipcMain.handle(
+    'problem:runCode',
+    async (_event, code: string, samples: SampleTest[]): Promise<import('../shared/types').RunAllResult> => {
+      const settings = store.getSettings();
+      return runCode(code, samples, settings.cppCompilerPath);
+    },
+  );
+
+  // 读取/保存用户在某个题目上写的代码
+  ipcMain.handle('problem:getCode', async (_event, id: string): Promise<string | null> => {
+    return getCode(id);
+  });
+  ipcMain.handle('problem:setCode', async (_event, id: string, code: string): Promise<boolean> => {
+    setCode(id, code);
+    return true;
+  });
+
+  // 探测当前可用的 C++ 编译器路径
+  ipcMain.handle('problem:detectCompiler', async (): Promise<string | null> => {
+    const settings = store.getSettings();
+    return detectCompiler(settings.cppCompilerPath);
+  });
+
+  // AI 翻译题面(结果写回题面缓存, 一题只翻一次; force 为 true 时重新翻译)
+  ipcMain.handle(
+    'problem:translate',
+    async (_event, contestId: number, index: string, force?: boolean): Promise<import('../shared/types').ProblemStatement> => {
+      try {
+        const stmt = await fetchProblemStatement(contestId, index);
+        if (stmt.translation && !force) return stmt;
+        const settings = store.getSettings();
+        const html = await translateProblemHTML(stmt.html, settings);
+        const updated = {
+          ...stmt,
+          translation: { html, model: settings.aiModel, translatedAt: Date.now() },
+        };
+        setStatement(updated);
+        return updated;
+      } catch (e) {
+        throw new Error(`翻译失败: ${(e as Error).message}`);
+      }
+    },
+  );
 
   // ---- Window State ----
   ipcMain.handle('store:getWindowState', () => {

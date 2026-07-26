@@ -19,6 +19,10 @@ import type {
   UpdateInfo,
   UpdateProgress,
   ContestPrediction,
+  ProblemListItem,
+  ProblemStatement,
+  SampleTest,
+  RunAllResult,
 } from '../shared/types';
 
 const api = {
@@ -104,6 +108,19 @@ const api = {
   predict: {
     contest: (contestId: number, contestName: string): Promise<ContestPrediction> =>
       ipcRenderer.invoke('predict:contest', contestId, contestName),
+  },
+  problem: {
+    getList: (): Promise<ProblemListItem[]> => ipcRenderer.invoke('problem:getList'),
+    refreshList: (): Promise<ProblemListItem[]> => ipcRenderer.invoke('problem:refreshList'),
+    getStatement: (contestId: number, index: string): Promise<ProblemStatement> =>
+      ipcRenderer.invoke('problem:getStatement', contestId, index),
+    runCode: (code: string, samples: SampleTest[]): Promise<RunAllResult> =>
+      ipcRenderer.invoke('problem:runCode', code, samples),
+    getCode: (id: string): Promise<string | null> => ipcRenderer.invoke('problem:getCode', id),
+    setCode: (id: string, code: string): Promise<boolean> => ipcRenderer.invoke('problem:setCode', id, code),
+    detectCompiler: (): Promise<string | null> => ipcRenderer.invoke('problem:detectCompiler'),
+    translate: (contestId: number, index: string, force?: boolean): Promise<ProblemStatement> =>
+      ipcRenderer.invoke('problem:translate', contestId, index, force),
   },
   ai: {
     analyzeTeam: (teamId: string, settings?: Settings): Promise<TeamAIResult> =>

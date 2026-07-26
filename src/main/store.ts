@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS: Settings = {
   aiApiBase: 'https://api.openai.com/v1',
   aiApiKey: '',
   aiModel: 'gpt-4o-mini',
+  cppCompilerPath: '',
 };
 
 // 持久化数据的 schema, 用于让 electron-store 的 get/set 获得类型安全

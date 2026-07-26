@@ -1,0 +1,215 @@
+/* ===== 题目列表页 ===== */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.heading {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  color: var(--text);
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+
+.refreshBtn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  transition: var(--transition);
+}
+.refreshBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.refreshBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ---- 筛选栏 ---- */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.searchInput,
+.tagSelect,
+.ratingInput {
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-input);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  outline: none;
+}
+.searchInput {
+  flex: 1;
+  min-width: 180px;
+}
+.searchInput:focus,
+.tagSelect:focus,
+.ratingInput:focus {
+  border-color: var(--accent);
+}
+.ratingInput {
+  width: 90px;
+}
+.filterLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.clearBtn {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+}
+.clearBtn:hover {
+  background: var(--bg-hover);
+}
+
+/* ---- 列表 ---- */
+.count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+.row:hover {
+  background: var(--bg-hover);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
+}
+
+.rowId {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent-text);
+  min-width: 66px;
+}
+
+.rowMain {
+  flex: 1;
+  min-width: 0;
+}
+.rowName {
+  font-size: 15px;
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rowTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+.tag {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.rowRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 74px;
+}
+.ratingBadge {
+  font-weight: 700;
+  font-size: 14px;
+}
+.solved {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ---- 分页 ---- */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin: 22px 0 8px;
+}
+.pageBtn {
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+}
+.pageBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.pageInfo {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.empty,
+.error {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+}
+.error {
+  color: var(--danger);
+}

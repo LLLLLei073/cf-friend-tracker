@@ -18,4 +18,11 @@ export type {
   UpdateProgress,
   ContestPrediction,
   PredictionResult,
+  SampleTest,
+  ProblemStatement,
+  ProblemTranslation,
+  ProblemListItem,
+  ProblemFilter,
+  RunResult,
+  RunAllResult,
 } from '../../shared/types';
