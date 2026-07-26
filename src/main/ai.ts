@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { randomUUID } from 'crypto';
 import type {
   FriendCache,
   Settings,
@@ -29,7 +30,7 @@ function extractAIError(e: unknown): string {
     if (status === 429) return `请求过于频繁或额度不足 (HTTP 429): ${msg}`;
     return status ? `HTTP ${status}: ${msg}` : `网络错误: ${msg}`;
   }
-  return (e as Error).message;
+  return e instanceof Error ? e.message : String(e);
 }
 
 /** 健壮地从 AI 文本回复中提取 JSON 对象 */
@@ -100,6 +101,7 @@ function coerceTeamAIResult(raw: unknown, model: string): TeamAIResult {
       })
     : [];
   return {
+    id: randomUUID(),
     analysis: asString(obj.analysis, '(AI 未返回分析内容)'),
     problemSets,
     knowledgePoints,
@@ -405,7 +407,12 @@ export function buildReportMarkdown(teamName: string, result: TeamAIResult): str
  */
 export function buildReportExcelBuffer(teamName: string, result: TeamAIResult): Buffer {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const XLSX = require('xlsx') as typeof import('xlsx');
+  let XLSX: typeof import('xlsx');
+  try {
+    XLSX = require('xlsx') as typeof import('xlsx');
+  } catch (e) {
+    throw new Error(`无法加载 Excel 组件(xlsx),请确认安装包完整后重试: ${(e as Error).message}`);
+  }
 
   const wb = XLSX.utils.book_new();
   const genTime = new Date(result.generatedAt).toLocaleString();

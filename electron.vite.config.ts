@@ -7,6 +7,9 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
+        // 显式把 xlsx 标记为外部依赖: 导出 Excel 在运行时通过 require('xlsx') 从打包后的
+        // node_modules 动态加载, 不应被打包进 asar 内联, 否则运行时可能解析失败
+        external: ['xlsx'],
         input: {
           index: resolve(__dirname, 'src/main/index.ts'),
         },

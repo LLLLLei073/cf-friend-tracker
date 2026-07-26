@@ -52,7 +52,9 @@ function TeamAISection({ team, aiReady }: { team: Team; aiReady: boolean }) {
     setLoading(true);
     setError('');
     try {
-      await window.api.ai.analyzeTeam(team.id);
+      // 取最新已保存的 settings 传入, 避免依赖自动保存时序
+      const settings = await window.api.store.getSettings();
+      await window.api.ai.analyzeTeam(team.id, settings);
       const list = await window.api.ai.getTeamAIHistory(team.id);
       setHistory(list);
       setSelectedIdx(0); // 新生成的在最前
@@ -67,7 +69,7 @@ function TeamAISection({ team, aiReady }: { team: Team; aiReady: boolean }) {
     const cur = history[selectedIdx];
     if (!cur) return;
     if (!confirm('确定删除这条历史记录吗?')) return;
-    await window.api.ai.removeTeamAIResult(team.id, cur.generatedAt);
+    await window.api.ai.removeTeamAIResult(team.id, cur.id);
     const list = await window.api.ai.getTeamAIHistory(team.id);
     setHistory(list);
     setSelectedIdx(0);
@@ -158,7 +160,7 @@ function TeamAISection({ team, aiReady }: { team: Team; aiReady: boolean }) {
             onChange={(e) => setSelectedIdx(Number(e.target.value))}
           >
             {history.map((r, i) => (
-              <option key={r.generatedAt} value={i}>
+              <option key={r.id} value={i}>
                 {new Date(r.generatedAt).toLocaleString()} · {r.model}
               </option>
             ))}

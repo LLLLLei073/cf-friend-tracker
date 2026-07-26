@@ -8,6 +8,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.2.5',
+    date: '2026-07-26',
+    title: '代码健壮性修复与打包优化',
+    features: [],
+    fixes: [
+      { icon: '🔧', text: '修复应用版本号来源：不再写死常量，统一读取运行版本，更新日志与自动更新提示显示真实版本（1.2.4 起漏改常量导致版本展示漂移）' },
+      { icon: '🐛', text: '修复 AI 分析历史记录删除键用时间戳导致的同毫秒碰撞误删，改用稳定随机 id' },
+      { icon: '📦', text: '加固 Excel 导出运行时依赖：显式将 xlsx 标记为外部依赖并加容错，避免打包后 require 失败' },
+      { icon: '⚙️', text: '修复 AI 测试连接/生成分析读取的是已保存设置而非编辑中值，现在使用界面当前输入' },
+      { icon: '🛡️', text: '修复 AI 错误提取兜底返回 undefined 显示为「undefined」的问题' },
+      { icon: '🧹', text: '清理导出对话框文件类型过滤器的冗余分支' },
+      { icon: '📝', text: '设置页更新说明改用安全的 Markdown 渲染（不依赖 dangerouslySetInnerHTML，无 XSS 风险），支持标题/列表/引用排版' },
+      { icon: '💾', text: '优化安装包体积：打包时自动裁剪开发依赖（typescript/vite/electron-builder 等不再进入 asar）' },
+    ],
+  },
+  {
     version: '1.2.4',
     date: '2026-07-26',
     title: '补丁修复：更新日志崩溃',

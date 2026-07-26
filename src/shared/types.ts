@@ -239,6 +239,7 @@ export interface AIKnowledgePoint {
 
 // 团队 AI 分析完整结果
 export interface TeamAIResult {
+  id: string;                // 稳定唯一标识(crypto.randomUUID),用于删除/React key,避免同一毫秒生成的时间戳碰撞
   analysis: string;          // 整体分析报告
   problemSets: AIProblemSet[];   // 推荐题单
   knowledgePoints: AIKnowledgePoint[]; // 知识点清单

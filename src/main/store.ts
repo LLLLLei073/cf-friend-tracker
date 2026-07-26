@@ -1,4 +1,5 @@
 import Store from 'electron-store';
+import { randomUUID } from 'crypto';
 import type { Friend, FriendCache, Settings, Team, TeamAIResult, WindowState } from '../shared/types';
 
 const DEFAULT_SETTINGS: Settings = {
@@ -192,8 +193,23 @@ export class StoreManager {
     const val = results[teamId] as unknown;
     if (!val) return [];
     // 向后兼容: 旧版存的是单个对象
-    if (Array.isArray(val)) return val as TeamAIResult[];
-    return [val] as TeamAIResult[];
+    const raw: TeamAIResult[] = Array.isArray(val)
+      ? (val as TeamAIResult[])
+      : [val as TeamAIResult];
+    // 为缺少 id 的旧记录补全稳定 id 并持久化, 避免删除/React key 依赖时间戳导致碰撞
+    let changed = false;
+    const normalized = raw.map((r) => {
+      if (!r.id) {
+        changed = true;
+        return { ...r, id: randomUUID() };
+      }
+      return r;
+    });
+    if (changed) {
+      results[teamId] = normalized;
+      safeSet(this.store, 'aiResults', results);
+    }
+    return normalized;
   }
 
   addTeamAIResult(teamId: string, result: TeamAIResult): void {
@@ -211,13 +227,13 @@ export class StoreManager {
     safeSet(this.store, 'aiResults', results);
   }
 
-  removeTeamAIResult(teamId: string, generatedAt: number): void {
+  removeTeamAIResult(teamId: string, id: string): void {
     const results = this.store.get('aiResults');
     const existing = results[teamId] as unknown;
     if (!existing) return;
     const arr = (
       Array.isArray(existing) ? (existing as TeamAIResult[]) : [existing as TeamAIResult]
-    ).filter((r) => r.generatedAt !== generatedAt);
+    ).filter((r) => r.id !== id);
     results[teamId] = arr;
     safeSet(this.store, 'aiResults', results);
   }

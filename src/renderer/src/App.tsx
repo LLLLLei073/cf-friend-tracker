@@ -16,17 +16,18 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ChangelogModal from './components/ChangelogModal';
 import { CHANGELOG } from './data/changelog';
 
-const APP_VERSION = '1.2.4';
-
 export default function App() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
+  const [appVersion, setAppVersion] = useState('');
 
   // 应用主题 + 启动时跳转到默认页面 + 更新日志检查
   useEffect(() => {
     (async () => {
       const settings = await window.api.store.getSettings();
+      // 统一从主进程拿应用版本, 避免硬编码常量与 package.json 漂移
+      setAppVersion(await window.api.app.getVersion());
 
       // 跳转到默认页面（仅首次加载时，URL 为根路径）
       if (window.location.hash === '#/' || window.location.hash === '' || window.location.hash === '#') {
@@ -100,7 +101,7 @@ export default function App() {
         </Routes>
       </main>
       {showChangelog && (
-        <ChangelogModal onClose={() => setShowChangelog(false)} initialVersion={APP_VERSION} />
+        <ChangelogModal onClose={() => setShowChangelog(false)} initialVersion={appVersion || CHANGELOG[0]?.version} />
       )}
     </div>
   );

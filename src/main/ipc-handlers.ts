@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog } from 'electron';
+import { ipcMain, BrowserWindow, dialog, app } from 'electron';
 import fs from 'fs';
 import { StoreManager } from './store';
 import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests } from './cf-api';
@@ -423,24 +423,25 @@ export function registerIpcHandlers(store: StoreManager): void {
   });
 
   // 重新生成团队 AI 分析: 取队伍成员缓存 + 当前设置, 调用 AI, 写入历史并返回新结果
-  ipcMain.handle('ai:analyzeTeam', async (_event, teamId: string): Promise<TeamAIResult> => {
+  // settings 可选: 由渲染端传入编辑中/最新的 settings, 避免依赖自动保存时序; 缺省时回退读盘
+  ipcMain.handle('ai:analyzeTeam', async (_event, teamId: string, settings?: Settings): Promise<TeamAIResult> => {
     const teams = store.getTeams();
     const team = teams.find((t) => t.id === teamId);
     if (!team) throw new Error('团队不存在');
     if (team.members.length === 0) throw new Error('团队没有成员');
 
-    const settings = store.getSettings();
+    const effectiveSettings = settings ?? store.getSettings();
     const allCache = store.getAllCache();
     const members = team.members.map((handle) => ({ handle, cache: allCache[handle] }));
 
-    const result = await analyzeTeam(team.name, members, settings);
+    const result = await analyzeTeam(team.name, members, effectiveSettings);
     store.addTeamAIResult(teamId, result);
     return result;
   });
 
-  // 删除指定历史记录(按生成时间戳匹配)
-  ipcMain.handle('ai:removeTeamAIResult', (_event, teamId: string, generatedAt: number) => {
-    store.removeTeamAIResult(teamId, generatedAt);
+  // 删除指定历史记录(按稳定 id 匹配, 避免同一毫秒生成的时间戳碰撞)
+  ipcMain.handle('ai:removeTeamAIResult', (_event, teamId: string, id: string) => {
+    store.removeTeamAIResult(teamId, id);
     return true;
   });
 
@@ -483,9 +484,7 @@ export function registerIpcHandlers(store: StoreManager): void {
           defaultPath: defaultName,
           filters: [
             { name: filterName, extensions: [ext] },
-            ...(format === 'excel'
-              ? [{ name: '所有文件', extensions: ['*'] }]
-              : [{ name: '所有文件', extensions: ['*'] }]),
+            { name: '所有文件', extensions: ['*'] },
           ],
         };
         const win = BrowserWindow.getFocusedWindow();
@@ -507,8 +506,13 @@ export function registerIpcHandlers(store: StoreManager): void {
   );
 
   // 测试 AI 接口连通性
-  ipcMain.handle('ai:testConnection', async (): Promise<AIConnectionResult> => {
-    const settings = store.getSettings();
-    return testAIConnection(settings);
+  // settings 可选: 由渲染端传入编辑中的 settings, 避免用户刚改完 Key 立刻测试却读到旧值;
+  // 缺省时回退读盘
+  ipcMain.handle('ai:testConnection', async (_event, settings?: Settings): Promise<AIConnectionResult> => {
+    const effectiveSettings = settings ?? store.getSettings();
+    return testAIConnection(effectiveSettings);
   });
+
+  // 返回应用版本号(来自 package.json), 供渲染端统一展示, 杜绝与硬编码常量漂移
+  ipcMain.handle('app:getVersion', (): string => app.getVersion());
 }

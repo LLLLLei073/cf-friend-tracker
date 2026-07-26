@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import type { Settings as SettingsType, UpdateStatus, UpdateInfo, UpdateProgress } from '../types';
 import ChangelogModal from '../components/ChangelogModal';
+import Markdown from '../components/Markdown';
 import styles from '../styles/settings.module.css';
 
 function formatBytes(bytes: number): string {
@@ -152,7 +153,7 @@ export default function Settings() {
     setAiTesting(true);
     setAiTestMsg('');
     try {
-      const result = await window.api.ai.testConnection();
+      const result = await window.api.ai.testConnection(settings ?? undefined);
       setAiTestMsg(result.ok ? '✓ 连接成功，AI 接口配置正常' : `✗ ${result.error ?? '连接失败'}`);
     } catch (e) {
       setAiTestMsg(`✗ 测试失败: ${(e as Error).message}`);
@@ -468,7 +469,7 @@ export default function Settings() {
             <details className={styles.releaseNotes}>
               <summary>更新说明</summary>
               <div className={styles.releaseNotesContent}>
-                {updateInfo.releaseNotes}
+                <Markdown text={updateInfo.releaseNotes ?? ''} />
               </div>
             </details>
           )}

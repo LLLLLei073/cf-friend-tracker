@@ -22,6 +22,9 @@ import type {
 } from '../shared/types';
 
 const api = {
+  app: {
+    getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
+  },
   cf: {
     getUserInfo: (handles: string[]): Promise<CFUser[]> =>
       ipcRenderer.invoke('cf:getUserInfo', handles),
@@ -103,18 +106,18 @@ const api = {
       ipcRenderer.invoke('predict:contest', contestId, contestName),
   },
   ai: {
-    analyzeTeam: (teamId: string): Promise<TeamAIResult> =>
-      ipcRenderer.invoke('ai:analyzeTeam', teamId),
+    analyzeTeam: (teamId: string, settings?: Settings): Promise<TeamAIResult> =>
+      ipcRenderer.invoke('ai:analyzeTeam', teamId, settings),
     getTeamAIHistory: (teamId: string): Promise<TeamAIResult[]> =>
       ipcRenderer.invoke('ai:getTeamAIHistory', teamId),
-    removeTeamAIResult: (teamId: string, generatedAt: number): Promise<boolean> =>
-      ipcRenderer.invoke('ai:removeTeamAIResult', teamId, generatedAt),
+    removeTeamAIResult: (teamId: string, id: string): Promise<boolean> =>
+      ipcRenderer.invoke('ai:removeTeamAIResult', teamId, id),
     clearTeamAIHistory: (teamId: string): Promise<boolean> =>
       ipcRenderer.invoke('ai:clearTeamAIHistory', teamId),
     exportReport: (teamName: string, result: TeamAIResult, format: AIExportFormat): Promise<AIExportResult> =>
       ipcRenderer.invoke('ai:exportReport', teamName, result, format),
-    testConnection: (): Promise<AIConnectionResult> =>
-      ipcRenderer.invoke('ai:testConnection'),
+    testConnection: (settings?: Settings): Promise<AIConnectionResult> =>
+      ipcRenderer.invoke('ai:testConnection', settings),
   },
 };
 
