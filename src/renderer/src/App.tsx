@@ -16,7 +16,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ChangelogModal from './components/ChangelogModal';
 import { CHANGELOG } from './data/changelog';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.2';
 
 export default function App() {
   const navigate = useNavigate();

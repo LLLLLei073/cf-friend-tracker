@@ -8,6 +8,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.2.2',
+    date: '2026-07-26',
+    title: '团队 AI 分析与报告导出',
+    features: [
+      { icon: '🤖', text: '团队 AI 分析：基于成员 Rating 与近期战绩，自动生成团队整体实力与趋势分析' },
+      { icon: '📋', text: '推荐题单：AI 根据队员水平与薄弱点，推荐适合的 Codeforces 题目清单' },
+      { icon: '📚', text: '知识点清单：AI 梳理团队需要补强的知识点，按优先级排列' },
+      { icon: '⚙️', text: '设置页新增 AI 接口配置：自定义 API 地址、Key、模型（兼容 OpenAI 格式）' },
+      { icon: '🕘', text: 'AI 报告保留历史记录，可按条删除或清空，随时回看' },
+      { icon: '📤', text: '报告导出支持 Markdown 与 Excel 双格式，合并到同一按钮弹出菜单选择' },
+    ],
+  },
+  {
+    version: '1.2.1',
+    date: '2026-07-25',
+    title: '稳定性修复',
+    fixes: [
+      { icon: '🐛', text: '修复团队周报/月报页面 React hooks 顺序错误导致的打开即闪退问题' },
+    ],
+  },
+  {
     version: '1.2.0',
     date: '2026-07-18',
     title: '特别关注与稳定性优化',
