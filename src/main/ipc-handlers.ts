@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog, app } from 'electron';
+import { ipcMain, BrowserWindow, dialog, app, shell } from 'electron';
 import fs from 'fs';
 import { StoreManager } from './store';
 import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests, fetchContestPerformance } from './cf-api';
@@ -6,9 +6,9 @@ import { checkForUpdates, installUpdate, getUpdateStatus } from './updater';
 import { checkRatingChanges, checkMilestones } from './notifier';
 import { predictContest } from './predictor';
 import { analyzeTeam, testAIConnection, buildReportMarkdown, buildReportExcelBuffer, translateProblemHTML } from './ai';
-import { fetchProblemList, refreshProblemList, fetchProblemStatement } from './problem-fetcher';
+import { fetchProblemList, refreshProblemList, fetchProblemStatement, fetchContestProblemList } from './problem-fetcher';
 import { runCode, detectCompiler } from './code-runner';
-import { getCode, setCode, setStatement } from './problem-store';
+import { getCode, setCode, setStatement, getProblemCacheDir, setProblemCacheDir, migrateProblemCache, clearProblemCache } from './problem-store';
 import type {
   Friend,
   Settings,
@@ -373,6 +373,7 @@ export function registerIpcHandlers(store: StoreManager): void {
 
   // ---- 题目浏览 / 代码运行 ----
   // 获取题目列表（优先本地缓存, 首次会拉取全量 problemset）
+  // 注意: 新版刷题主页改为「按比赛搜索」, 不再首屏拉取全量; 此 handler 保留供需要时调用。
   ipcMain.handle('problem:getList', async (): Promise<import('../shared/types').ProblemListItem[]> => {
     try {
       return await fetchProblemList(false);
@@ -390,17 +391,46 @@ export function registerIpcHandlers(store: StoreManager): void {
     }
   });
 
-  // 获取题面（优先本地缓存, 否则抓取 CF 页面并解析）
+  // 按比赛编号获取该场比赛的题目清单（按比赛顺序 A, B, C...），优先内存缓存
+  ipcMain.handle(
+    'problem:getContestProblems',
+    async (_event, contestId: number, force?: boolean): Promise<import('../shared/types').ProblemListItem[]> => {
+      try {
+        return await fetchContestProblemList(contestId, force);
+      } catch (e) {
+        throw new Error(`获取比赛题目失败: ${(e as Error).message}`);
+      }
+    },
+  );
+
+  // 获取题面（仅从本地缓存读取; Codeforces 页面域被 Cloudflare 反爬,
+  // 应用内无法抓取, 未缓存时返回 OPEN_BROWSER 信号, 由前端调用系统浏览器打开原题）
   ipcMain.handle(
     'problem:getStatement',
     async (_event, contestId: number, index: string): Promise<import('../shared/types').ProblemStatement> => {
       try {
         return await fetchProblemStatement(contestId, index);
       } catch (e) {
-        throw new Error(`获取题面失败: ${(e as Error).message}`);
+        const msg = (e as Error).message || String(e);
+        if (msg.includes('OPEN_BROWSER')) {
+          throw new Error(
+            'OPEN_BROWSER: 该题目的题面未缓存，且 Codeforces 不允许应用内抓取。已为你打开系统浏览器查看原题。',
+          );
+        }
+        throw new Error(`获取题面失败: ${msg}`);
       }
     },
   );
+
+  // 用系统默认浏览器打开指定题目的原题页（避免应用内浏览器被 Cloudflare 拦截）
+  ipcMain.handle('problem:openInBrowser', (_event, contestId: number, index: string): void => {
+    shell.openExternal(`https://codeforces.com/contest/${contestId}/problem/${index}`);
+  });
+
+  // 打开系统默认浏览器到 Codeforces（登录 / 做题等都在本地浏览器进行）
+  ipcMain.handle('problem:login', (): void => {
+    shell.openExternal('https://codeforces.com/');
+  });
 
   // 运行 C++ 代码并对所有样例对拍
   ipcMain.handle(
@@ -446,6 +476,42 @@ export function registerIpcHandlers(store: StoreManager): void {
       }
     },
   );
+
+  // 获取当前生效的题目缓存目录（自定义目录或默认位置）
+  ipcMain.handle('problem:getCacheDir', (): string => {
+    return getProblemCacheDir();
+  });
+
+  // 用系统默认浏览器打开外部链接
+  ipcMain.handle('app:openExternal', (_event, url: string): void => {
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+      shell.openExternal(url);
+    }
+  });
+
+  // 弹出系统目录选择框, 返回用户选择的目录路径（取消则返回 null）
+  ipcMain.handle('problem:selectCacheDir', async (): Promise<string | null> => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    const res = await dialog.showOpenDialog(win ?? (undefined as never), {
+      title: '选择题目缓存目录',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (res.canceled || res.filePaths.length === 0) return null;
+    return res.filePaths[0];
+  });
+
+  // 更换题目缓存目录: 自动将已保存的题目与代码移动到新目录
+  ipcMain.handle(
+    'problem:setCacheDir',
+    (_event, newDir: string): import('./problem-store').MigrateResult => {
+      return migrateProblemCache(newDir);
+    },
+  );
+
+  // 清空题目缓存: 删除题面 / 题目清单 / 保存的代码（保留目录本身）
+  ipcMain.handle('problem:clearCache', (): import('./problem-store').ClearResult => {
+    return clearProblemCache();
+  });
 
   // ---- Window State ----
   ipcMain.handle('store:getWindowState', () => {

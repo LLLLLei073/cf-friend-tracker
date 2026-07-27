@@ -126,7 +126,7 @@ export default function Contests() {
   }, []);
 
   const handleOpenContest = (id: number) => {
-    window.open(`https://codeforces.com/contest/${id}`, '_blank');
+    window.api.app.openExternal(`https://codeforces.com/contest/${id}`);
   };
 
   const handlePredict = async (contest: CFContest) => {

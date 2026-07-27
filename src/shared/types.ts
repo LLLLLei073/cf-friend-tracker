@@ -90,6 +90,10 @@ export interface Settings {
   // ---- C++ 编译器路径 (代码运行功能使用) ----
   // 留空则自动探测 MinGW g++ (D:\mingw64\bin\g++.exe / C:\mingw64\bin\g++.exe) 或系统 PATH
   cppCompilerPath: string;
+  // ---- 题目缓存目录 (刷题功能使用) ----
+  // 留空则使用默认位置（即 userData/problem-cache）。非空为自定义目录,
+  // 更换时主进程会自动将已保存的题目与代码移动到新目录。
+  problemCacheDir: string;
 }
 
 export interface CFApiResponse<T> {

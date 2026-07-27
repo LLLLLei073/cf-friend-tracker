@@ -431,7 +431,7 @@ export default function Feed() {
               <div
                 key={leader.handle}
                 className={styles.leaderCard}
-                onClick={() => window.open(`https://codeforces.com/profile/${leader.handle}`, '_blank')}
+                onClick={() => window.api.app.openExternal(`https://codeforces.com/profile/${leader.handle}`)}
               >
                 <span className={styles.leaderRank}>
                   {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
@@ -458,7 +458,7 @@ export default function Feed() {
               <div
                 key={s.handle}
                 className={styles.streakCard}
-                onClick={() => window.open(`https://codeforces.com/profile/${s.handle}`, '_blank')}
+                onClick={() => window.api.app.openExternal(`https://codeforces.com/profile/${s.handle}`)}
               >
                 <img src={s.avatar} className={styles.streakAvatar} alt={s.handle} />
                 <div className={styles.streakInfo}>

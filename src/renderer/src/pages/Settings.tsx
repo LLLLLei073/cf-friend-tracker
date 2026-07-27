@@ -28,6 +28,14 @@ export default function Settings() {
   const [showChangelog, setShowChangelog] = useState(false);
   const firstLoadRef = useRef(true);
 
+  // 题目缓存目录相关
+  const [currentCacheDir, setCurrentCacheDir] = useState('');
+  const [cacheDirMsg, setCacheDirMsg] = useState('');
+  const [cacheMsgError, setCacheMsgError] = useState(false);
+  const savedDirRef = useRef(''); // 已持久化的目录, 防止主题自动保存泄漏未保存的新目录
+  // 登录 Codeforces（在系统浏览器中完成）
+  const [loginMsg, setLoginMsg] = useState('');
+
   // AI 接口测试
   const [aiTesting, setAiTesting] = useState(false);
   const [aiTestMsg, setAiTestMsg] = useState('');
@@ -36,6 +44,9 @@ export default function Settings() {
     (async () => {
       const s = await window.api.store.getSettings();
       setSettings(s);
+      savedDirRef.current = s.problemCacheDir;
+      const dir = await window.api.problem.getCacheDir();
+      setCurrentCacheDir(dir);
       const result = await window.api.updater.getStatus();
       setUpdateStatus(result.status);
       setUpdateInfo(result.info);
@@ -71,17 +82,20 @@ export default function Settings() {
 
   // 主题、默认页面、通知设置变化时自动保存（即时生效）
   // 首次从存储加载时跳过写盘,避免无意义回写(在 EPERM 环境下会触发长时间阻塞)
+  // 注意: problemCacheDir 不在此自动保存, 仅通过显式的目录设置流程持久化,
+  // 避免主题切换等自动保存泄露尚未应用(未迁移)的新目录。
   useEffect(() => {
     if (!settings) return;
     if (firstLoadRef.current) {
       firstLoadRef.current = false;
       return;
     }
-    window.api.store.setSettings(settings);
+    window.api.store.setSettings({ ...settings, problemCacheDir: savedDirRef.current });
   }, [settings?.theme, settings?.defaultPage, settings?.notifyRatingChange, settings?.notifyContestStart, settings?.contestNotifyMinutes, settings?.launchRefreshStarredOnly, settings?.aiApiBase, settings?.aiApiKey, settings?.aiModel, settings?.cppCompilerPath]);
 
   const handleSave = async () => {
     if (!settings) return;
+    savedDirRef.current = settings.problemCacheDir;
     await window.api.store.setSettings(settings);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -160,6 +174,85 @@ export default function Settings() {
     } finally {
       setAiTesting(false);
       setTimeout(() => setAiTestMsg(''), 6000);
+    }
+  };
+
+  // 持久化题目缓存目录（更新状态 + 写盘 + 记录已保存值）
+  const persistCacheDir = async (dir: string) => {
+    const updated = { ...settings!, problemCacheDir: dir };
+    setSettings(updated);
+    savedDirRef.current = dir;
+    await window.api.store.setSettings(updated);
+  };
+
+  // 选择目录按钮: 弹系统对话框, 选完自动迁移并保存
+  const handleBrowseCacheDir = async () => {
+    setCacheDirMsg('');
+    setCacheMsgError(false);
+    const dir = await window.api.problem.selectCacheDir();
+    if (!dir) return;
+    try {
+      const res = await window.api.problem.setCacheDir(dir);
+      if (res.ok) {
+        await persistCacheDir(dir);
+        setCurrentCacheDir(res.targetDir);
+        setCacheDirMsg(
+          res.moved > 0
+            ? `已移动 ${res.moved} 个文件到新目录`
+            : '缓存目录已更新（无已保存的题目需要移动）',
+        );
+      } else {
+        setCacheMsgError(true);
+        setCacheDirMsg(`移动失败: ${res.errors.join('; ')}`);
+      }
+    } catch (e) {
+      setCacheMsgError(true);
+      setCacheDirMsg(`设置失败: ${(e as Error).message}`);
+    }
+  };
+
+  // 应用目录按钮: 对输入框中手动填写的目录执行迁移并保存
+  const handleApplyCacheDir = async () => {
+    setCacheDirMsg('');
+    setCacheMsgError(false);
+    const dir = (settings?.problemCacheDir ?? '').trim();
+    if (!dir) {
+      setCacheMsgError(true);
+      setCacheDirMsg('请先选择或填写缓存目录');
+      return;
+    }
+    if (dir === currentCacheDir) {
+      setCacheDirMsg('目录未变化');
+      return;
+    }
+    try {
+      const res = await window.api.problem.setCacheDir(dir);
+      if (res.ok) {
+        await persistCacheDir(dir);
+        setCurrentCacheDir(res.targetDir);
+        setCacheDirMsg(
+          res.moved > 0
+            ? `已移动 ${res.moved} 个文件到新目录`
+            : '缓存目录已更新（无已保存的题目需要移动）',
+        );
+      } else {
+        setCacheMsgError(true);
+        setCacheDirMsg(`移动失败: ${res.errors.join('; ')}`);
+      }
+    } catch (e) {
+      setCacheMsgError(true);
+      setCacheDirMsg(`设置失败: ${(e as Error).message}`);
+    }
+  };
+
+  // 打开系统默认浏览器到 Codeforces（登录 / 看题面都在本地浏览器完成）
+  const handleLoginCf = async () => {
+    setLoginMsg('正在用系统浏览器打开 Codeforces...');
+    try {
+      await window.api.problem.login();
+      setLoginMsg('已打开。登录、看题面、提交请在本地浏览器中完成。');
+    } catch {
+      setLoginMsg('打开浏览器失败，请重试。');
     }
   };
 
@@ -419,6 +512,62 @@ export default function Settings() {
               className={styles.input}
             />
           </div>
+        </div>
+
+        <hr className={styles.divider} />
+
+        {/* ---- 题目缓存目录 ---- */}
+        <div className={styles.updateSection}>
+          <label className={styles.updateLabel}>题目缓存目录</label>
+          <p className={styles.updateHint}>
+            题目与代码会缓存在本地以便离线查看。更换目录会自动将已保存的题目与代码移动到新位置。
+          </p>
+
+          <div className={styles.field}>
+            <label>当前缓存目录</label>
+            <div className={styles.dirRow}>
+              <input
+                type="text"
+                value={settings.problemCacheDir}
+                onChange={(e) => setSettings({ ...settings, problemCacheDir: e.target.value })}
+                placeholder={currentCacheDir || '默认位置（应用数据目录下的 problem-cache）'}
+                className={styles.input}
+              />
+              <button onClick={handleBrowseCacheDir} className={styles.browseBtn}>
+                浏览...
+              </button>
+              <button onClick={handleApplyCacheDir} className={styles.checkBtn}>
+                应用
+              </button>
+            </div>
+          </div>
+          {cacheDirMsg && (
+            <p
+              className={styles.updateMsg}
+              style={{ color: cacheMsgError ? '#C41E3A' : '#4A7C3A' }}
+            >
+              {cacheDirMsg}
+            </p>
+          )}
+        </div>
+
+        <hr className={styles.divider} />
+
+        {/* ---- 在浏览器打开 Codeforces ---- */}
+        <div className={styles.updateSection}>
+          <label className={styles.updateLabel}>打开 Codeforces（系统浏览器）</label>
+          <p className={styles.updateHint}>
+            Codeforces 题面被 Cloudflare 反爬拦截，应用内无法加载。点击下方按钮会用你的系统默认浏览器打开
+            Codeforces，登录、看题面、提交都请在本地浏览器中完成（应用内的「在浏览器打开原题」也是同样行为）。
+          </p>
+          <button onClick={handleLoginCf} className={styles.checkBtn}>
+            在浏览器打开 Codeforces
+          </button>
+          {loginMsg && (
+            <p className={styles.updateMsg} style={{ color: '#4A7C3A' }}>
+              {loginMsg}
+            </p>
+          )}
         </div>
 
         <hr className={styles.divider} />

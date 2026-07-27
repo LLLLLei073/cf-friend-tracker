@@ -16,6 +16,7 @@ import Problems from './pages/Problems';
 import ProblemView from './pages/ProblemView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ChangelogModal from './components/ChangelogModal';
+import AltNavWheel from './components/AltNavWheel';
 import { CHANGELOG } from './data/changelog';
 
 export default function App() {
@@ -107,6 +108,7 @@ export default function App() {
       {showChangelog && (
         <ChangelogModal onClose={() => setShowChangelog(false)} initialVersion={appVersion || CHANGELOG[0]?.version} />
       )}
+      <AltNavWheel />
     </div>
   );
 }

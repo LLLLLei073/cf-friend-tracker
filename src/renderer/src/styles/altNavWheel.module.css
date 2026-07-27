@@ -1,0 +1,108 @@
+/* Alt 左侧半轮盘导航：直边在左、圆弧向右凸；项目沿左侧竖向排列, 滚轮上下滑动选择。 */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+}
+
+/* 全屏容器, 自身不拦截事件, 仅导航按钮与读数可点 */
+.wheel {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  pointer-events: none;
+}
+
+.guide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+}
+.guide path {
+  stroke: var(--border-strong);
+  stroke-width: 2.5;
+  stroke-dasharray: 6 8;
+  opacity: 0.4;
+  fill: none;
+}
+
+.item {
+  position: absolute;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 70px;
+  padding: 9px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease,
+    border-color 0.15s ease;
+  box-shadow: var(--shadow);
+}
+.item:hover {
+  border-color: var(--accent);
+}
+.itemSelected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow-lg);
+}
+.itemIcon {
+  font-size: 22px;
+  line-height: 1;
+}
+.itemLabel {
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* 左下角当前选择读数 */
+.readout {
+  position: fixed;
+  left: 18px;
+  bottom: 56px;
+  z-index: 1002;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+}
+.readoutIcon {
+  font-size: 22px;
+}
+.readoutLabel {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.hint {
+  position: fixed;
+  left: 18px;
+  bottom: 22px;
+  z-index: 1002;
+  pointer-events: auto;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}

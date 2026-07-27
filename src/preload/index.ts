@@ -29,6 +29,8 @@ import type {
 const api = {
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
+    // 用系统默认浏览器打开外部链接（避免应用内浏览器被 Cloudflare 拦截）
+    openExternal: (url: string): Promise<void> => ipcRenderer.invoke('app:openExternal', url),
   },
   cf: {
     getUserInfo: (handles: string[]): Promise<CFUser[]> =>
@@ -117,6 +119,11 @@ const api = {
   problem: {
     getList: (): Promise<ProblemListItem[]> => ipcRenderer.invoke('problem:getList'),
     refreshList: (): Promise<ProblemListItem[]> => ipcRenderer.invoke('problem:refreshList'),
+    // 按比赛编号获取该场比赛题目清单（按比赛顺序）
+    getContestProblems: (
+      contestId: number,
+      force?: boolean,
+    ): Promise<ProblemListItem[]> => ipcRenderer.invoke('problem:getContestProblems', contestId, force),
     getStatement: (contestId: number, index: string): Promise<ProblemStatement> =>
       ipcRenderer.invoke('problem:getStatement', contestId, index),
     runCode: (code: string, samples: SampleTest[]): Promise<RunAllResult> =>
@@ -124,6 +131,23 @@ const api = {
     getCode: (id: string): Promise<string | null> => ipcRenderer.invoke('problem:getCode', id),
     setCode: (id: string, code: string): Promise<boolean> => ipcRenderer.invoke('problem:setCode', id, code),
     detectCompiler: (): Promise<string | null> => ipcRenderer.invoke('problem:detectCompiler'),
+    // 获取当前生效的题目缓存目录
+    getCacheDir: (): Promise<string> => ipcRenderer.invoke('problem:getCacheDir'),
+    // 弹出系统目录选择框, 返回选中的目录路径（取消为 null）
+    selectCacheDir: (): Promise<string | null> => ipcRenderer.invoke('problem:selectCacheDir'),
+    // 更换题目缓存目录（自动迁移已保存的题目与代码）
+    setCacheDir: (
+      newDir: string,
+    ): Promise<{ ok: boolean; moved: number; targetDir: string; errors: string[] }> =>
+      ipcRenderer.invoke('problem:setCacheDir', newDir),
+    // 清空题目缓存（题面 / 题目清单 / 保存的代码）
+    clearCache: (): Promise<{ ok: boolean; removed: number; errors: string[] }> =>
+      ipcRenderer.invoke('problem:clearCache'),
+    // 用系统默认浏览器打开指定题目原题页
+    openInBrowser: (contestId: number, index: string): Promise<void> =>
+      ipcRenderer.invoke('problem:openInBrowser', contestId, index),
+    // 打开系统默认浏览器到 Codeforces（登录 / 做题等）
+    login: (): Promise<void> => ipcRenderer.invoke('problem:login'),
     translate: (contestId: number, index: string, force?: boolean): Promise<ProblemStatement> =>
       ipcRenderer.invoke('problem:translate', contestId, index, force),
   },

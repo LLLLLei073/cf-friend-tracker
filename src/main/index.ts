@@ -1,8 +1,9 @@
-import { app, BrowserWindow, dialog, Notification } from 'electron';
+import { app, BrowserWindow, dialog, Notification, Menu } from 'electron';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
 import { StoreManager } from './store';
+import { setProblemCacheDir } from './problem-store';
 import { registerIpcHandlers } from './ipc-handlers';
 import { initUpdater } from './updater';
 import { startContestReminderTimer, stopContestReminderTimer } from './notifier';
@@ -23,6 +24,14 @@ debugLog(`EXEC_PATH: ${process.execPath}`);
 // 未签名的 Electron 应用在 Windows 上需要禁用 Chromium 沙箱, 否则会崩溃
 app.commandLine.appendSwitch('no-sandbox');
 debugLog('no-sandbox switch added');
+
+// 禁用 Electron 默认菜单栏: 否则按 Alt 会先激活原生菜单, 松开 Alt 的 keyup 可能
+// 收不到, 导致 Alt 径向轮盘导航卡在打开态。Alt 轮盘是自定义交互, 不需要原生菜单。
+// (macOS 保留默认菜单栏体验, 故仅对非 darwin 平台禁用)
+if (process.platform !== 'darwin') {
+  Menu.setApplicationMenu(null);
+  debugLog('default application menu disabled');
+}
 
 // 本机安全软件/实时防护(Windows Defender / 第三方杀软实时扫描)会拦截对
 // AppData\Roaming\cf-friend-tracker 目录下部分文件的写入, 导致 Chromium 网络服务
@@ -57,6 +66,8 @@ process.on('uncaughtException', (err) => {
 
 const store = new StoreManager();
 debugLog('StoreManager created');
+// 启动时将已保存的自定义题目缓存目录注入 problem-store, 使后续读写使用正确位置
+setProblemCacheDir(store.getSettings().problemCacheDir);
 registerIpcHandlers(store);
 debugLog('IPC handlers registered');
 

@@ -487,7 +487,7 @@ export default function Sidebar() {
                 onClick={() => { navigate('/problems'); setNavPanelOpen(false); }}
               >
                 <span className={styles.navCardIcon}>✎</span>
-                <span className={styles.navCardLabel}>刷题</span>
+                <span className={styles.navCardLabel}>刷题 (test)</span>
               </button>
               <button
                 className={`${styles.navCard} ${location.pathname === '/compare' ? styles.navCardActive : ''}`}

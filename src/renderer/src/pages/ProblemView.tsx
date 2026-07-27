@@ -62,7 +62,13 @@ export default function ProblemView() {
         if (cancelled) return;
         let msg = (e as Error).message || String(e);
         msg = msg.replace(/^Error invoking remote method '[^']+':\s*/i, '');
-        setError(msg);
+        // 未缓存且 CF 不允许应用内抓取: 自动用系统浏览器打开原题
+        if (msg.includes('OPEN_BROWSER')) {
+          setError('该题目的题面未缓存，且 Codeforces 不允许应用内抓取。已为你打开系统浏览器查看原题。');
+          window.api.problem.openInBrowser(cid, index!);
+        } else {
+          setError(msg);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -167,7 +173,7 @@ export default function ProblemView() {
   };
 
   const openOfficial = () => {
-    window.open(`https://codeforces.com/contest/${cid}/problem/${index}`, '_blank');
+    window.api.problem.openInBrowser(cid, index!);
   };
 
   if (loading) {
@@ -180,6 +186,9 @@ export default function ProblemView() {
         <div className={styles.topbar}>
           <button className={styles.backBtn} onClick={() => navigate('/problems')}>
             ← 返回
+          </button>
+          <button className={styles.openOfficial} onClick={openOfficial}>
+            在浏览器打开原题
           </button>
         </div>
         <p className={styles.error}>加载失败：{error}</p>

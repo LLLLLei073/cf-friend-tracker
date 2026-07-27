@@ -56,7 +56,7 @@ export class RequestQueue {
   }
 }
 
-const requestQueue = new RequestQueue();
+export const requestQueue = new RequestQueue();
 
 /**
  * 判断是否为可重试的网络错误(超时、连接重置、TLS 断开、5xx 等)。
@@ -201,6 +201,22 @@ export async function fetchContestPerformance(
     result[handle] = { acCount, rank: row.rank, points: row.points };
   }
   return result;
+}
+
+// 获取单场比赛的题目清单（按比赛顺序 A, B, C...）。
+// 复用 contest.standings（只传 contestId）返回的 problems 数组, 该数组即本场比赛全部题目且顺序正确。
+export async function fetchContestProblems(contestId: number): Promise<import('../shared/types').ProblemListItem[]> {
+  const standings = await fetchContestStandings(contestId);
+  const cid = standings.contest?.id ?? contestId;
+  return standings.problems.map((p) => ({
+    contestId: cid,
+    index: p.index,
+    name: p.name,
+    rating: p.rating,
+    tags: p.tags ?? [],
+    type: p.type,
+    solvedCount: undefined,
+  }));
 }
 
 // problemset.problems 的返回（result 部分）

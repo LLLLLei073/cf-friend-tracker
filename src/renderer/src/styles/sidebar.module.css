@@ -345,7 +345,7 @@
   position: fixed;
   bottom: 70px;
   left: 16px;
-  width: 240px;
+  width: 260px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
@@ -414,6 +414,7 @@
   align-items: center;
   gap: 6px;
   padding: 12px 4px;
+  min-height: 64px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -447,7 +448,10 @@
   font-size: 11px;
   color: var(--text-secondary);
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  padding: 0 2px;
 }
 
 .navCardActive .navCardLabel {

@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS: Settings = {
   aiApiKey: '',
   aiModel: 'gpt-4o-mini',
   cppCompilerPath: '',
+  problemCacheDir: '',
 };
 
 // 持久化数据的 schema, 用于让 electron-store 的 get/set 获得类型安全

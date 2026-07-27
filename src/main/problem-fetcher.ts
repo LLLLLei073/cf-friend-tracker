@@ -1,32 +1,10 @@
-import axios from 'axios';
-import * as cheerio from 'cheerio';
-import { fetchProblemset } from './cf-api';
-import { getProblemList, setProblemList, getStatement, setStatement, isListFresh } from './problem-store';
-import type { ProblemListItem, ProblemStatement, SampleTest } from '../shared/types';
+import { fetchProblemset, fetchContestProblems } from './cf-api';
+import { getProblemList, setProblemList, getStatement, isListFresh } from './problem-store';
+import type { ProblemListItem, ProblemStatement } from '../shared/types';
 
-const PROBLEM_PAGE_TIMEOUT = 20000;
-
-// 规范化样例文本: 统一换行符, 去掉首尾多余空行
-function normalizeText(t: string): string {
-  return t
-    .replace(/\r\n/g, '\n')
-    .replace(/^\n+/, '')
-    .replace(/\n+$/, '');
-}
-
-// Codeforces 新版题面把每个样例行放在 <pre> 内的 <div class="test-example-line"> 里。
-// cheerio 的 .text() 会直接拼接所有 div 的文本, 导致换行丢失、所有数字连成一行。
-// 这里优先按 .test-example-line 分行, 没有该结构时再回退到 .text()。
-function extractPreText($: cheerio.CheerioAPI, pre: cheerio.Element): string {
-  const lines = $(pre)
-    .find('.test-example-line')
-    .map((_i, el) => $(el).text())
-    .get();
-  if (lines.length > 0) {
-    return lines.join('\n');
-  }
-  return $(pre).text();
-}
+// 单场比赛题目清单的内存缓存（避免每次搜索都请求 CF）
+const CONTEST_LIST_TTL_MS = 24 * 3600 * 1000;
+const contestListCache = new Map<number, { list: ProblemListItem[]; cachedAt: number }>();
 
 // 把 problemset.problems 的返回映射为浏览用的轻量列表, 并合并通过人数
 async function mapProblemList(): Promise<ProblemListItem[]> {
@@ -48,60 +26,16 @@ async function mapProblemList(): Promise<ProblemListItem[]> {
   }));
 }
 
-// 抓取并解析单个题面（HTML + 样例）
-async function scrapeStatement(contestId: number, index: string): Promise<ProblemStatement> {
-  if (!contestId || contestId <= 0) {
-    throw new Error('该题目缺少 contestId, 暂不支持抓取（多为 Gym/特殊赛题）');
-  }
-  const url = `https://codeforces.com/contest/${contestId}/problem/${index}`;
-  const resp = await axios.get(url, {
-    timeout: PROBLEM_PAGE_TIMEOUT,
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; CFFriendTracker/1.0)',
-      Accept: 'text/html',
-    },
-  });
-
-  const $ = cheerio.load(resp.data as string);
-  const stmtEl = $('.problem-statement');
-  if (stmtEl.length === 0) {
-    throw new Error('未能解析题面, 题目可能不存在或页面结构已变化');
-  }
-
-  // 题名: .title 形如 "A. Problem Name"
-  const titleText = stmtEl.find('.title').first().text().trim();
-  const name = titleText.replace(/^[A-Z0-9]+\.\s*/, '').trim() || `Problem ${index}`;
-
-  // 样例: 按出现顺序收集所有 input / output 的 pre 文本, 再两两配对
-  const inputs = stmtEl
-    .find('.sample-tests .input pre')
-    .map((_i, el) => extractPreText($, el))
-    .get();
-  const outputs = stmtEl
-    .find('.sample-tests .output pre')
-    .map((_i, el) => extractPreText($, el))
-    .get();
-  const samples: SampleTest[] = [];
-  const n = Math.min(inputs.length, outputs.length);
-  for (let i = 0; i < n; i++) {
-    samples.push({ input: normalizeText(inputs[i]), output: normalizeText(outputs[i]) });
-  }
-
-  // 清洗: 去掉可能执行脚本/外链的元素, 避免注入到渲染进程后产生副作用
-  const $stmt = stmtEl.clone();
-  $stmt.find('script, iframe, object, embed, link, meta').remove();
-
-  const html = $stmt.html() ?? '';
-  const now = Date.now();
-  return {
-    contestId,
-    index,
-    name,
-    html,
-    samples,
-    cachedAt: now,
-    fetchedAt: now,
-  };
+// 获取题面: Codeforces 对页面域（contest/.../problem/...）启用了 Cloudflare 反爬,
+// 应用内（Electron 内置浏览器 / Node 网络栈）均无法通过验证, 只有用户本机浏览器能正常打开。
+// 因此题面只从本地缓存读取; 没有缓存时抛出 OPEN_BROWSER 信号, 由渲染进程改用系统浏览器打开原题。
+export async function fetchProblemStatement(
+  contestId: number,
+  index: string,
+): Promise<ProblemStatement> {
+  const cached = getStatement(contestId, index);
+  if (cached) return cached;
+  throw new Error('OPEN_BROWSER');
 }
 
 // 获取题目列表: 优先返回本地缓存（未过期）, 否则拉取并缓存
@@ -120,14 +54,19 @@ export async function refreshProblemList(): Promise<ProblemListItem[]> {
   return fetchProblemList(true);
 }
 
-// 获取题面: 优先返回本地缓存, 否则抓取并缓存
-export async function fetchProblemStatement(
+// 获取单场比赛的题目清单（按比赛顺序 A, B, C...）。
+// 优先返回内存缓存（未过期），否则从 CF 拉取并缓存。force 时忽略缓存重新拉取。
+export async function fetchContestProblemList(
   contestId: number,
-  index: string,
-): Promise<ProblemStatement> {
-  const cached = getStatement(contestId, index);
-  if (cached) return cached;
-  const stmt = await scrapeStatement(contestId, index);
-  setStatement(stmt);
-  return stmt;
+  force = false,
+): Promise<ProblemListItem[]> {
+  if (!force) {
+    const cached = contestListCache.get(contestId);
+    if (cached && Date.now() - cached.cachedAt < CONTEST_LIST_TTL_MS) {
+      return cached.list;
+    }
+  }
+  const list = await fetchContestProblems(contestId);
+  contestListCache.set(contestId, { list, cachedAt: Date.now() });
+  return list;
 }
