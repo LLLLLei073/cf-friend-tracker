@@ -320,6 +320,14 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
+.dailyEmpty {
+  font-size: 15px;
+  font-weight: 700;
+  color: #B23A2E;
+  padding: 10px 4px;
+  letter-spacing: 0.5px;
+}
+
 .dailyAvatar {
   width: 32px;
   height: 32px;

@@ -6,6 +6,13 @@ import type { Team, TeamAIResult, AIProblemSet, AIKnowledgePoint, AIExportFormat
 import { getRankColor, getRankLabel } from '../utils/rank';
 import { NO_AVATAR, countACProblems } from '../utils/helpers';
 import { useAppData } from '../hooks/useAppData';
+import {
+  initTeamAnalysisEvents,
+  useTeamAnalysisStatus,
+  onTeamAnalysisDone,
+  startTeamAnalysis,
+  failTeamAnalysis,
+} from '../utils/aiAnalysis';
 import styles from '../styles/teams.module.css';
 
 const MAX_MEMBERS = 3;
@@ -32,12 +39,14 @@ function problemUrl(code: string): string | null {
 function TeamAISection({ team, aiReady, onTeamUpdate }: { team: Team; aiReady: boolean; onTeamUpdate?: (t: Team) => void }) {
   const [history, setHistory] = useState<TeamAIResult[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState('');
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+
+  // 分析中/出错状态来自进程级管理器, 与组件生命周期解耦:
+  // 用户点击收起团队或跳转好友页导致本组件卸载时, 状态不丢失, 重新挂载后自动恢复。
+  const status = useTeamAnalysisStatus(team.id);
 
   const loadHistory = async () => {
     const list = await window.api.ai.getTeamAIHistory(team.id);
@@ -46,25 +55,31 @@ function TeamAISection({ team, aiReady, onTeamUpdate }: { team: Team; aiReady: b
   };
 
   useEffect(() => {
-    setError('');
     setExportMsg('');
     loadHistory();
   }, [team.id]);
 
+  // 主进程写盘后推送 ai:teamAnalysisDone 事件 -> 由全局管理器广播到此处,
+  // 无论本组件当前是否已挂载, 只要挂载就能重载历史并切到最新一条。
+  useEffect(() => {
+    return onTeamAnalysisDone((id) => {
+      if (id !== team.id) return;
+      window.api.ai.getTeamAIHistory(team.id).then((list) => {
+        setHistory(list);
+        setSelectedIdx(0); // 新生成的在最前
+      });
+    });
+  }, [team.id]);
+
   const run = async () => {
-    setLoading(true);
-    setError('');
+    startTeamAnalysis(team.id);
     try {
       // 取最新已保存的 settings 传入, 避免依赖自动保存时序
       const settings = await window.api.store.getSettings();
       await window.api.ai.analyzeTeam(team.id, settings);
-      const list = await window.api.ai.getTeamAIHistory(team.id);
-      setHistory(list);
-      setSelectedIdx(0); // 新生成的在最前
+      // 完成由主进程 ai:teamAnalysisDone 事件驱动: 清 loading + 重载历史(见上方 effect)
     } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
+      failTeamAnalysis(team.id, (e as Error).message);
     }
   };
 
@@ -176,10 +191,10 @@ function TeamAISection({ team, aiReady, onTeamUpdate }: { team: Team; aiReady: b
           <button
             onClick={run}
             className={styles.aiBtn}
-            disabled={loading || !aiReady}
+            disabled={status.status === 'loading' || !aiReady}
             title={!aiReady ? '请先在设置中配置 AI 接口' : ''}
           >
-            {loading ? '分析中...' : '生成分析'}
+            {status.status === 'loading' ? '分析中...' : '生成分析'}
           </button>
           <div className={styles.exportWrap}>
             <button
@@ -233,9 +248,9 @@ function TeamAISection({ team, aiReady, onTeamUpdate }: { team: Team; aiReady: b
         </div>
       )}
 
-      {loading && <p className={styles.aiLoading}>⏳ AI 正在根据队伍数据生成分析，请稍候（可能需要 10-30 秒）...</p>}
+      {status.status === 'loading' && <p className={styles.aiLoading}>⏳ AI 正在根据队伍数据生成分析，请稍候（可能需要 10-30 秒）...</p>}
 
-      {error && <p className={styles.aiError}>✗ {error}</p>}
+      {status.status === 'error' && status.error && <p className={styles.aiError}>✗ {status.error}</p>}
 
       {exportMsg && (
         <p className={styles.aiExportMsg} style={{ color: exportMsg.startsWith('✓') ? '#4A7C3A' : '#C41E3A' }}>
@@ -243,7 +258,7 @@ function TeamAISection({ team, aiReady, onTeamUpdate }: { team: Team; aiReady: b
         </p>
       )}
 
-      {selected && !loading && (
+      {selected && status.status !== 'loading' && (
         <div className={styles.aiBody} ref={reportRef}>
           <div className={styles.aiCaptureHead}>
             <div className={styles.aiCaptureTitle}>{team.name} · AI 分析报告</div>
@@ -357,6 +372,8 @@ export default function Teams() {
 
   useEffect(() => {
     loadTeams();
+    // 注册一次性的主进程「分析完成」事件监听(模块级去重), 让分析状态脱离组件生命周期
+    initTeamAnalysisEvents();
     // 检测 AI 接口是否已配置, 用于在团队页提示/禁用 AI 分析按钮
     window.api.store.getSettings().then((s) => {
       setAiReady(!!(s.aiApiBase && s.aiApiKey && s.aiModel));
@@ -597,26 +614,30 @@ export default function Teams() {
                     <h4 className={styles.dailyTitle}>今日战况</h4>
                     <div className={styles.dailyGrid}>
                       <div className={styles.dailyCard}>
-                        <div className={styles.dailyLabel}>🔥 今日最卷{hardestList.length > 1 && ` (${hardestList.length}人并列)`}</div>
-                        {hardestList.map((m) => (
-                          <div
-                            key={m.handle}
-                            className={styles.dailyMember}
-                            onClick={() => navigate(`/friends/${m.handle}`)}
-                          >
-                            <img
-                              src={m.avatar || NO_AVATAR}
-                              className={styles.dailyAvatar}
-                              alt={m.handle}
-                            />
-                            <div className={styles.dailyInfo}>
-                              <span className={styles.dailyHandle}>{m.handle}</span>
-                              <span className={styles.dailySolved}>
-                                今日 AC <strong style={{ color: '#4A7C3A' }}>{m.solvedToday}</strong> 题
-                              </span>
+                        <div className={styles.dailyLabel}>🔥 今日最卷{hardestList.length > 1 && maxSolved > 0 && ` (${hardestList.length}人并列)`}</div>
+                        {maxSolved === 0 ? (
+                          <div className={styles.dailyEmpty}>😡 怎么没人做题啊</div>
+                        ) : (
+                          hardestList.map((m) => (
+                            <div
+                              key={m.handle}
+                              className={styles.dailyMember}
+                              onClick={() => navigate(`/friends/${m.handle}`)}
+                            >
+                              <img
+                                src={m.avatar || NO_AVATAR}
+                                className={styles.dailyAvatar}
+                                alt={m.handle}
+                              />
+                              <div className={styles.dailyInfo}>
+                                <span className={styles.dailyHandle}>{m.handle}</span>
+                                <span className={styles.dailySolved}>
+                                  今日 AC <strong style={{ color: '#4A7C3A' }}>{m.solvedToday}</strong> 题
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))
+                        )}
                       </div>
 
                       <div className={styles.dailyCard}>

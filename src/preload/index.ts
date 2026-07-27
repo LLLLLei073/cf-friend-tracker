@@ -4,6 +4,7 @@ import type {
   CFRatingChange,
   CFSubmission,
   CFUser,
+  ContestPerformance,
   Friend,
   FriendCache,
   RefreshProgress,
@@ -43,6 +44,10 @@ const api = {
     refreshMyProfile: (): Promise<CFUser | null> => ipcRenderer.invoke('cf:refreshMyProfile'),
     syncFriendsAuto: (): Promise<SyncResult> => ipcRenderer.invoke('cf:syncFriendsAuto'),
     getContests: (): Promise<CFContest[]> => ipcRenderer.invoke('cf:getContests'),
+    getFinishedContests: (limit?: number): Promise<CFContest[]> =>
+      ipcRenderer.invoke('cf:getFinishedContests', limit),
+    getContestPerformance: (contestId: number, handles: string[]): Promise<Record<string, ContestPerformance>> =>
+      ipcRenderer.invoke('cf:getContestPerformance', contestId, handles),
     onRefreshProgress: (callback: (progress: RefreshProgress) => void): (() => void) => {
       const handler = (_event: IpcRendererEvent, data: RefreshProgress) => callback(data);
       ipcRenderer.on('cf:refreshProgress', handler);
@@ -135,6 +140,13 @@ const api = {
       ipcRenderer.invoke('ai:exportReport', teamName, result, format, imageData, goal),
     testConnection: (settings?: Settings): Promise<AIConnectionResult> =>
       ipcRenderer.invoke('ai:testConnection', settings),
+    // 主进程分析写盘后推送完成事件, 供渲染端(即使组件已卸载)恢复状态/重载历史
+    onTeamAnalysisDone: (
+      handler: (e: IpcRendererEvent, payload: { teamId: string }) => void
+    ): (() => void) => {
+      ipcRenderer.on('ai:teamAnalysisDone', handler);
+      return () => ipcRenderer.removeListener('ai:teamAnalysisDone', handler);
+    },
   },
 };
 

@@ -118,6 +118,13 @@ export interface CFContest {
   relativeTimeSeconds: number;
 }
 
+// 某人在某场比赛中的表现(用于动态-近期比赛板块)
+export interface ContestPerformance {
+  acCount: number; // AC 题数
+  rank: number;    // 该场比赛排名
+  points: number;  // 总得分
+}
+
 // 窗口状态
 export interface WindowState {
   width: number;

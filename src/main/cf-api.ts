@@ -7,6 +7,7 @@ import type {
   CFApiResponse,
   CFContest,
   CFContestStandings,
+  ContestPerformance,
 } from '../shared/types';
 
 const API_BASE = 'https://codeforces.com/api';
@@ -168,16 +169,38 @@ export async function fetchContests(): Promise<CFContest[]> {
 }
 
 export async function fetchContestStandings(
-  contestId: number,
-  from = 1,
-  count = 10000
+  contestId: number
 ): Promise<CFContestStandings> {
+  // 重要: CF 规定非 gym 比赛, 非管理员用户调用 contest.standings 只能带 contestId 一个参数,
+  // 不能附带 from / count / showUnofficial, 否则报
+  // "Non-gym contest standings ... only via anonymous GET requests with no extra parameters"。
+  // 因此这里统一只传 contestId, 由 API 返回完整榜单(适用于评级预测与比赛表现统计)。
+  // (gym 比赛也能正常返回, 默认仅官方参赛行。)
   return cfRequest<CFContestStandings>('contest.standings', {
     contestId: contestId.toString(),
-    from: from.toString(),
-    count: count.toString(),
-    showUnofficial: 'false',
   });
+}
+
+/**
+ * 计算给定 handles 在某场比赛中的表现(AC 题数 / 排名 / 得分)。
+ * 复用 contest.standings: 仅保留目标 handles 的行, 通过 problemResults 中 points>0 的题数得到 AC。
+ * 注意: standings 返回完整榜单, 但 CF 对超大型比赛(数万参赛者)的返回可能受服务端上限约束,
+ * 排名极靠后的参赛者可能无法出现在结果中, 此时对应 handle 不会有数据。
+ */
+export async function fetchContestPerformance(
+  contestId: number,
+  handles: string[]
+): Promise<Record<string, ContestPerformance>> {
+  const handleSet = new Set(handles);
+  const standings = await fetchContestStandings(contestId);
+  const result: Record<string, ContestPerformance> = {};
+  for (const row of standings.rows) {
+    const handle = row.party.members[0]?.handle;
+    if (!handle || !handleSet.has(handle)) continue;
+    const acCount = row.problemResults.filter((pr) => pr.points > 0).length;
+    result[handle] = { acCount, rank: row.rank, points: row.points };
+  }
+  return result;
 }
 
 // problemset.problems 的返回（result 部分）

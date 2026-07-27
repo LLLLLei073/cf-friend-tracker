@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow, dialog, app } from 'electron';
 import fs from 'fs';
 import { StoreManager } from './store';
-import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests } from './cf-api';
+import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests, fetchContestPerformance } from './cf-api';
 import { checkForUpdates, installUpdate, getUpdateStatus } from './updater';
 import { checkRatingChanges, checkMilestones } from './notifier';
 import { predictContest } from './predictor';
@@ -352,6 +352,25 @@ export function registerIpcHandlers(store: StoreManager): void {
     }
   });
 
+  // 近期已结束的比赛(默认按开始时间倒序, 供动态页"近期比赛"板块使用)
+  ipcMain.handle('cf:getFinishedContests', async (_event, limit?: number) => {
+    try {
+      const contests = await fetchContests();
+      const finished = contests
+        .filter((c) => c.phase === 'FINISHED')
+        .sort((a, b) => b.startTimeSeconds - a.startTimeSeconds);
+      return typeof limit === 'number' ? finished.slice(0, limit) : finished;
+    } catch (e) {
+      console.error('fetchFinishedContests failed:', e);
+      throw new Error(`获取已结束比赛失败: ${(e as Error).message}`);
+    }
+  });
+
+  // 批量获取若干 handle 在某场比赛中的表现(AC 题数/排名/得分)
+  ipcMain.handle('cf:getContestPerformance', async (_event, contestId: number, handles: string[]) => {
+    return fetchContestPerformance(contestId, handles);
+  });
+
   // ---- 题目浏览 / 代码运行 ----
   // 获取题目列表（优先本地缓存, 首次会拉取全量 problemset）
   ipcMain.handle('problem:getList', async (): Promise<import('../shared/types').ProblemListItem[]> => {
@@ -516,6 +535,9 @@ export function registerIpcHandlers(store: StoreManager): void {
 
     const result = await analyzeTeam(team.name, members, effectiveSettings, team.goal);
     store.addTeamAIResult(teamId, result);
+    // 分析结果已落盘, 主动通知渲染端。即使 TeamAISection 因用户跳转/收起而卸载,
+    // 渲染端全局管理器也能在事件到达时清除「分析中」状态并重新载入历史, 避免表现为「分析中断」。
+    _event.sender.send('ai:teamAnalysisDone', { teamId });
     return result;
   });
 
