@@ -1,6 +1,6 @@
 {
   "name": "cf-friend-tracker",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Codeforces 好友关注桌面应用",
   "author": "LLLLLei073",
   "main": "./out/main/index.js",

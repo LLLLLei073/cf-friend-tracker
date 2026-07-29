@@ -106,7 +106,7 @@ export default function Report() {
   // Rating 变化排行(时间范围内)
   const ratingRanking = useMemo<RatingEntry[]>(() => {
     return allPeople
-      .map((p) => {
+      .map((p): RatingEntry | null => {
         const cache = caches[p.handle];
         const history = cache?.ratingHistory ?? [];
         const inRange = history
@@ -237,17 +237,19 @@ export default function Report() {
 
   const handleExportCSV = () => {
     const rangeLabel = range === 'week' ? '周报' : '月报';
+    const name = selectedTeam?.name ?? '团队';
     exportCSV(
-      ['排名', 'Handle', '别名', 'AC 题数', 'Rating'],
-      solvedRanking.map((e, i) => [i + 1, e.handle, e.alias, e.solvedCount, e.rating ?? '']),
-      `团队${rangeLabel}-${teamName}`,
+      ['排名', 'Handle', '别名', 'AC 题数', '日均 AC'],
+      solvedRanking.map((e, i) => [i + 1, e.handle, e.alias, e.acCount, e.dailyAvg]),
+      `团队${rangeLabel}-${name}`,
     );
   };
 
   const handleExportImage = async () => {
     if (reportRef.current) {
       try {
-        await exportElementAsImage(reportRef.current, `团队报告-${teamName}-${range === 'week' ? '周报' : '月报'}`);
+        const name = selectedTeam?.name ?? '团队';
+        await exportElementAsImage(reportRef.current, `团队报告-${name}-${range === 'week' ? '周报' : '月报'}`);
       } catch (e) {
         console.error('export image failed:', e);
       }

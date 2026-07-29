@@ -8,6 +8,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  type TooltipProps,
 } from 'recharts';
 import type { FriendCache, CFRatingChange } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
@@ -420,7 +421,7 @@ export default function Compare() {
                         const d = new Date(v * 1000);
                         return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
                       }}
-                      content={({ active, payload }: { active?: boolean; payload?: Array<{ payload: { contestId: number; contestName: string; time: number } }> }) => {
+                      content={({ active, payload }: TooltipProps<number, string>) => {
                         if (!active || !payload || payload.length === 0) return null;
                         const data = payload[0].payload;
                         return (

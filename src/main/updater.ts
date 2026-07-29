@@ -89,8 +89,6 @@ export function initUpdater(): void {
   autoUpdater.autoInstallOnAppQuit = true;
   // 不允许降级
   autoUpdater.allowDowngrade = false;
-  // 禁用 electron-updater 内置的下载进度节流,保证 UI 进度条流畅
-  autoUpdater.updateAvailableDelay = 1000;
 
   autoUpdater.on('checking-for-update', () => {
     debugLog('Event: checking-for-update');

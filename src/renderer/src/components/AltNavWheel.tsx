@@ -19,8 +19,8 @@ const NAV = [
 const CX = 60; // 直边/圆心 x（贴近屏幕左缘）
 const R = 230; // 半圆弧半径
 const GAP = 56; // 项目竖向间距
-const MOVE_TH = 80; // 滚轮触发一次移动所需累计 deltaY
-const MOVE_COOLDOWN_MS = 130; // 滚轮事件冷却，避免触控板过于灵敏地连跳
+const MOVE_TH = 100; // 滚轮触发一次移动所需累计 deltaY
+const MOVE_COOLDOWN_MS = 260; // 滚轮事件冷却，避免触控板过于灵敏地连跳
 
 export default function AltNavWheel() {
   const navigate = useNavigate();

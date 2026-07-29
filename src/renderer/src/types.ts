@@ -18,6 +18,7 @@ export type {
   UpdateProgress,
   ContestPrediction,
   PredictionResult,
+  ContestPerformance,
   SampleTest,
   ProblemStatement,
   ProblemTranslation,
