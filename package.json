@@ -41,6 +41,7 @@
   "build": {
     "appId": "com.lei.cffriendtracker",
     "productName": "CF Friend Tracker",
+    "artifactName": "CF-Friend-Tracker-Setup-${version}.${ext}",
     "directories": {
       "output": "C:/Users/60421/Desktop/cf-release"
     },
