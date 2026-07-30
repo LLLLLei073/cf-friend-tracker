@@ -131,12 +131,18 @@ export default function FriendDetail() {
   }, [cache]);
 
   useEffect(() => {
+    if (!handle) return;
+    setLoading(true);
+    setError('');
+    // 取消守卫：切换好友时，上一个人的异步请求若仍在飞行中，
+    // 其后续的 setCache/setError/setLoading 必须被丢弃，否则会把旧数据
+    // 写进当前面板，造成"串号"（显示成另一个人）。
+    let cancelled = false;
     (async () => {
-      if (!handle) return;
-      setLoading(true);
       try {
         // 先从缓存读取
         const c = await window.api.store.getCache(handle);
+        if (cancelled) return;
         setCache(c);
         // 再从 API 获取最新数据
         const [info, ratingHistory, recentSubmissions] = await Promise.all([
@@ -144,6 +150,7 @@ export default function FriendDetail() {
           window.api.cf.getUserRating(handle),
           window.api.cf.getUserStatus(handle, 50),
         ]);
+        if (cancelled) return;
         const newCache: FriendCache = {
           handle,
           info: info[0],
@@ -153,11 +160,15 @@ export default function FriendDetail() {
         };
         setCache(newCache);
       } catch (e) {
-        setError((e as Error).message);
+        if (!cancelled) setError((e as Error).message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [handle]);
 
   // --- Compute heatmap data from friend's submissions ---
@@ -307,6 +318,12 @@ export default function FriendDetail() {
       cancelled = true;
     };
   }, [cache]);
+
+  // 防御性校验：cache 属于上一个人（切换 handle 时旧数据尚未被覆盖）
+  // 仍按加载态处理，避免短暂渲染错人的面板。
+  if (cache && cache.handle !== handle) {
+    return <p style={{ color: '#ABA496' }}>加载中...</p>;
+  }
 
   if (loading && !cache) {
     return <p style={{ color: '#ABA496' }}>加载中...</p>;
