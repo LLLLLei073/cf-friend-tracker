@@ -6,11 +6,12 @@ interface Props {
 }
 
 export default function ContestTable({ data }: Props) {
-  if (data.length === 0) {
+  const safeData = data ?? [];
+  if (safeData.length === 0) {
     return <p className={styles.emptyText}>暂无比赛记录</p>;
   }
 
-  const reversed = [...data].reverse();
+  const reversed = [...safeData].reverse();
 
   return (
     <table className={styles.table}>

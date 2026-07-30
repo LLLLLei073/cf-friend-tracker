@@ -151,6 +151,13 @@ export default function FriendDetail() {
           window.api.cf.getUserStatus(handle, 50),
         ]);
         if (cancelled) return;
+        // 防御：用户不存在 / API 未返回 info 时 info[0] 为 undefined，
+        // 若存成 cache 会导致详情页渲染崩溃，这里改为报错提示。
+        if (!info || info.length === 0 || !info[0]) {
+          setError(`未找到用户 ${handle} 的信息（可能已被注销或 Handle 有误）`);
+          setCache(undefined);
+          return;
+        }
         const newCache: FriendCache = {
           handle,
           info: info[0],
@@ -345,6 +352,23 @@ export default function FriendDetail() {
 
   if (!cache) {
     return <p style={{ color: '#ABA496' }}>未找到数据</p>;
+  }
+
+  // 防御：缓存数据不完整（如旧版本遗留的缓存缺少 info/ratingHistory/recentSubmissions）
+  // 直接解引用会抛错并触发全局 ErrorBoundary，导致整个应用崩溃。
+  // 改为提示刷新，而不是崩溃。
+  if (!cache.info || !cache.ratingHistory || !cache.recentSubmissions) {
+    return (
+      <div>
+        <p style={{ color: '#C41E3A', marginBottom: 12 }}>该好友数据不完整，请刷新后重试</p>
+        <button
+          onClick={() => navigate('/friends')}
+          style={{ padding: '8px 16px', background: '#FFFEF9', border: '1px solid #C9C1AE', color: '#2C2A26', borderRadius: 10, cursor: 'pointer', fontSize: 13, boxShadow: '0 1px 2px rgba(60,50,30,0.05)' }}
+        >
+          返回列表
+        </button>
+      </div>
+    );
   }
 
   const { info, ratingHistory, recentSubmissions, cachedAt } = cache;

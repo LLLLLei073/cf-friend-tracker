@@ -6,7 +6,8 @@ interface Props {
 }
 
 export default function RatingChart({ data }: Props) {
-  const chartData = data.map((d) => ({
+  const safeData = data ?? [];
+  const chartData = safeData.map((d) => ({
     time: d.ratingUpdateTimeSeconds * 1000,
     rating: d.newRating,
     contestName: d.contestName,
