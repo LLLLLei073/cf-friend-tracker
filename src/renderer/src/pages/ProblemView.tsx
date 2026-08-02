@@ -15,6 +15,15 @@ int main() {
 }
 `;
 
+// 轻量清洗题面/翻译 HTML: 剥掉 script/iframe 与 on* 事件属性,
+// 防止注入脚本(CSP 之外的第二道防线)。
+function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+}
+
 export default function ProblemView() {
   const { contestId, index } = useParams<{ contestId: string; index: string }>();
   const navigate = useNavigate();
@@ -89,7 +98,7 @@ export default function ProblemView() {
     if (!loading && statement && statementRef.current) {
       const html =
         lang === 'zh' && statement.translation ? statement.translation.html : statement.html;
-      statementRef.current.innerHTML = html;
+      statementRef.current.innerHTML = sanitizeHtml(html);
       typesetMath(statementRef.current);
     }
   }, [statement, loading, lang]);

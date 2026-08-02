@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow, dialog, app, shell } from 'electron';
 import fs from 'fs';
 import { StoreManager } from './store';
-import { fetchUserInfo, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests, fetchContestPerformance } from './cf-api';
+import { fetchUserInfo, fetchUserInfoSafe, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests, fetchContestPerformance } from './cf-api';
 import { checkForUpdates, installUpdate, getUpdateStatus } from './updater';
 import { checkRatingChanges, checkMilestones } from './notifier';
 import { predictContest } from './predictor';
@@ -102,13 +102,11 @@ export function registerIpcHandlers(store: StoreManager): void {
     const errors: string[] = [];
 
     // 1. 批量获取 user.info (单次请求)
-    let infos: CFUser[];
-    try {
-      infos = await fetchUserInfo(handles);
-    } catch (e) {
-      console.error('fetchUserInfo failed:', e);
-      throw e;
-    }
+    // 注意: CF 的 user.info 只要有一个 handle 无效就整体 FAILED,
+    // 因此用容错版: 整批失败时降级为逐 handle 获取, 无效 handle 单独记录,
+    // 不再导致整个刷新中断(表现为"点击刷新卡住, 好友信息加载不出来")。
+    const { infos, failed: failedInfos } = await fetchUserInfoSafe(handles);
+    errors.push(...failedInfos);
 
     // starred 排前面: 让特别关注的好友优先完成刷新
     const starredSet = new Set(friends.filter((f) => f.starred).map((f) => f.handle));
@@ -125,6 +123,11 @@ export function registerIpcHandlers(store: StoreManager): void {
       if (!ok) errors.push(info.handle);
       completed++;
       sendProgress({ handle: info.handle, completed, total, errors });
+    }
+    // 边界: infos 为空(所有 handle 都无效)时上面的循环不执行,
+    // 也必须推送一次最终进度, 让前端能结束刷新状态并看到错误提示。
+    if (infos.length === 0) {
+      sendProgress({ completed: total, total, errors });
     }
 
     const settings = store.getSettings();
@@ -149,13 +152,9 @@ export function registerIpcHandlers(store: StoreManager): void {
     const total = handles.length;
     const errors: string[] = [];
 
-    let infos: CFUser[];
-    try {
-      infos = await fetchUserInfo(handles);
-    } catch (e) {
-      console.error('fetchUserInfo(starred) failed:', e);
-      throw e;
-    }
+    // 容错批量获取: 无效 handle 不会导致整个刷新中断
+    const { infos, failed: failedInfos } = await fetchUserInfoSafe(handles);
+    errors.push(...failedInfos);
 
     let completed = 0;
     for (const info of infos) {
@@ -163,6 +162,10 @@ export function registerIpcHandlers(store: StoreManager): void {
       if (!ok) errors.push(info.handle);
       completed++;
       sendProgress({ handle: info.handle, completed, total, errors });
+    }
+    // 边界: 所有 starred handle 都无效时也要推送最终进度, 结束前端刷新状态
+    if (infos.length === 0) {
+      sendProgress({ completed: total, total, errors });
     }
 
     // 注意: 仅刷新 starred 不更新 lastRefreshAt, 避免干扰全量刷新的时间记录
@@ -301,7 +304,8 @@ export function registerIpcHandlers(store: StoreManager): void {
     if (handles.length > 0) {
       const total = handles.length;
       const errors: string[] = [];
-      const infos: CFUser[] = await fetchUserInfo(handles);
+      const { infos, failed: failedInfos } = await fetchUserInfoSafe(handles);
+      errors.push(...failedInfos);
 
       let completed = 0;
       for (const info of infos) {
@@ -310,6 +314,10 @@ export function registerIpcHandlers(store: StoreManager): void {
         else errors.push(info.handle);
         completed++;
         sendProgress({ handle: info.handle, completed, total, errors });
+      }
+      // 边界: 所有 handle 都无效时也要推送最终进度, 结束前端刷新状态
+      if (infos.length === 0) {
+        sendProgress({ completed: total, total, errors });
       }
     }
 

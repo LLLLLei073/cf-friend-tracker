@@ -144,8 +144,10 @@ export default function FriendDetail() {
         const c = await window.api.store.getCache(handle);
         if (cancelled) return;
         setCache(c);
-        // 再从 API 获取最新数据
-        const [info, ratingHistory, recentSubmissions] = await Promise.all([
+        // 再从 API 获取最新数据。
+        // 用 allSettled: 单个接口失败(如 CF 对某 handle 的 user.status 持续 500)
+        // 不拖垮其余请求 —— info/ratingHistory 成功就保留, 失败字段降级为空数组。
+        const [infoRes, ratingRes, subRes] = await Promise.allSettled([
           window.api.cf.getUserInfo([handle]),
           window.api.cf.getUserRating(handle),
           window.api.cf.getUserStatus(handle, 50),
@@ -153,6 +155,7 @@ export default function FriendDetail() {
         if (cancelled) return;
         // 防御：用户不存在 / API 未返回 info 时 info[0] 为 undefined，
         // 若存成 cache 会导致详情页渲染崩溃，这里改为报错提示。
+        const info = infoRes.status === 'fulfilled' ? infoRes.value : [];
         if (!info || info.length === 0 || !info[0]) {
           setError(`未找到用户 ${handle} 的信息（可能已被注销或 Handle 有误）`);
           setCache(undefined);
@@ -161,11 +164,15 @@ export default function FriendDetail() {
         const newCache: FriendCache = {
           handle,
           info: info[0],
-          ratingHistory,
-          recentSubmissions,
+          ratingHistory: ratingRes.status === 'fulfilled' ? ratingRes.value : [],
+          recentSubmissions: subRes.status === 'fulfilled' ? subRes.value : [],
           cachedAt: Date.now(),
         };
         setCache(newCache);
+        // 部分接口失败时给出可见提示(数据仍可用, 只是不完整)
+        if (ratingRes.status === 'rejected' || subRes.status === 'rejected') {
+          setError('部分数据获取失败（提交记录/曲线可能缺失），已尽力加载。');
+        }
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
       } finally {
@@ -377,6 +384,9 @@ export default function FriendDetail() {
   return (
     <div className={styles.detailLayout}>
       <div className={styles.detailContent}>
+      {error && (
+        <p style={{ color: '#C41E3A', margin: '0 0 12px', fontSize: 13 }}>⚠ {error}</p>
+      )}
       <div className={styles.header}>
         <img src={info.avatar || NO_AVATAR} className={styles.avatar} alt={info.handle} />
         <div className={styles.headerInfo}>

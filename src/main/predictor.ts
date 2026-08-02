@@ -1,4 +1,4 @@
-import { fetchContestStandings, fetchUserInfo } from './cf-api';
+import { fetchContestStandings, fetchUserInfoSafe } from './cf-api';
 import type { ContestPrediction, PredictionResult, CFRanklistRow } from '../shared/types';
 
 /**
@@ -147,19 +147,16 @@ export async function predictContest(
   const allHandles = rows.map((row: CFRanklistRow) => row.party.members[0]?.handle).filter(Boolean) as string[];
 
   // 3. 批量获取所有参赛者的当前 rating
-  // 分批处理，每批 500 个 handle (避免 URL 过长)
-  const BATCH_SIZE = 500;
+  // 分批处理，每批 50 个 handle。fetchUserInfoSafe 内部容错:
+  // 整批失败时降级为逐 handle, 单个无效 handle 不会拖垮整批(否则整批 500 人 rating 全丢)。
+  const BATCH_SIZE = 50;
   const ratingMap = new Map<string, number>();
 
   for (let i = 0; i < allHandles.length; i += BATCH_SIZE) {
     const batch = allHandles.slice(i, i + BATCH_SIZE);
-    try {
-      const users = await fetchUserInfo(batch);
-      for (const user of users) {
-        ratingMap.set(user.handle, user.rating ?? 0);
-      }
-    } catch (e) {
-      console.error(`Failed to fetch user info batch ${i}:`, e);
+    const { infos } = await fetchUserInfoSafe(batch);
+    for (const user of infos) {
+      ratingMap.set(user.handle, user.rating ?? 0);
     }
   }
 

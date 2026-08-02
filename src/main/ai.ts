@@ -376,12 +376,13 @@ export async function translateProblemHTML(
   if (fence) out = fence[1].trim();
 
   // 3. 还原占位符; 若有占位符丢失则视为翻译失败
+  // (占位符总数很少时(如仅 1 个公式)也应严格检查, 不能因阈值过宽而漏报)
   let missing = 0;
   out = out.replace(/\[\[F(\d+)\]\]/g, (_m, i) => frozen[Number(i)] ?? _m);
   for (let i = 0; i < frozen.length; i++) {
     if (!out.includes(frozen[i])) missing++;
   }
-  if (missing > frozen.length * 0.1 && missing > 2) {
+  if (missing > 0 && missing > Math.max(1, frozen.length * 0.1)) {
     throw new Error(`翻译结果不完整(丢失 ${missing} 处公式/样例), 请重试`);
   }
   return out;

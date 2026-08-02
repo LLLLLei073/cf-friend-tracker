@@ -37,8 +37,13 @@ function ensureDir(d: string): void {
 // 列表刷新周期: 7 天。CF 题目集合变动不频繁, 避免每次启动都拉全量。
 const LIST_TTL_MS = 7 * 24 * 3600 * 1000;
 
+// 文件名安全化: 只允许字母数字和下划线, 防止 URL 参数(index/id)穿越目录
+function safeName(s: string): string {
+  return s.replace(/[^A-Za-z0-9_]/g, '');
+}
+
 export function problemId(contestId: number, index: string): string {
-  return `${contestId}_${index}`;
+  return `${contestId}_${safeName(index)}`;
 }
 
 export function getProblemList(): { list: ProblemListItem[]; cachedAt: number } | null {
@@ -55,7 +60,11 @@ export function getProblemList(): { list: ProblemListItem[]; cachedAt: number } 
 
 export function setProblemList(list: ProblemListItem[]): void {
   ensureDir(cacheDir());
-  fs.writeFileSync(listFile(), JSON.stringify({ list, cachedAt: Date.now() }), 'utf-8');
+  try {
+    fs.writeFileSync(listFile(), JSON.stringify({ list, cachedAt: Date.now() }), 'utf-8');
+  } catch (e) {
+    console.error('写入题目列表缓存失败:', (e as Error).message);
+  }
 }
 
 export function isListFresh(): boolean {
@@ -86,7 +95,7 @@ export function setStatement(stmt: ProblemStatement): void {
 // 用户为某题保存的代码（按 contestId_index 区分）
 export function getCode(id: string): string | null {
   try {
-    const f = path.join(codeDir(), `${id}.txt`);
+    const f = path.join(codeDir(), `${safeName(id)}.txt`);
     if (!fs.existsSync(f)) return null;
     return fs.readFileSync(f, 'utf-8');
   } catch {
@@ -96,7 +105,7 @@ export function getCode(id: string): string | null {
 
 export function setCode(id: string, code: string): void {
   ensureDir(codeDir());
-  fs.writeFileSync(path.join(codeDir(), `${id}.txt`), code, 'utf-8');
+  fs.writeFileSync(path.join(codeDir(), `${safeName(id)}.txt`), code, 'utf-8');
 }
 
 // ---- 目录迁移 ----

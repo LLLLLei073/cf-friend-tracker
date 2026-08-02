@@ -16,6 +16,8 @@ export default function Sidebar() {
   const [viewedRatings, setViewedRatings] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null);
+  // 刷新失败的好友/错误信息(用于可见提示, 而非只在控制台输出)
+  const [refreshError, setRefreshError] = useState('');
   const [refreshingHandles, setRefreshingHandles] = useState<Set<string>>(new Set());
   const [myHandle, setMyHandle] = useState('');
   const [myInfo, setMyInfo] = useState<CFUser | null>(null);
@@ -97,6 +99,11 @@ export default function Sidebar() {
           }
         });
       }
+
+      // 部分好友刷新失败时给出可见提示(如 handle 已注销/无效)
+      if (p.errors?.length) {
+        setRefreshError(`${p.errors.length} 个好友刷新失败: ${p.errors.slice(0, 3).join(', ')}${p.errors.length > 3 ? '…' : ''}`);
+      }
     });
     return unsubscribe;
   }, []);
@@ -136,6 +143,7 @@ export default function Sidebar() {
     const fr = friendList ?? friends;
     setRefreshing(true);
     setProgress({ completed: 0, total: fr.length });
+    setRefreshError('');
     // 标记所有好友为刷新中
     setRefreshingHandles(new Set(fr.map((f) => f.handle)));
     try {
@@ -153,6 +161,7 @@ export default function Sidebar() {
       setNow(Date.now());
     } catch (e) {
       console.error('Refresh failed:', e);
+      setRefreshError(`刷新失败: ${(e as Error).message}`);
     } finally {
       setRefreshing(false);
       setProgress(null);
@@ -217,12 +226,14 @@ export default function Sidebar() {
     if (starred.length === 0) return;
     setRefreshing(true);
     setProgress({ completed: 0, total: starred.length });
+    setRefreshError('');
     setRefreshingHandles(new Set(starred.map((f) => f.handle)));
     try {
       await window.api.cf.refreshStarred();
       await loadData();
     } catch (e) {
       console.error('Refresh starred failed:', e);
+      setRefreshError(`刷新失败: ${(e as Error).message}`);
     } finally {
       setRefreshing(false);
       setProgress(null);
@@ -432,7 +443,12 @@ export default function Sidebar() {
             刷新中 {progress.completed}/{progress.total}
           </p>
         )}
-        {refreshHint && !refreshing && (
+        {refreshError && !refreshing && (
+          <p className={styles.refreshError} title={refreshError}>
+            {refreshError}
+          </p>
+        )}
+        {refreshHint && !refreshing && !refreshError && (
           <p className={styles.refreshStatus}>{refreshHint}前刷新</p>
         )}
       </div>

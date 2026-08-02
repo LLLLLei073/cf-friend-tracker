@@ -1,24 +1,16 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { Friend, FriendCache } from '../types';
 import FriendRow from '../components/FriendRow';
+import { useAppData } from '../hooks/useAppData';
 import styles from '../styles/friendList.module.css';
 
 type SortKey = 'rating' | 'handle' | 'online';
 
 export default function FriendList() {
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [caches, setCaches] = useState<Record<string, FriendCache>>({});
+  // useAppData 统一加载好友/缓存并监听刷新进度自动更新
+  const { friends, caches, setFriends } = useAppData();
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('rating');
-
-  useEffect(() => {
-    (async () => {
-      const fr = await window.api.store.getFriends();
-      setFriends(fr);
-      const c = await window.api.store.getAllCache();
-      setCaches(c);
-    })();
-  }, []);
 
   const handleToggleStar = async (handle: string, starred: boolean) => {
     await window.api.store.setFriendStarred(handle, starred);

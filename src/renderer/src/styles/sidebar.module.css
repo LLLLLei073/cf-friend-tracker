@@ -330,6 +330,15 @@
   color: var(--text-muted);
 }
 
+.refreshError {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #C41E3A;
+  word-break: break-all;
+}
+
 /* ===== 悬浮导航面板 ===== */
 
 .navOverlay {

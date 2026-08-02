@@ -125,8 +125,23 @@ async function cfRequest<T>(
         if (!axios.isAxiosError(e)) throw e;
         lastError = e as Error;
 
-        // CF API 返回明确错误信息(业务错误), 不重试
+        const status = e.response?.status ?? 0;
         const cfError = e.response?.data as CFApiResponse<T> | undefined;
+        const comment = cfError?.comment;
+
+        // 5xx(服务器繁忙/不稳定) 或 限流: 指数退避重试。
+        // 注意: 必须先于 cfError.comment 判断——CF 偶发 500 时 body 会带
+        // comment(如 "Internal Server Error"), 若先抛 comment 就永远不重试,
+        // 一次 500 就会让整个刷新失败(表现为"点击刷新卡住, 加载不出好友信息")。
+        const isServerError = status >= 500 && status < 600;
+        const isRateLimited = comment === 'Call limit exceeded' || status === 429;
+        if ((isServerError || isRateLimited) && attempt < MAX_ATTEMPTS - 1) {
+          const backoff = 1000 * Math.pow(2, attempt); // 1s, 2s
+          await new Promise((r) => setTimeout(r, backoff));
+          continue;
+        }
+
+        // CF API 返回明确业务错误(如 User not found), 不重试
         if (cfError?.comment) {
           throw new Error(cfError.comment);
         }
@@ -146,6 +161,40 @@ async function cfRequest<T>(
 
 export async function fetchUserInfo(handles: string[]): Promise<CFUser[]> {
   return cfRequest<CFUser[]>('user.info', { handles: handles.join(';') });
+}
+
+/**
+ * 容错版批量获取用户信息。
+ *
+ * CF 的 user.info 接口是"一损俱损"的：handles 中只要有一个无效
+ * （已注销 / 改名 / 大小写不符），整个请求就返回 FAILED，导致全部好友
+ * 都无法刷新。因此这里先整批请求；若整批失败，再降级为逐 handle 请求，
+ * 把无效的 handle 单独挑出来（放入 failed），其余正常返回。
+ *
+ * 注意：降级路径每个 handle 单独请求，在队列限速下会比较慢（2s/handle），
+ * 仅当整批失败（即确实存在无效 handle）时才触发，正常情况仍是一次请求。
+ */
+export async function fetchUserInfoSafe(
+  handles: string[]
+): Promise<{ infos: CFUser[]; failed: string[] }> {
+  if (handles.length === 0) return { infos: [], failed: [] };
+  try {
+    const infos = await fetchUserInfo(handles);
+    return { infos, failed: [] };
+  } catch {
+    const infos: CFUser[] = [];
+    const failed: string[] = [];
+    for (const handle of handles) {
+      try {
+        const one = await fetchUserInfo([handle]);
+        if (one.length > 0) infos.push(one[0]);
+        else failed.push(handle);
+      } catch {
+        failed.push(handle);
+      }
+    }
+    return { infos, failed };
+  }
 }
 
 export async function fetchUserRating(handle: string): Promise<CFRatingChange[]> {
