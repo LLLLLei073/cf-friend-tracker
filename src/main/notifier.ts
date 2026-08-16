@@ -1,12 +1,40 @@
 import { Notification, BrowserWindow } from 'electron';
 import { StoreManager } from './store';
-import { fetchContests } from './cf-api';
-import type { FriendCache, CFContest, Settings } from '../shared/types';
+import { fetchContests, fetchUserInfoSafe, fetchUserRating, fetchUserStatus } from './cf-api';
+import type { FriendCache, CFContest, Settings, NotificationItem } from '../shared/types';
 
 // 已通知过的比赛提醒（避免重复通知）
 const notifiedContests = new Set<number>();
 // 已通知过的比赛开始通知
 const notifiedContestStarted = new Set<number>();
+
+/**
+ * 统一的通知出口: 既弹系统通知, 又写入应用内通知中心历史, 并向渲染端广播红点。
+ * type / handle / link 用于在通知中心里分类与点击跳转。
+ */
+function pushNotification(
+  store: StoreManager,
+  type: NotificationItem['type'],
+  title: string,
+  body: string,
+  opts: { handle?: string; link?: string; onClick?: () => void } = {},
+): void {
+  // 1. 系统通知(若支持)
+  if (Notification.isSupported()) {
+    const notification = new Notification({ title, body, silent: false });
+    const clickHandler = opts.onClick ?? (() => {
+      BrowserWindow.getAllWindows().forEach((win) => {
+        win.show();
+        win.focus();
+      });
+    });
+    notification.on('click', clickHandler);
+    notification.show();
+  }
+  // 2. 写入应用内通知中心历史 + 广播红点
+  store.addNotification({ type, title, body, handle: opts.handle, link: opts.link });
+  BrowserWindow.getAllWindows().forEach((win) => win.webContents.send('notify:new'));
+}
 
 /**
  * 检测好友 Rating 变化并发送通知。
@@ -38,7 +66,7 @@ export function checkRatingChanges(
     const title = `${friendAlias} Rating ${direction} ${Math.abs(delta)}`;
     const body = `${oldRating} → ${newRating}${delta > 0 ? ' (涨了!)' : ' (掉了)'}`;
 
-    showNotification(title, body);
+    pushNotification(store, 'rating', title, body, { handle, link: `/friends/${handle}` });
   }
 }
 
@@ -68,11 +96,14 @@ export async function checkContestReminders(store: StoreManager): Promise<void> 
         const title = `比赛提醒: ${contest.name}`;
         const body = `${minutes} 分钟后开始，点击查看`;
 
-        showNotification(title, body, () => {
-          BrowserWindow.getAllWindows().forEach((win) => {
-            win.show();
-            win.focus();
-          });
+        pushNotification(store, 'contest', title, body, {
+          link: '/contests',
+          onClick: () => {
+            BrowserWindow.getAllWindows().forEach((win) => {
+              win.show();
+              win.focus();
+            });
+          },
         });
       }
     }
@@ -85,7 +116,7 @@ export async function checkContestReminders(store: StoreManager): Promise<void> 
         // 只通知刚开始的比赛（5分钟内）
         if (timeSinceStart < 300) {
           notifiedContestStarted.add(contest.id);
-          showNotification(`比赛已开始: ${contest.name}`, '快去参赛吧!');
+          pushNotification(store, 'contest', `比赛已开始: ${contest.name}`, '快去参赛吧!', { link: '/contests' });
         }
       }
     }
@@ -122,38 +153,9 @@ export function checkMilestones(
     if (newMilestone > oldMilestone && newMilestone > 0) {
       const title = `${friendAlias} 又 AC 了!`;
       const body = `近期 AC 题数达到 ${newACCount} 题`;
-      showNotification(title, body);
+      pushNotification(store, 'milestone', title, body, { handle, link: `/friends/${handle}` });
     }
   }
-}
-
-/**
- * 显示桌面通知。
- */
-function showNotification(title: string, body: string, onClick?: () => void): void {
-  if (!Notification.isSupported()) return;
-
-  const notification = new Notification({
-    title,
-    body,
-    silent: false,
-  });
-
-  if (onClick) {
-    notification.on('click', onClick);
-  }
-
-  // 点击通知聚焦窗口
-  if (!onClick) {
-    notification.on('click', () => {
-      BrowserWindow.getAllWindows().forEach((win) => {
-        win.show();
-        win.focus();
-      });
-    });
-  }
-
-  notification.show();
 }
 
 /**
@@ -192,5 +194,46 @@ export function stopContestReminderTimer(): void {
   if (contestTimer) {
     clearInterval(contestTimer);
     contestTimer = null;
+  }
+}
+
+/**
+ * 后台静默刷新"特别关注"好友并触发通知检查。
+ * 供系统托盘常驻模式下的定时后台刷新使用, 不依赖 IPC 调用链。
+ * 失败静默, 不影响应用运行。
+ */
+export async function refreshStarredInBackground(store: StoreManager): Promise<void> {
+  try {
+    const friends = store.getFriends();
+    const starred = friends.filter((f) => f.starred);
+    if (starred.length === 0) return;
+    const handles = starred.map((f) => f.handle);
+
+    const oldCaches = store.getAllCache();
+    const { infos } = await fetchUserInfoSafe(handles);
+
+    for (const info of infos) {
+      try {
+        const [ratingHistory, recentSubmissions] = await Promise.all([
+          fetchUserRating(info.handle),
+          fetchUserStatus(info.handle, 20),
+        ]);
+        store.setCache(info.handle, {
+          handle: info.handle,
+          info,
+          ratingHistory,
+          recentSubmissions,
+          cachedAt: Date.now(),
+        });
+      } catch {
+        // 单个失败不中断
+      }
+    }
+
+    const settings = store.getSettings();
+    checkRatingChanges(store, oldCaches, settings);
+    checkMilestones(store, oldCaches);
+  } catch (e) {
+    console.error('refreshStarredInBackground failed:', e);
   }
 }

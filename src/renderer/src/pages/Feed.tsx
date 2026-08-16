@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import type { Friend, FriendCache, CFRatingChange, CFSubmission, CFContest, ContestPerformance } from '../types';
+import type { Friend, FriendCache, CFRatingChange, CFSubmission, CFContest, ContestPerformance, BlogEntry } from '../types';
 import { getRankColor, getRatingColor } from '../utils/rank';
 import { NO_AVATAR } from '../utils/helpers';
 import { calculateStreak } from '../utils/analytics';
@@ -158,6 +158,31 @@ export default function Feed() {
     for (const f of friends) if (f.handle !== myHandle) hs.add(f.handle);
     return Array.from(hs);
   }, [friends, myHandle]);
+
+  // ---- 好友博客板块 ----
+  // 受 CF 2 秒限速影响, 多人博客需串行拉取, 故用手动加载按钮触发
+  const [blogs, setBlogs] = useState<BlogEntry[]>([]);
+  const [blogsLoading, setBlogsLoading] = useState(false);
+  const [blogsError, setBlogsError] = useState('');
+  const [blogsLoaded, setBlogsLoaded] = useState(false);
+
+  const loadBlogs = useCallback(async () => {
+    setBlogsLoading(true);
+    setBlogsError('');
+    try {
+      // 拉取全部好友 + 自己的博客(串行, 受限速)
+      const handles = allPeopleHandles.slice(0, 20); // 上限 20 人, 避免拉取过久
+      const data = await window.api.cf.getBlogEntries(handles);
+      // 只保留近 30 天, 最多 30 条
+      const cutoff = Date.now() / 1000 - 30 * 86400;
+      setBlogs(data.filter((b) => b.creationTimeSeconds >= cutoff).slice(0, 30));
+      setBlogsLoaded(true);
+    } catch (e) {
+      setBlogsError(`加载博客失败: ${(e as Error).message}`);
+    } finally {
+      setBlogsLoading(false);
+    }
+  }, [allPeopleHandles]);
 
   // 参与过的比赛 id 集合: 自己和好友任意一人的 ratingHistory / recentSubmissions 出现过该 contestId 即视为参与。
   // 用于"近期已结束的比赛"只展示参与过的比赛(本地判断, 无额外网络请求)。
@@ -421,6 +446,58 @@ export default function Feed() {
           )}
         </section>
       )}
+
+      {/* 好友博客/题解 */}
+      <section className={styles.section}>
+        <div className={styles.feedHeader}>
+          <h3 className={styles.sectionTitle}>
+            好友博客
+            <span className={styles.sectionHint}>（近 30 天，点击打开原页）</span>
+          </h3>
+          <button
+            className={styles.filterBtn}
+            onClick={loadBlogs}
+            disabled={blogsLoading || allPeopleHandles.length === 0}
+          >
+            {blogsLoading ? '拉取中...' : blogsLoaded ? '刷新' : '加载博客'}
+          </button>
+        </div>
+        {blogsError && <div className={styles.contestError}>{blogsError}</div>}
+        {blogsLoaded && blogs.length === 0 && !blogsError && (
+          <div className={styles.empty}>近 30 天没有好友发布博客</div>
+        )}
+        {blogs.length > 0 && (
+          <div className={styles.timeline}>
+            {blogs.map((b) => {
+              const info = personInfo.get(b.handle);
+              return (
+                <div key={b.id} className={styles.timelineItem}>
+                  <img src={info?.avatar || NO_AVATAR} className={styles.timelineAvatar} alt={b.handle} />
+                  <div className={styles.timelineContent}>
+                    <div className={styles.timelineHeader}>
+                      <span className={styles.timelineName}>{info?.alias || b.handle}</span>
+                      <span className={styles.timelineTime}>{formatRelativeTime(b.creationTimeSeconds)}</span>
+                    </div>
+                    <div className={styles.timelineBody}>
+                      <span className={styles.timelineAction}>
+                        发布了{' '}
+                        <a
+                          href={`https://codeforces.com/blog/entry/${b.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.problemLink}
+                        >
+                          {b.title}
+                        </a>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* 今日谁最卷 */}
       {todayLeaders.length > 0 && (

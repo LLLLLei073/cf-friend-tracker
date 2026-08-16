@@ -58,6 +58,8 @@ export interface Friend {
   addedAt: number;
   // 特别关注: starred 好友在列表中置顶显示, 且可一键仅刷新这些好友(节省资源)
   starred?: boolean;
+  // 自定义分组: 一个好友可属于多个分组(如 队友/同学/大佬)
+  groups?: string[];
 }
 
 export interface FriendCache {
@@ -74,7 +76,7 @@ export interface Settings {
   apiSecret: string;
   lastRefreshAt: number;
   theme: 'light' | 'dark' | 'system';
-  defaultPage: 'friends' | 'feed' | 'leaderboard' | 'teams' | 'contests' | 'report' | 'problems';
+  defaultPage: 'friends' | 'feed' | 'leaderboard' | 'teams' | 'contests' | 'report' | 'problems' | 'training';
   lastViewedChangelog: string; // 最后查看过的更新日志版本
   // 通知配置
   notifyRatingChange: boolean;
@@ -94,6 +96,8 @@ export interface Settings {
   // 留空则使用默认位置（即 userData/problem-cache）。非空为自定义目录,
   // 更换时主进程会自动将已保存的题目与代码移动到新目录。
   problemCacheDir: string;
+  // ---- 系统托盘常驻: 开启后关闭窗口不退出应用, 后台驻留并定时刷新特别关注好友 ----
+  enableTray: boolean;
 }
 
 export interface CFApiResponse<T> {
@@ -325,6 +329,16 @@ export interface ProblemFilter {
   maxRating?: number;
 }
 
+// 本地收藏的题目(独立于 AI 推荐题单, 用户手动收藏)
+export interface FavoriteProblem {
+  contestId: number;
+  index: string; // 题号, 如 "A"
+  name?: string;
+  rating?: number;
+  note?: string; // 用户备注(可选)
+  addedAt: number;
+}
+
 // 单个样例的运行结果
 export interface RunResult {
   index: number; // 第几个样例（从 0 开始）
@@ -344,4 +358,55 @@ export interface RunAllResult {
   compileError?: string; // 编译失败时的错误信息
   allPassed: boolean;
   compilerPath: string | null;
+}
+
+// ---- 数据备份与迁移 ----
+// 整个 electron-store 数据的导出/导入结构, 用于换机/重装时迁移配置与缓存
+export interface BackupData {
+  version: 1;
+  exportedAt: number;
+  friends: Friend[];
+  cache: Record<string, FriendCache>;
+  settings: Settings;
+  teams: Team[];
+  windowState: WindowState | null;
+  viewedRatings: Record<string, number>;
+  aiResults: Record<string, TeamAIResult[]>;
+  problemCacheDir?: string; // 题目缓存目录, 导入时用于迁移题面/代码文件
+}
+
+// 备份导入结果
+export interface BackupResult {
+  ok: boolean;
+  error?: string;
+  imported?: {
+    friends: number;
+    teams: number;
+    cacheMoved: number; // 迁移的题目缓存文件数(可能为 0)
+  };
+}
+
+// ---- 通知中心 ----
+export interface NotificationItem {
+  id: string; // crypto.randomUUID, 稳定唯一
+  type: 'rating' | 'contest' | 'milestone';
+  handle?: string; // 关联的好友 handle(可选)
+  title: string;
+  body: string;
+  createdAt: number;
+  read: boolean;
+  // 点击通知后跳转的路由(可选), 如 /friends/tourist / /contests
+  link?: string;
+}
+
+// ---- 好友博客 ----
+// CF user.blogEntries 返回的单条博客(不含正文, 正文需浏览器打开)
+export interface BlogEntry {
+  id: number;
+  title: string;
+  handle: string;
+  creationTimeSeconds: number;
+  commentCount?: number;
+  rating?: number;
+  tags?: string[];
 }

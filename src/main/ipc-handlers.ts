@@ -1,14 +1,15 @@
 import { ipcMain, BrowserWindow, dialog, app, shell } from 'electron';
 import fs from 'fs';
+import path from 'path';
 import { StoreManager } from './store';
-import { fetchUserInfo, fetchUserInfoSafe, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests, fetchContestPerformance } from './cf-api';
+import { fetchUserInfo, fetchUserInfoSafe, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests, fetchContestPerformance, fetchContestStandings, fetchBlogEntries } from './cf-api';
 import { checkForUpdates, installUpdate, getUpdateStatus } from './updater';
-import { checkRatingChanges, checkMilestones } from './notifier';
+import { checkRatingChanges, checkMilestones, checkContestReminders } from './notifier';
 import { predictContest } from './predictor';
 import { analyzeTeam, testAIConnection, buildReportMarkdown, buildReportExcelBuffer, translateProblemHTML } from './ai';
 import { fetchProblemList, refreshProblemList, fetchProblemStatement, fetchContestProblemList } from './problem-fetcher';
 import { runCode, detectCompiler } from './code-runner';
-import { getCode, setCode, setStatement, getProblemCacheDir, setProblemCacheDir, migrateProblemCache, clearProblemCache } from './problem-store';
+import { getCode, setCode, setStatement, getProblemCacheDir, setProblemCacheDir, migrateProblemCache, clearProblemCache, listFavorites, addFavorite, removeFavorite, isFavorite } from './problem-store';
 import type {
   Friend,
   Settings,
@@ -25,6 +26,12 @@ import type {
   UpdateInfo,
   ContestPrediction,
   SampleTest,
+  BackupData,
+  BackupResult,
+  NotificationItem,
+  FavoriteProblem,
+  BlogEntry,
+  CFContest,
 } from '../shared/types';
 
 function sendProgress(progress: RefreshProgress): void {
@@ -86,6 +93,11 @@ export function registerIpcHandlers(store: StoreManager): void {
     return fetchUserStatus(handle, count);
   });
 
+  // 拉取较大量提交记录(训练看板等深度分析使用, 默认 1000 条)
+  ipcMain.handle('cf:getSubmissions', async (_event, handle: string, count = 1000) => {
+    return fetchUserStatus(handle, count);
+  });
+
   ipcMain.handle('cf:getFriends', async (_event, handle: string, apiKey: string, apiSecret: string) => {
     return fetchFriends(handle, apiKey, apiSecret);
   });
@@ -132,7 +144,7 @@ export function registerIpcHandlers(store: StoreManager): void {
 
     const settings = store.getSettings();
     settings.lastRefreshAt = Date.now();
-    store.setSettings(settings);
+    await store.setSettings(settings);
 
     // 刷新后检查通知
     checkRatingChanges(store, oldCaches, settings);
@@ -213,12 +225,15 @@ export function registerIpcHandlers(store: StoreManager): void {
   });
 
   // ---- Store: Settings ----
-  ipcMain.handle('store:getSettings', () => {
-    return store.getSettings();
+  ipcMain.handle('store:getSettings', async () => {
+    const s = store.getSettings();
+    // 覆盖真实 aiApiKey(可能存于系统凭据库, store 明文为空)
+    s.aiApiKey = await store.getApiKeyAsync();
+    return s;
   });
 
-  ipcMain.handle('store:setSettings', (_event, settings: Settings) => {
-    store.setSettings(settings);
+  ipcMain.handle('store:setSettings', async (_event, settings: Settings) => {
+    await store.setSettings(settings);
     return true;
   });
 
@@ -323,7 +338,7 @@ export function registerIpcHandlers(store: StoreManager): void {
 
     const s = store.getSettings();
     s.lastRefreshAt = Date.now();
-    store.setSettings(s);
+    await store.setSettings(s);
 
     // 同时刷新自己的数据
     try {
@@ -411,6 +426,16 @@ export function registerIpcHandlers(store: StoreManager): void {
     },
   );
 
+  // 获取单场比赛信息(名称/时长/起止), 用于虚拟比赛计时。复用 contest.standings 返回的 contest 字段。
+  ipcMain.handle('cf:getContestInfo', async (_event, contestId: number): Promise<import('../shared/types').CFContest | null> => {
+    try {
+      const standings = await fetchContestStandings(contestId);
+      return standings.contest ?? null;
+    } catch (e) {
+      throw new Error(`获取比赛信息失败: ${(e as Error).message}`);
+    }
+  });
+
   // 获取题面（仅从本地缓存读取; Codeforces 页面域被 Cloudflare 反爬,
   // 应用内无法抓取, 未缓存时返回 OPEN_BROWSER 信号, 由前端调用系统浏览器打开原题）
   ipcMain.handle(
@@ -472,6 +497,8 @@ export function registerIpcHandlers(store: StoreManager): void {
         const stmt = await fetchProblemStatement(contestId, index);
         if (stmt.translation && !force) return stmt;
         const settings = store.getSettings();
+        // 覆盖真实 aiApiKey(可能存于系统凭据库)
+        settings.aiApiKey = await store.getApiKeyAsync();
         const html = await translateProblemHTML(stmt.html, settings);
         const updated = {
           ...stmt,
@@ -604,6 +631,10 @@ export function registerIpcHandlers(store: StoreManager): void {
     if (team.members.length === 0) throw new Error('团队没有成员');
 
     const effectiveSettings = settings ?? store.getSettings();
+    // 覆盖真实 aiApiKey(可能存于系统凭据库, store 明文为空)
+    if (!settings || !settings.aiApiKey) {
+      effectiveSettings.aiApiKey = await store.getApiKeyAsync();
+    }
     const allCache = store.getAllCache();
     const members = team.members.map((handle) => ({ handle, cache: allCache[handle] }));
 
@@ -703,9 +734,186 @@ export function registerIpcHandlers(store: StoreManager): void {
   // 缺省时回退读盘
   ipcMain.handle('ai:testConnection', async (_event, settings?: Settings): Promise<AIConnectionResult> => {
     const effectiveSettings = settings ?? store.getSettings();
+    if (!settings || !settings.aiApiKey) {
+      effectiveSettings.aiApiKey = await store.getApiKeyAsync();
+    }
     return testAIConnection(effectiveSettings);
   });
 
   // 返回应用版本号(来自 package.json), 供渲染端统一展示, 杜绝与硬编码常量漂移
   ipcMain.handle('app:getVersion', (): string => app.getVersion());
+
+  // ---- 数据备份与迁移 ----
+  // 导出全部数据为 JSON 文件
+  ipcMain.handle('store:exportBackup', async (): Promise<{ ok: boolean; path?: string; error?: string; canceled?: boolean }> => {
+    try {
+      const data = store.exportAll();
+      const stamp = new Date(data.exportedAt).toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      const opts = {
+        title: '导出备份',
+        defaultPath: `cf-friends-backup-${stamp}.json`,
+        filters: [{ name: 'JSON 备份文件', extensions: ['json'] }, { name: '所有文件', extensions: ['*'] }],
+      };
+      const win = BrowserWindow.getFocusedWindow();
+      const res = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
+      if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+      fs.writeFileSync(res.filePath, JSON.stringify(data, null, 2), 'utf-8');
+      return { ok: true, path: res.filePath };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+  });
+
+  // 从 JSON 文件导入数据(会覆盖当前数据; 题目缓存目录不同时迁移题面文件)
+  ipcMain.handle('store:importBackup', async (): Promise<BackupResult> => {
+    try {
+      const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+      const res = await dialog.showOpenDialog(win ?? (undefined as never), {
+        title: '导入备份',
+        properties: ['openFile'],
+        filters: [{ name: 'JSON 备份文件', extensions: ['json'] }, { name: '所有文件', extensions: ['*'] }],
+      });
+      if (res.canceled || res.filePaths.length === 0) return { ok: false, error: '已取消' };
+      const raw = fs.readFileSync(res.filePaths[0], 'utf-8');
+      const data = JSON.parse(raw) as BackupData;
+      const result = store.importAll(data);
+      if (!result.ok) return result;
+
+      // 若备份里指定了不同的题目缓存目录, 迁移题面/代码文件
+      let cacheMoved = 0;
+      if (data.problemCacheDir && data.problemCacheDir.trim()) {
+        const current = getProblemCacheDir();
+        if (path.resolve(data.problemCacheDir) !== path.resolve(current)) {
+          const migrateRes = migrateProblemCache(data.problemCacheDir);
+          cacheMoved = migrateRes.moved;
+          setProblemCacheDir(data.problemCacheDir);
+        }
+      }
+      return { ok: true, imported: { ...(result.imported ?? { friends: 0, teams: 0, cacheMoved: 0 }), cacheMoved } };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+  });
+
+  // ---- 通知中心 ----
+  ipcMain.handle('notify:getHistory', (): NotificationItem[] => {
+    return store.getNotifications();
+  });
+
+  ipcMain.handle('notify:clearHistory', () => {
+    store.clearNotifications();
+    return true;
+  });
+
+  ipcMain.handle('notify:markRead', (_event, id: string) => {
+    store.markNotificationRead(id);
+    return true;
+  });
+
+  ipcMain.handle('notify:markAllRead', () => {
+    store.markAllNotificationsRead();
+    return true;
+  });
+
+  // 渲染端订阅新通知(用于红点角标)
+  // 注意: 主进程在 addNotification 后通过 sendProgress 同样的方式广播
+  const broadcastNotification = () => {
+    BrowserWindow.getAllWindows().forEach((win) => win.webContents.send('notify:new'));
+  };
+  // 暴露一个内部触发器: notifier 写入后调用。这里通过事件名让渲染端订阅。
+  // (实际广播在 notifier 模块内完成, 见 notify:push)
+  ipcMain.handle('notify:push', (_event, item: Omit<NotificationItem, 'id' | 'createdAt' | 'read'>) => {
+    const full = store.addNotification(item);
+    broadcastNotification();
+    return full;
+  });
+
+  // ---- 好友分组 ----
+  ipcMain.handle('store:getGroupDefs', (): string[] => {
+    return store.getGroupDefs();
+  });
+
+  ipcMain.handle('store:setGroupDefs', (_event, groups: string[]) => {
+    store.setGroupDefs(groups);
+    return true;
+  });
+
+  ipcMain.handle('store:setFriendGroups', (_event, handle: string, groups: string[]) => {
+    return store.setFriendGroups(handle, groups);
+  });
+
+  // ---- 本地收藏题目 ----
+  ipcMain.handle('problem:getFavorites', (): FavoriteProblem[] => {
+    return listFavorites();
+  });
+
+  ipcMain.handle('problem:addFavorite', (_event, item: FavoriteProblem): boolean => {
+    return addFavorite(item);
+  });
+
+  ipcMain.handle('problem:removeFavorite', (_event, contestId: number, index: string): boolean => {
+    return removeFavorite(contestId, index);
+  });
+
+  ipcMain.handle('problem:isFavorite', (_event, contestId: number, index: string): boolean => {
+    return isFavorite(contestId, index);
+  });
+
+  // ---- 好友博客 ----
+  // 批量获取若干 handle 的博客列表(受 2 秒限速, 串行)
+  ipcMain.handle('cf:getBlogEntries', async (_event, handles: string[]): Promise<BlogEntry[]> => {
+    const all: BlogEntry[] = [];
+    for (const handle of handles) {
+      try {
+        const entries = await fetchBlogEntries(handle);
+        all.push(...entries);
+      } catch {
+        // 单个 handle 失败不影响其他
+      }
+    }
+    // 按时间倒序
+    all.sort((a, b) => b.creationTimeSeconds - a.creationTimeSeconds);
+    return all;
+  });
+
+  // ---- 比赛日历 ICS 导出 ----
+  ipcMain.handle('contest:exportIcs', async (_event, contests: CFContest[]): Promise<{ ok: boolean; path?: string; error?: string; canceled?: boolean }> => {
+    try {
+      const ics = buildIcs(contests);
+      const stamp = new Date().toISOString().slice(0, 10);
+      const opts = {
+        title: '导出比赛日历',
+        defaultPath: `cf-contests-${stamp}.ics`,
+        filters: [{ name: 'iCalendar 文件', extensions: ['ics'] }, { name: '所有文件', extensions: ['*'] }],
+      };
+      const win = BrowserWindow.getFocusedWindow();
+      const res = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
+      if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+      fs.writeFileSync(res.filePath, ics, 'utf-8');
+      return { ok: true, path: res.filePath };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+  });
+}
+
+// 生成标准 iCalendar (.ics) 文本
+function buildIcs(contests: CFContest[]): string {
+  const lines: string[] = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CF Friend Tracker//Contest Export//CN'];
+  const fmtTime = (sec: number) => new Date(sec * 1000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  for (const c of contests) {
+    lines.push('BEGIN:VEVENT');
+    lines.push(`UID:cf-contest-${c.id}@cf-friend-tracker`);
+    lines.push(`DTSTAMP:${fmtTime(Math.floor(Date.now() / 1000))}Z`);
+    lines.push(`DTSTART:${fmtTime(c.startTimeSeconds)}Z`);
+    lines.push(`DTEND:${fmtTime(c.startTimeSeconds + c.durationSeconds)}Z`);
+    // 转义文本中的逗号/分号/换行
+    const safeName = c.name.replace(/[\\,;]/g, (m) => '\\' + m).replace(/\n/g, '\\n');
+    lines.push(`SUMMARY:${safeName}`);
+    lines.push(`DESCRIPTION:Codeforces 比赛 ${c.id}`);
+    lines.push(`URL:https://codeforces.com/contest/${c.id}`);
+    lines.push('END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
 }

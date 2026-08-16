@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import type { Friend, FriendCache, CFUser } from '../types';
+import type { Friend, FriendCache, CFUser, NotificationItem } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import { NO_AVATAR } from '../utils/helpers';
 import styles from '../styles/sidebar.module.css';
@@ -26,6 +26,11 @@ export default function Sidebar() {
   const [now, setNow] = useState(Date.now());
   const [navPanelOpen, setNavPanelOpen] = useState(false);
 
+  // 通知中心: 未读数与历史
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
   // 搜索 & 排序
   const [searchText, setSearchText] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('default');
@@ -37,6 +42,12 @@ export default function Sidebar() {
     x: number;
     y: number;
   } | null>(null);
+
+  // 好友分组
+  const [groupDefs, setGroupDefs] = useState<string[]>([]);
+  const [groupFilter, setGroupFilter] = useState<string | null>(null);
+  const [groupEditor, setGroupEditor] = useState<{ handle: string; alias: string } | null>(null);
+  const [newGroupName, setNewGroupName] = useState('');
 
   // 备注编辑
   const [editingFriend, setEditingFriend] = useState<{ handle: string; alias: string } | null>(null);
@@ -61,7 +72,25 @@ export default function Sidebar() {
     } else {
       setMyInfo(null);
     }
+    const groups = await window.api.store.getGroupDefs();
+    setGroupDefs(groups);
   };
+
+  // 加载通知历史 + 未读数
+  const loadNotifications = async () => {
+    const list = await window.api.notify.getHistory();
+    setNotifications(list);
+    setUnreadCount(list.filter((n) => !n.read).length);
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    // 订阅主进程的新通知广播, 实时刷新红点
+    const off = window.api.notify.onNew(() => {
+      loadNotifications();
+    });
+    return off;
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -265,6 +294,10 @@ export default function Sidebar() {
         return handle.includes(keyword) || alias.includes(keyword);
       });
     }
+    // 分组过滤
+    if (groupFilter) {
+      list = list.filter((f) => (f.groups ?? []).includes(groupFilter));
+    }
     const sorted = [...list];
     if (sortBy === 'rating-desc') {
       // Rating 高→低
@@ -290,7 +323,7 @@ export default function Sidebar() {
       return sa - sb;
     });
     return sorted;
-  }, [friends, caches, searchText, sortBy]);
+  }, [friends, caches, searchText, sortBy, groupFilter]);
 
   // 计算"距上次刷新"的文案
   const refreshHint = useMemo(() => {
@@ -332,6 +365,26 @@ export default function Sidebar() {
       </div>
 
       <div className={styles.friendList}>
+        {/* 分组筛选条 */}
+        {groupDefs.length > 0 && (
+          <div className={styles.groupBar}>
+            <button
+              className={`${styles.groupChip} ${groupFilter === null ? styles.groupChipActive : ''}`}
+              onClick={() => setGroupFilter(null)}
+            >
+              全部
+            </button>
+            {groupDefs.map((g) => (
+              <button
+                key={g}
+                className={`${styles.groupChip} ${groupFilter === g ? styles.groupChipActive : ''}`}
+                onClick={() => setGroupFilter(groupFilter === g ? null : g)}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+        )}
         {friends.length === 0 && (
           <p className={styles.empty}>点击下方 + 添加好友</p>
         )}
@@ -387,6 +440,65 @@ export default function Sidebar() {
       </div>
 
       {/* 左下角个人信息 */}
+
+      {/* 通知中心入口 */}
+      <div className={styles.notifRow}>
+        <button
+          className={styles.notifBtn}
+          onClick={() => {
+            setNotifOpen(!notifOpen);
+            if (!notifOpen && unreadCount > 0) {
+              window.api.notify.markAllRead().then(() => loadNotifications());
+            }
+          }}
+          title="通知中心"
+        >
+          🔔
+          {unreadCount > 0 && <span className={styles.notifBadge}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
+        </button>
+        {notifOpen && (
+          <div className={styles.notifPanel}>
+            <div className={styles.notifPanelHeader}>
+              <span>通知中心</span>
+              <button
+                className={styles.notifClearBtn}
+                onClick={async () => {
+                  await window.api.notify.clearHistory();
+                  loadNotifications();
+                }}
+              >
+                清空
+              </button>
+            </div>
+            <div className={styles.notifList}>
+              {notifications.length === 0 ? (
+                <p className={styles.notifEmpty}>暂无通知</p>
+              ) : (
+                notifications.slice(0, 50).map((n) => (
+                  <div
+                    key={n.id}
+                    className={`${styles.notifItem} ${n.read ? '' : styles.notifItemUnread}`}
+                    onClick={() => {
+                      if (!n.read) {
+                        window.api.notify.markRead(n.id).then(() => loadNotifications());
+                      }
+                      if (n.link) {
+                        navigate(n.link);
+                        setNotifOpen(false);
+                      }
+                    }}
+                  >
+                    <div className={styles.notifTitle}>{n.title}</div>
+                    <div className={styles.notifBody}>{n.body}</div>
+                    <div className={styles.notifTime}>{new Date(n.createdAt).toLocaleString()}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className={styles.myProfile} onClick={() => myHandle && navigate(`/friends/${myHandle}`)}>
         {myInfo ? (
           <>
@@ -506,6 +618,20 @@ export default function Sidebar() {
                 <span className={styles.navCardLabel}>刷题 (test)</span>
               </button>
               <button
+                className={`${styles.navCard} ${location.pathname === '/training' ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/training'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>📈</span>
+                <span className={styles.navCardLabel}>训练看板</span>
+              </button>
+              <button
+                className={`${styles.navCard} ${location.pathname === '/virtual' ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/virtual'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>⏱</span>
+                <span className={styles.navCardLabel}>虚拟比赛</span>
+              </button>
+              <button
                 className={`${styles.navCard} ${location.pathname === '/compare' ? styles.navCardActive : ''}`}
                 onClick={() => { navigate('/compare'); setNavPanelOpen(false); }}
               >
@@ -557,6 +683,19 @@ export default function Sidebar() {
               ✏️ 修改备注
             </div>
             <div
+              className={styles.contextItem}
+              onClick={() => {
+                const friend = friends.find((f) => f.handle === contextMenu.handle);
+                if (friend) {
+                  setGroupEditor({ handle: friend.handle, alias: friend.alias });
+                  setNewGroupName('');
+                  setContextMenu(null);
+                }
+              }}
+            >
+              🏷️ 管理分组
+            </div>
+            <div
               className={`${styles.contextItem} ${styles.contextDanger}`}
               onClick={() => handleRemoveFriend(contextMenu.handle)}
             >
@@ -587,6 +726,69 @@ export default function Sidebar() {
             <div className={styles.modalActions}>
               <button onClick={() => setEditingFriend(null)} className={styles.modalCancel}>取消</button>
               <button onClick={handleSaveAlias} className={styles.modalConfirm}>保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 分组管理弹窗 */}
+      {groupEditor && (
+        <div className={styles.modalOverlay} onClick={() => setGroupEditor(null)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>管理分组</h3>
+            <p className={styles.modalHandle}>{groupEditor.alias || groupEditor.handle}</p>
+            <div className={styles.groupChipsEditor}>
+              {groupDefs.map((g) => {
+                const friend = friends.find((f) => f.handle === groupEditor.handle);
+                const active = (friend?.groups ?? []).includes(g);
+                return (
+                  <button
+                    key={g}
+                    className={`${styles.groupChip} ${active ? styles.groupChipActive : ''}`}
+                    onClick={async () => {
+                      const current = friend?.groups ?? [];
+                      const next = active ? current.filter((x) => x !== g) : [...current, g];
+                      await window.api.store.setFriendGroups(groupEditor.handle, next);
+                      await loadData();
+                    }}
+                  >
+                    {active ? '✓ ' : ''}{g}
+                  </button>
+                );
+              })}
+              {groupDefs.length === 0 && <p className={styles.modalHandle}>还没有分组，在下方新建一个。</p>}
+            </div>
+            <div className={styles.modalActions}>
+              <input
+                type="text"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="新建分组名(如 队友)"
+                className={styles.modalInput}
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter' && newGroupName.trim()) {
+                    const next = [...groupDefs, newGroupName.trim()];
+                    await window.api.store.setGroupDefs(next);
+                    setGroupDefs(next);
+                    setNewGroupName('');
+                  }
+                }}
+              />
+              <button
+                onClick={async () => {
+                  if (!newGroupName.trim()) return;
+                  const next = [...groupDefs, newGroupName.trim()];
+                  await window.api.store.setGroupDefs(next);
+                  setGroupDefs(next);
+                  setNewGroupName('');
+                }}
+                className={styles.modalConfirm}
+              >
+                新建
+              </button>
+            </div>
+            <div className={styles.modalActions}>
+              <button onClick={() => setGroupEditor(null)} className={styles.modalConfirm}>完成</button>
             </div>
           </div>
         </div>

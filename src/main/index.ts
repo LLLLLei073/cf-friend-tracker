@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, Notification, Menu } from 'electron';
+import { app, BrowserWindow, dialog, Notification, Menu, Tray, nativeImage, MenuItemConstructorOptions } from 'electron';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
@@ -7,6 +7,7 @@ import { setProblemCacheDir } from './problem-store';
 import { registerIpcHandlers } from './ipc-handlers';
 import { initUpdater } from './updater';
 import { startContestReminderTimer, stopContestReminderTimer } from './notifier';
+import { refreshStarredInBackground } from './notifier';
 
 // 调试日志
 const logFile = path.join(app.getPath('userData'), 'debug.log');
@@ -70,6 +71,47 @@ debugLog('StoreManager created');
 setProblemCacheDir(store.getSettings().problemCacheDir);
 registerIpcHandlers(store);
 debugLog('IPC handlers registered');
+
+// ---- 系统托盘常驻(可选, 由设置 enableTray 控制) ----
+let tray: Tray | null = null;
+let backgroundTimer: NodeJS.Timeout | null = null;
+const trayEnabled = store.getSettings().enableTray;
+
+function createTray(): void {
+  // 无内置图标资源: 用 nativeImage 生成一个 16x16 的纯色占位图标。
+  // 建议后续替换为真实的 .ico 资源以获得更好观感。
+  const icon = nativeImage.createFromDataURL(
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAH0lEQVR42mNk+M9QzwAFjFAGI4QyBsaRjCYYjEYYDAYDAB8eAQEJ9t+1AAAAAElFTkSuQmCC',
+  );
+  tray = new Tray(icon);
+  tray.setToolTip('CF Friend Tracker');
+
+  const menuTemplate: MenuItemConstructorOptions[] = [
+    { label: '显示窗口', click: () => { const w = BrowserWindow.getAllWindows()[0]; if (w) { w.show(); w.focus(); } } },
+    { label: '刷新特别关注', click: () => { refreshStarredInBackground(store); } },
+    { type: 'separator' },
+    { label: '退出', click: () => { app.quit(); } },
+  ];
+  tray.setContextMenu(Menu.buildFromTemplate(menuTemplate));
+
+  tray.on('click', () => {
+    const w = BrowserWindow.getAllWindows()[0];
+    if (w) {
+      if (w.isVisible()) w.hide();
+      else { w.show(); w.focus(); }
+    }
+  });
+}
+
+if (trayEnabled) {
+  app.whenReady().then(() => {
+    createTray();
+    // 后台定时刷新特别关注好友(每 20 分钟), 有动态会弹通知
+    backgroundTimer = setInterval(() => {
+      refreshStarredInBackground(store);
+    }, 20 * 60 * 1000);
+  });
+}
 
 function createWindow(): void {
   debugLog('createWindow called');
@@ -144,8 +186,14 @@ function createWindow(): void {
   debugLog('loadFile/loadURL called');
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   debugLog('app.whenReady fired');
+  // 一次性迁移: 若 keytar 可用, 把明文 AI Key 迁入系统凭据库并清空明文
+  try {
+    await store.migrateApiKeyIfNeeded();
+  } catch (e) {
+    debugLog(`migrateApiKeyIfNeeded failed: ${String(e)}`);
+  }
   createWindow();
 
   // 初始化自动更新(生产模式启动后延迟自动检查)
@@ -168,6 +216,11 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  // 托盘常驻模式: 关闭窗口不退出应用, 隐藏到托盘后台运行
+  if (trayEnabled) {
+    BrowserWindow.getAllWindows().forEach((w) => w.hide());
+    return;
+  }
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -175,4 +228,9 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   stopContestReminderTimer();
+  if (backgroundTimer) clearInterval(backgroundTimer);
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
 });

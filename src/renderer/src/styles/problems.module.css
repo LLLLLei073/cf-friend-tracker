@@ -513,3 +513,16 @@
   border-color: var(--border);
   color: var(--text-muted);
 }
+
+.favBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+  color: #E8820C;
+  line-height: 1;
+}
+.favBtn:hover {
+  transform: scale(1.2);
+}

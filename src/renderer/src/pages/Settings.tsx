@@ -78,7 +78,7 @@ export default function Settings() {
       return;
     }
     window.api.store.setSettings(settings);
-  }, [settings?.theme, settings?.defaultPage, settings?.notifyRatingChange, settings?.notifyContestStart, settings?.contestNotifyMinutes, settings?.launchRefreshStarredOnly, settings?.aiApiBase, settings?.aiApiKey, settings?.aiModel]);
+  }, [settings?.theme, settings?.defaultPage, settings?.notifyRatingChange, settings?.notifyContestStart, settings?.contestNotifyMinutes, settings?.launchRefreshStarredOnly, settings?.enableTray, settings?.aiApiBase, settings?.aiApiKey, settings?.aiModel]);
 
   const handleSave = async () => {
     if (!settings) return;
@@ -276,6 +276,40 @@ export default function Settings() {
 
         <hr className={styles.divider} />
 
+        {/* ---- 数据备份与迁移 ---- */}
+        <div className={styles.updateSection}>
+          <label className={styles.updateLabel}>数据备份与迁移</label>
+          <p className={styles.updateHint}>导出全部数据（好友、缓存、团队、AI 报告、设置）为 JSON 文件，换机或重装时可导入恢复。</p>
+          <div className={styles.themeRow}>
+            <button
+              className={styles.checkBtn}
+              onClick={async () => {
+                const res = await window.api.store.exportBackup();
+                if (res.ok) alert(`已导出到 ${res.path}`);
+                else if (res.error && !res.canceled) alert(`导出失败: ${res.error}`);
+              }}
+            >
+              导出备份
+            </button>
+            <button
+              className={styles.checkBtn}
+              onClick={async () => {
+                if (!confirm('导入备份会覆盖当前数据，确定继续吗？')) return;
+                const res = await window.api.store.importBackup();
+                if (res.ok) {
+                  alert(`导入成功：好友 ${res.imported?.friends ?? 0} 位 · 团队 ${res.imported?.teams ?? 0} 个。建议重启应用。`);
+                } else if (res.error && res.error !== '已取消') {
+                  alert(`导入失败: ${res.error}`);
+                }
+              }}
+            >
+              导入备份
+            </button>
+          </div>
+        </div>
+
+        <hr className={styles.divider} />
+
         {/* ---- 主题设置 ---- */}
         <div className={styles.updateSection}>
           <label className={styles.updateLabel}>外观主题</label>
@@ -328,6 +362,7 @@ export default function Settings() {
             <option value="contests">近期比赛</option>
             <option value="report">周报/月报</option>
             <option value="problems">题目练习</option>
+            <option value="training">训练看板</option>
           </select>
           <p className={styles.hint}>下次打开应用时自动跳转到此页面</p>
         </div>
@@ -351,6 +386,23 @@ export default function Settings() {
 
         <hr className={styles.divider} />
 
+        {/* ---- 系统托盘常驻 ---- */}
+        <div className={styles.updateSection}>
+          <label className={styles.updateLabel}>系统托盘常驻</label>
+          <div className={styles.notifyRow}>
+            <label className={styles.notifyLabel}>关闭窗口时驻留托盘（后台运行，定时刷新特别关注好友）</label>
+            <input
+              type="checkbox"
+              checked={settings.enableTray}
+              onChange={(e) => setSettings({ ...settings, enableTray: e.target.checked })}
+              className={styles.notifyToggle}
+            />
+          </div>
+          <p className={styles.hint}>开启后关闭窗口不会退出应用，而是隐藏到系统托盘，每 20 分钟后台刷新特别关注好友。修改此项需重启应用生效。</p>
+        </div>
+
+        <hr className={styles.divider} />
+
         {/* ---- AI 接口设置 ---- */}
         <div className={styles.updateSection}>
           <label className={styles.updateLabel}>AI 接口</label>
@@ -368,7 +420,7 @@ export default function Settings() {
           </div>
 
           <div className={styles.field}>
-            <label>API Key</label>
+            <label>API Key（OpenAI 兼容）</label>
             <input
               type="password"
               value={settings.aiApiKey}

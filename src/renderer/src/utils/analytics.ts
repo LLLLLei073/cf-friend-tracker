@@ -247,3 +247,60 @@ export function calculateStreak(submissions: CFSubmission[]): { currentStreak: n
 
   return { currentStreak, maxStreak: Math.max(maxStreak, currentStreak) };
 }
+
+// ---- 月度热力图 ----
+// 按年-月聚合 AC 题数, 用于训练看板的月度统计
+export interface MonthlyStat {
+  yearMonth: string; // YYYY-MM
+  year: number;
+  month: number; // 1-12
+  acCount: number;
+}
+
+export function getMonthlyHeatmap(submissions: CFSubmission[]): MonthlyStat[] {
+  const map = new Map<string, number>();
+  for (const sub of submissions) {
+    if (sub.verdict !== 'OK' || !sub.problem.contestId) continue;
+    const d = new Date(sub.creationTimeSeconds * 1000);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    map.set(ym, (map.get(ym) ?? 0) + 1);
+  }
+  // 注意: 这里按提交 AC 计数(含同一题多次AC), 用于观察活跃度;
+  // 去重 AC 题数见 getUniqueAcCount
+  return Array.from(map.entries())
+    .map(([yearMonth, acCount]) => {
+      const [y, m] = yearMonth.split('-').map(Number);
+      return { yearMonth, year: y, month: m, acCount };
+    })
+    .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
+}
+
+// 去重 AC 题数(同一题多次AC只算一次)
+export function getUniqueAcCount(submissions: CFSubmission[]): number {
+  const set = new Set<string>();
+  for (const sub of submissions) {
+    if (sub.verdict !== 'OK' || !sub.problem.contestId) continue;
+    set.add(`${sub.problem.contestId}-${sub.problem.index}`);
+  }
+  return set.size;
+}
+
+// 按难度区间统计 AC 题数(去重), 返回适合折线图的数据: 按时间累计每档难度的 AC 数
+export interface RatingGrowthPoint {
+  contestName: string;
+  time: number;
+  rating: number;
+}
+
+// 从 ratingHistory 构造 rating 成长曲线点(已是去重的比赛序列)
+export function getRatingGrowthCurve(
+  ratingHistory: { contestId: number; contestName: string; ratingUpdateTimeSeconds: number; newRating: number }[],
+): RatingGrowthPoint[] {
+  return [...ratingHistory]
+    .sort((a, b) => a.ratingUpdateTimeSeconds - b.ratingUpdateTimeSeconds)
+    .map((r) => ({
+      contestName: r.contestName,
+      time: r.ratingUpdateTimeSeconds,
+      rating: r.newRating,
+    }));
+}

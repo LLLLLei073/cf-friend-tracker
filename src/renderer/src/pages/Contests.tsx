@@ -177,6 +177,19 @@ export default function Contests() {
         <h2 className={styles.heading}>近期比赛</h2>
         <button
           className={styles.refreshBtn}
+          onClick={async () => {
+            if (contests.length === 0) return;
+            const res = await window.api.contest.exportIcs(contests);
+            if (res.ok) alert(`已导出 ${res.path}`);
+            else if (res.error && !res.canceled) alert(`导出失败: ${res.error}`);
+          }}
+          disabled={loading || contests.length === 0}
+          title="把当前比赛列表导出为 .ics 日历文件"
+        >
+          导出日历(.ics)
+        </button>
+        <button
+          className={styles.refreshBtn}
           onClick={loadContests}
           disabled={loading}
         >

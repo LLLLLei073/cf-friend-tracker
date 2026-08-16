@@ -26,4 +26,9 @@ export type {
   ProblemFilter,
   RunResult,
   RunAllResult,
+  BackupData,
+  BackupResult,
+  NotificationItem,
+  FavoriteProblem,
+  BlogEntry,
 } from '../../shared/types';

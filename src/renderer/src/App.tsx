@@ -14,6 +14,8 @@ import Report from './pages/Report';
 import Feed from './pages/Feed';
 import Problems from './pages/Problems';
 import ProblemView from './pages/ProblemView';
+import Training from './pages/Training';
+import VirtualContest from './pages/VirtualContest';
 import ErrorBoundary from './components/ErrorBoundary';
 import ChangelogModal from './components/ChangelogModal';
 import AltNavWheel from './components/AltNavWheel';
@@ -99,6 +101,8 @@ export default function App() {
           <Route path="/contests" element={<Contests />} />
           <Route path="/problems" element={<Problems />} />
           <Route path="/problems/:contestId/:index" element={<ProblemView />} />
+          <Route path="/training" element={<Training />} />
+          <Route path="/virtual" element={<VirtualContest />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/report" element={<Report />} />
           <Route path="/add" element={<AddFriend />} />

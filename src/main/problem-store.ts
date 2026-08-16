@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
-import type { ProblemListItem, ProblemStatement } from '../shared/types';
+import type { ProblemListItem, ProblemStatement, FavoriteProblem } from '../shared/types';
 
 // 题目数据缓存目录（默认位于 userData/problem-cache, 可通过设置 problemCacheDir 自定义）
 let customCacheDir = '';
@@ -28,6 +28,9 @@ function statementsDir(): string {
 }
 function codeDir(): string {
   return path.join(cacheDir(), 'code');
+}
+function favoritesFile(): string {
+  return path.join(cacheDir(), 'favorites.json');
 }
 
 function ensureDir(d: string): void {
@@ -108,6 +111,49 @@ export function setCode(id: string, code: string): void {
   fs.writeFileSync(path.join(codeDir(), `${safeName(id)}.txt`), code, 'utf-8');
 }
 
+// ---- 本地收藏题目(独立于 AI 推荐题单) ----
+
+export function listFavorites(): FavoriteProblem[] {
+  try {
+    const f = favoritesFile();
+    if (!fs.existsSync(f)) return [];
+    const data = JSON.parse(fs.readFileSync(f, 'utf-8'));
+    return Array.isArray(data) ? (data as FavoriteProblem[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFavorites(list: FavoriteProblem[]): void {
+  ensureDir(cacheDir());
+  try {
+    fs.writeFileSync(favoritesFile(), JSON.stringify(list), 'utf-8');
+  } catch (e) {
+    console.error('写入收藏列表失败:', (e as Error).message);
+  }
+}
+
+export function addFavorite(item: FavoriteProblem): boolean {
+  const list = listFavorites();
+  const key = `${item.contestId}_${item.index}`;
+  if (list.some((f) => `${f.contestId}_${f.index}` === key)) return false;
+  list.unshift(item);
+  saveFavorites(list);
+  return true;
+}
+
+export function removeFavorite(contestId: number, index: string): boolean {
+  const list = listFavorites();
+  const next = list.filter((f) => !(f.contestId === contestId && f.index === index));
+  if (next.length === list.length) return false;
+  saveFavorites(next);
+  return true;
+}
+
+export function isFavorite(contestId: number, index: string): boolean {
+  return listFavorites().some((f) => f.contestId === contestId && f.index === index);
+}
+
 // ---- 目录迁移 ----
 
 function copyRecursive(src: string, dest: string): void {
@@ -152,7 +198,7 @@ export interface ClearResult {
 export function clearProblemCache(): ClearResult {
   const dir = getProblemCacheDir();
   const errors: string[] = [];
-  const targets = ['statements', 'code', 'problem-list.json'].map((n) => path.join(dir, n));
+  const targets = ['statements', 'code', 'problem-list.json', 'favorites.json'].map((n) => path.join(dir, n));
   let removed = 0;
   for (const t of targets) {
     if (!fs.existsSync(t)) continue;

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ProblemListItem, AIProblemSet } from '../types';
+import type { ProblemListItem, AIProblemSet, FavoriteProblem } from '../types';
 import { getRatingColor } from '../utils/rank';
 import { translateTag } from '../utils/tagLabels';
 import styles from '../styles/problems.module.css';
@@ -80,6 +80,9 @@ export default function Problems() {
   // AI 报告推荐的题单模块（每次报告合成一个模块）
   const [reportModules, setReportModules] = useState<ReportModule[]>([]);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+
+  // 本地收藏题目(独立于 AI 推荐)
+  const [favorites, setFavorites] = useState<FavoriteProblem[]>([]);
 
   // 从输入中解析比赛编号（取第一个出现的数字），"2250C" / "2250" 均得到 2250
   const parseContestId = (q: string): number | null => {
@@ -163,6 +166,34 @@ export default function Problems() {
     await loadContest(cid, false);
   }, [contestQuery, loadContest]);
 
+  // 加载本地收藏列表
+  const loadFavorites = useCallback(async () => {
+    try {
+      const list = await window.api.problem.getFavorites();
+      setFavorites(list);
+    } catch {
+      /* 忽略 */
+    }
+  }, []);
+
+  // 切换某道题的收藏状态
+  const toggleFavorite = async (p: ProblemListItem) => {
+    const exists = favorites.some((f) => f.contestId === p.contestId && f.index === p.index);
+    if (exists) {
+      await window.api.problem.removeFavorite(p.contestId, p.index);
+    } else {
+      const item: FavoriteProblem = {
+        contestId: p.contestId,
+        index: p.index,
+        name: p.name,
+        rating: p.rating,
+        addedAt: Date.now(),
+      };
+      await window.api.problem.addFavorite(item);
+    }
+    await loadFavorites();
+  };
+
   // 首次进入刷题页: 若尚未配置题目缓存目录, 弹出设置引导
   useEffect(() => {
     (async () => {
@@ -172,6 +203,7 @@ export default function Problems() {
       } catch {
         /* 忽略, 不影响刷题功能 */
       }
+      loadFavorites();
     })();
   }, []);
 
@@ -341,6 +373,28 @@ export default function Problems() {
         </div>
       )}
 
+      {favorites.length > 0 && (
+        <div className={styles.reportPanel}>
+          <div className={styles.reportPanelHeader}>
+            <span className={styles.reportPanelTitle}>我的收藏</span>
+            <span className={styles.reportPanelCount}>{favorites.length} 题</span>
+          </div>
+          <div className={styles.psProblems}>
+            {favorites.map((f) => (
+              <button
+                key={`${f.contestId}${f.index}`}
+                className={styles.problemChip}
+                title={`打开题目 ${f.contestId}${f.index}`}
+                onClick={() => navigate(`/problems/${f.contestId}/${f.index}`)}
+              >
+                {f.contestId}
+                {f.index}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className={styles.searchRow}>
         <input
           className={styles.contestInput}
@@ -403,6 +457,16 @@ export default function Problems() {
                       —
                     </span>
                   )}
+                  <button
+                    className={styles.favBtn}
+                    title={favorites.some((f) => f.contestId === p.contestId && f.index === p.index) ? '取消收藏' : '收藏题目'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(p);
+                    }}
+                  >
+                    {favorites.some((f) => f.contestId === p.contestId && f.index === p.index) ? '★' : '☆'}
+                  </button>
                   {p.solvedCount !== undefined && (
                     <span className={styles.solved}>{p.solvedCount.toLocaleString()} 通过</span>
                   )}

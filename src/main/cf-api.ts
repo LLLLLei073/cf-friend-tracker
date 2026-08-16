@@ -283,3 +283,34 @@ export interface CFProblemsetResult {
 export async function fetchProblemset(): Promise<CFProblemsetResult> {
   return cfRequest<CFProblemsetResult>('problemset.problems', {});
 }
+
+// ---- 好友博客 ----
+// CF user.blogEntries 返回的单条博客原始结构(不含正文)
+interface CFBlogEntry {
+  id: number;
+  title: string;
+  authorHandle: string;
+  creationTimeSeconds: number;
+  commentCount?: number;
+  rating?: number;
+  tags?: string[];
+}
+
+/**
+ * 获取某 handle 的博客/题解列表。
+ * 注意: 该接口返回的是博客元信息(标题/时间/标签), 不含正文正文;
+ * 正文页面同样受 Cloudflare 保护, 只能由用户在系统浏览器打开。
+ * 受 2 秒限速影响, 多人时调用方应分批串行。
+ */
+export async function fetchBlogEntries(handle: string): Promise<import('../shared/types').BlogEntry[]> {
+  const entries = await cfRequest<CFBlogEntry[]>('user.blogEntries', { handle });
+  return entries.map((e) => ({
+    id: e.id,
+    title: e.title,
+    handle: e.authorHandle ?? handle,
+    creationTimeSeconds: e.creationTimeSeconds,
+    commentCount: e.commentCount,
+    rating: e.rating,
+    tags: e.tags,
+  }));
+}

@@ -2,11 +2,31 @@ export interface ChangelogEntry {
   version: string;
   date: string;
   title: string;
-  features: { icon: string; text: string }[];
+  features?: { icon: string; text: string }[];
   fixes?: { icon: string; text: string }[];
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.0',
+    date: '2026-08-16',
+    title: '训练看板与虚拟比赛 + 托盘常驻 / 通知中心 / 数据备份',
+    features: [
+      { icon: '📈', text: '新增「训练看板」页面：聚合自己最近 1000 条提交与 Rating 历史，一眼看出去重 AC 题数、连续做题天数、月度活跃度热力图、Rating 成长曲线、标签雷达、难度分布与弱项知识点清单' },
+      { icon: '⏱', text: '新增「虚拟比赛」页面：选一场 CF 比赛模拟计时，在浏览器写代码提交到 CF，应用每分钟轮询你的提交自动检测 AC，实时记分板显示 AC 数与累计用时，结束给出小结' },
+      { icon: '📌', text: '系统托盘常驻：关闭窗口不退出应用，隐藏到托盘后台运行，每 20 分钟自动刷新特别关注好友并推送通知（设置页可开关，需重启生效）' },
+      { icon: '🔔', text: '应用内通知中心：侧边栏新增通知入口与未读红点，Rating 变化 / 比赛提醒 / 刷题里程碑统一记录，可点击跳转、标记已读、清空' },
+      { icon: '💾', text: '数据备份与迁移：设置页可一键导出全部数据（好友 / 缓存 / 团队 / AI 报告 / 设置）为 JSON，换机或重装时导入恢复' },
+      { icon: '🔒', text: 'AI Key 安全存储：可选使用系统凭据库（keytar）保存 AI API Key，启动时自动把明文迁入凭据库；未安装则回退明文，不影响使用' },
+      { icon: '🏷️', text: '好友分组：右键好友「管理分组」可自定义分组（如队友 / 同学 / 大佬），一人可属多个分组，侧边栏分组筛选条按组过滤' },
+      { icon: '⭐', text: '题目收藏：刷题页可 ☆/★ 收藏题目，独立于 AI 推荐题单，收藏列表单独展示、点击即进入练习' },
+      { icon: '📝', text: '动态新增「好友博客」板块：手动加载近 30 天好友发布的博客 / 题解，点击打开原页' },
+      { icon: '📅', text: '近期比赛支持导出日历（.ics）：一键把比赛列表导出为日历文件，导入系统日历提醒' },
+    ],
+    fixes: [
+      { icon: '🔧', text: '好友对比页整体重构，优化布局与数据加载逻辑' },
+    ],
+  },
   {
     version: '1.3.5',
     date: '2026-08-02',

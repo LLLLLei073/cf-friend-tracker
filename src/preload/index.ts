@@ -24,6 +24,10 @@ import type {
   ProblemStatement,
   SampleTest,
   RunAllResult,
+  BackupResult,
+  NotificationItem,
+  FavoriteProblem,
+  BlogEntry,
 } from '../shared/types';
 
 const api = {
@@ -50,6 +54,15 @@ const api = {
       ipcRenderer.invoke('cf:getFinishedContests', limit),
     getContestPerformance: (contestId: number, handles: string[]): Promise<Record<string, ContestPerformance>> =>
       ipcRenderer.invoke('cf:getContestPerformance', contestId, handles),
+    // 获取单场比赛信息(名称/时长), 用于虚拟比赛
+    getContestInfo: (contestId: number): Promise<CFContest | null> =>
+      ipcRenderer.invoke('cf:getContestInfo', contestId),
+    // 获取某 handle 的博客/题解列表(批量, 受 2 秒限速)
+    getBlogEntries: (handles: string[]): Promise<BlogEntry[]> =>
+      ipcRenderer.invoke('cf:getBlogEntries', handles),
+    // 拉取指定数量提交(训练看板等深度分析使用, 默认 1000 条)
+    getSubmissions: (handle: string, count?: number): Promise<CFSubmission[]> =>
+      ipcRenderer.invoke('cf:getSubmissions', handle, count),
     onRefreshProgress: (callback: (progress: RefreshProgress) => void): (() => void) => {
       const handler = (_event: IpcRendererEvent, data: RefreshProgress) => callback(data);
       ipcRenderer.on('cf:refreshProgress', handler);
@@ -85,6 +98,15 @@ const api = {
       ipcRenderer.invoke('store:setViewedRating', handle, rating),
     removeViewedRating: (handle: string): Promise<boolean> =>
       ipcRenderer.invoke('store:removeViewedRating', handle),
+    // 数据备份与迁移
+    exportBackup: (): Promise<{ ok: boolean; path?: string; error?: string; canceled?: boolean }> =>
+      ipcRenderer.invoke('store:exportBackup'),
+    importBackup: (): Promise<BackupResult> => ipcRenderer.invoke('store:importBackup'),
+    // 好友分组定义
+    getGroupDefs: (): Promise<string[]> => ipcRenderer.invoke('store:getGroupDefs'),
+    setGroupDefs: (groups: string[]): Promise<boolean> => ipcRenderer.invoke('store:setGroupDefs', groups),
+    setFriendGroups: (handle: string, groups: string[]): Promise<boolean> =>
+      ipcRenderer.invoke('store:setFriendGroups', handle, groups),
   },
   updater: {
     checkForUpdates: (): Promise<{ status: UpdateStatus; info: UpdateInfo | null; error: string | null; appVersion: string }> =>
@@ -111,6 +133,17 @@ const api = {
   notify: {
     test: (): Promise<boolean> => ipcRenderer.invoke('notify:test'),
     checkContests: (): Promise<boolean> => ipcRenderer.invoke('notify:checkContests'),
+    // 通知中心历史
+    getHistory: (): Promise<NotificationItem[]> => ipcRenderer.invoke('notify:getHistory'),
+    clearHistory: (): Promise<boolean> => ipcRenderer.invoke('notify:clearHistory'),
+    markRead: (id: string): Promise<boolean> => ipcRenderer.invoke('notify:markRead', id),
+    markAllRead: (): Promise<boolean> => ipcRenderer.invoke('notify:markAllRead'),
+    // 主进程在产生新通知时广播, 渲染端订阅以更新红点角标
+    onNew: (callback: () => void): (() => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('notify:new', handler);
+      return () => ipcRenderer.removeListener('notify:new', handler);
+    },
   },
   predict: {
     contest: (contestId: number, contestName: string): Promise<ContestPrediction> =>
@@ -150,6 +183,21 @@ const api = {
     login: (): Promise<void> => ipcRenderer.invoke('problem:login'),
     translate: (contestId: number, index: string, force?: boolean): Promise<ProblemStatement> =>
       ipcRenderer.invoke('problem:translate', contestId, index, force),
+    // 本地收藏题目(独立于 AI 推荐题单)
+    getFavorites: (): Promise<FavoriteProblem[]> => ipcRenderer.invoke('problem:getFavorites'),
+    addFavorite: (item: FavoriteProblem): Promise<boolean> => ipcRenderer.invoke('problem:addFavorite', item),
+    removeFavorite: (contestId: number, index: string): Promise<boolean> =>
+      ipcRenderer.invoke('problem:removeFavorite', contestId, index),
+    isFavorite: (contestId: number, index: string): Promise<boolean> =>
+      ipcRenderer.invoke('problem:isFavorite', contestId, index),
+    // 开启虚拟比赛: 返回该场比赛题目清单与起止时间
+    startVirtual: (contestId: number, force?: boolean): Promise<ProblemListItem[]> =>
+      ipcRenderer.invoke('problem:getContestProblems', contestId, force),
+  },
+  contest: {
+    // 导出比赛列表为 .ics 日历文件
+    exportIcs: (contests: CFContest[]): Promise<{ ok: boolean; path?: string; error?: string; canceled?: boolean }> =>
+      ipcRenderer.invoke('contest:exportIcs', contests),
   },
   ai: {
     analyzeTeam: (teamId: string, settings?: Settings): Promise<TeamAIResult> =>

@@ -8,7 +8,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  type TooltipProps,
 } from 'recharts';
 import type { FriendCache, CFRatingChange } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
@@ -17,9 +16,11 @@ import { useAppData } from '../hooks/useAppData';
 import { exportCSV } from '../utils/export';
 import styles from '../styles/compare.module.css';
 
-const COLOR_A = '#F5C518';
-const COLOR_B = '#3B6FE0';
 const DAY = 24 * 3600;
+const MAX_COMPARE = 5;
+
+// 多人对比的颜色板
+const COLORS = ['#F5C518', '#3B6FE0', '#E8820C', '#7B3FB5', '#4A7C3A'];
 
 // 平均每场 rating 变化
 function avgRatingDelta(history: CFRatingChange[]): number | null {
@@ -27,18 +28,6 @@ function avgRatingDelta(history: CFRatingChange[]): number | null {
   let sum = 0;
   for (const h of history) sum += h.newRating - h.oldRating;
   return sum / history.length;
-}
-
-type Side = 'a' | 'b' | 'tie';
-
-// 判断哪一侧数值更高(更高者标绿)
-function betterSide(a: number | null | undefined, b: number | null | undefined): Side {
-  if (a == null && b == null) return 'tie';
-  if (a == null) return 'b';
-  if (b == null) return 'a';
-  if (a > b) return 'a';
-  if (b > a) return 'b';
-  return 'tie';
 }
 
 function formatNum(v: number | null | undefined): string {
@@ -52,116 +41,49 @@ function formatDelta(v: number | null | undefined): string {
   return `${sign}${v.toFixed(1)}`;
 }
 
-interface InfoCardProps {
+// 单个被对比者的缓存与统计
+interface CompareEntry {
+  handle: string;
   cache: FriendCache | null;
   loading: boolean;
   color: string;
-  sideLabel: string;
-}
-
-function InfoCard({ cache, loading, color, sideLabel }: InfoCardProps) {
-  if (loading) {
-    return (
-      <div className={styles.infoCard}>
-        <div className={styles.accentStrip} style={{ background: color }} />
-        <p className={styles.hint}>加载中...</p>
-      </div>
-    );
-  }
-  if (!cache) {
-    return (
-      <div className={styles.infoCard}>
-        <div className={styles.accentStrip} style={{ background: color }} />
-        <p className={styles.hint}>暂无数据,请先刷新该用户</p>
-      </div>
-    );
-  }
-  const { info } = cache;
-  const rankColor = getRankColor(info.rank);
-  return (
-    <div className={styles.infoCard}>
-      <div className={styles.accentStrip} style={{ background: color }} />
-      <span className={styles.sideBadge} style={{ background: color }}>{sideLabel}</span>
-      <img
-        src={info.avatar || NO_AVATAR}
-        className={styles.avatar}
-        alt={info.handle}
-      />
-      <a
-        href={`https://codeforces.com/profile/${info.handle}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={styles.handle}
-        style={{ color: rankColor }}
-      >
-        {info.handle}
-      </a>
-      <p className={styles.rank} style={{ color: rankColor }}>
-        {getRankLabel(info.rank)} · {info.rating ?? 'N/A'}
-        <span className={styles.maxRating}>（最高 {info.maxRating ?? 'N/A'}）</span>
-      </p>
-      <p className={styles.meta}>{info.country || info.organization || '—'}</p>
-    </div>
-  );
-}
-
-interface MetricRow {
-  label: string;
-  a: number | null | undefined;
-  b: number | null | undefined;
-  fmt: (v: number | null | undefined) => string;
 }
 
 export default function Compare() {
   const { friends, myHandle } = useAppData();
-  const [handleA, setHandleA] = useState('');
-  const [handleB, setHandleB] = useState('');
-  const [cacheA, setCacheA] = useState<FriendCache | null>(null);
-  const [cacheB, setCacheB] = useState<FriendCache | null>(null);
-  const [loadingA, setLoadingA] = useState(false);
-  const [loadingB, setLoadingB] = useState(false);
+  // 选中的 handles (2-5 个)
+  const [selected, setSelected] = useState<string[]>([]);
+  const [caches, setCaches] = useState<Record<string, FriendCache | null>>({});
+  const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
 
-  // 加载 A 的缓存
+  // 选中变化时加载对应缓存
   useEffect(() => {
     let cancelled = false;
-    if (!handleA) {
-      setCacheA(null);
-      return;
-    }
-    setLoadingA(true);
     (async () => {
-      const c = await window.api.store.getCache(handleA);
-      if (!cancelled) {
-        setCacheA(c ?? null);
-        setLoadingA(false);
+      const next: Record<string, FriendCache | null> = {};
+      const loading: Record<string, boolean> = {};
+      for (const h of selected) {
+        loading[h] = true;
       }
+      setLoadingMap((prev) => {
+        const m: Record<string, boolean> = {};
+        for (const h of selected) m[h] = prev[h] ?? true;
+        return m;
+      });
+      for (const h of selected) {
+        const c = await window.api.store.getCache(h);
+        next[h] = c ?? null;
+      }
+      if (cancelled) return;
+      setCaches(next);
+      setLoadingMap({});
     })();
     return () => {
       cancelled = true;
     };
-  }, [handleA]);
+  }, [selected]);
 
-  // 加载 B 的缓存
-  useEffect(() => {
-    let cancelled = false;
-    if (!handleB) {
-      setCacheB(null);
-      return;
-    }
-    setLoadingB(true);
-    (async () => {
-      const c = await window.api.store.getCache(handleB);
-      if (!cancelled) {
-        setCacheB(c ?? null);
-        setLoadingB(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [handleB]);
-
-  // 下拉选项:自己 + 所有好友(去重),自己排在最前
+  // 下拉选项: 自己 + 所有好友(去重), 自己排在最前
   const options = useMemo(() => {
     const list: { value: string; label: string }[] = [];
     const seen = new Set<string>();
@@ -177,129 +99,115 @@ export default function Compare() {
     return list;
   }, [friends, myHandle]);
 
-  const bothSelected = Boolean(handleA && handleB);
-  const samePerson = Boolean(handleA && handleB && handleA === handleB);
+  const toggleSelect = (handle: string) => {
+    setSelected((prev) => {
+      if (prev.includes(handle)) return prev.filter((h) => h !== handle);
+      if (prev.length >= MAX_COMPARE) return prev;
+      return [...prev, handle];
+    });
+  };
 
-  // 合并两人最近10场 rating 历史为图表数据,按比赛时间排序
-  // 同一场比赛(contestId相同)只算一次
+  const removeHandle = (handle: string) => {
+    setSelected((prev) => prev.filter((h) => h !== handle));
+  };
+
+  // 构建被对比者列表(按选中顺序, 颜色按顺序分配)
+  const entries: CompareEntry[] = selected.map((h, i) => ({
+    handle: h,
+    cache: caches[h] ?? null,
+    loading: !!loadingMap[h],
+    color: COLORS[i % COLORS.length],
+  }));
+
+  const enough = selected.length >= 2;
+  const duplicates = new Set(selected).size !== selected.length ? true : false;
+
+  // 合并所有被对比者最近 10 场 rating 历史, 按 contestId 合并, 按时间排序
   const chartData = useMemo(() => {
-    const ra = cacheA?.ratingHistory ?? [];
-    const rb = cacheB?.ratingHistory ?? [];
-
-    // 各取最后10场
-    const lastA = ra.slice(-10);
-    const lastB = rb.slice(-10);
-
-    // 按 contestId 合并
     const contestMap = new Map<
       number,
-      {
-        time: number;
-        contestName: string;
-        contestId: number;
-        a: number | null;
-        b: number | null;
-      }
+      { time: number; contestName: string; contestId: number; values: Record<string, number | null> }
     >();
-
-    for (const r of lastA) {
-      contestMap.set(r.contestId, {
-        time: r.ratingUpdateTimeSeconds,
-        contestName: r.contestName,
-        contestId: r.contestId,
-        a: r.newRating,
-        b: null,
-      });
-    }
-
-    for (const r of lastB) {
-      const existing = contestMap.get(r.contestId);
-      if (existing) {
-        existing.b = r.newRating;
-      } else {
-        contestMap.set(r.contestId, {
-          time: r.ratingUpdateTimeSeconds,
-          contestName: r.contestName,
-          contestId: r.contestId,
-          a: null,
-          b: r.newRating,
-        });
+    for (const h of selected) {
+      const history = caches[h]?.ratingHistory ?? [];
+      const last10 = history.slice(-10);
+      for (const r of last10) {
+        let entry = contestMap.get(r.contestId);
+        if (!entry) {
+          entry = {
+            time: r.ratingUpdateTimeSeconds,
+            contestName: r.contestName,
+            contestId: r.contestId,
+            values: {},
+          };
+          contestMap.set(r.contestId, entry);
+        }
+        entry.values[h] = r.newRating;
       }
     }
-
-    // 按时间排序
     return Array.from(contestMap.values()).sort((a, b) => a.time - b.time);
-  }, [cacheA, cacheB]);
+  }, [selected, caches]);
 
-  // 做题与比赛统计
-  const statsA = useMemo(() => {
-    if (!cacheA) return null;
-    const subs = cacheA.recentSubmissions ?? [];
-    const nowSec = Math.floor(Date.now() / 1000);
-    return {
-      ac: {
-        last7: countACProblems(subs, nowSec - 7 * DAY),
-        last30: countACProblems(subs, nowSec - 30 * DAY),
-        total: countACProblems(subs),
-      },
-      avgDelta: avgRatingDelta(cacheA.ratingHistory ?? []),
-      contests: (cacheA.ratingHistory ?? []).length,
-    };
-  }, [cacheA]);
-
-  const statsB = useMemo(() => {
-    if (!cacheB) return null;
-    const subs = cacheB.recentSubmissions ?? [];
-    const nowSec = Math.floor(Date.now() / 1000);
-    return {
-      ac: {
-        last7: countACProblems(subs, nowSec - 7 * DAY),
-        last30: countACProblems(subs, nowSec - 30 * DAY),
-        total: countACProblems(subs),
-      },
-      avgDelta: avgRatingDelta(cacheB.ratingHistory ?? []),
-      contests: (cacheB.ratingHistory ?? []).length,
-    };
-  }, [cacheB]);
-
-  // 对比表格行
-  const tableRows = useMemo<MetricRow[]>(() => {
-    const infoA = cacheA?.info;
-    const infoB = cacheB?.info;
-    return [
-      { label: '当前 Rating', a: infoA?.rating, b: infoB?.rating, fmt: formatNum },
-      { label: '最高 Rating', a: infoA?.maxRating, b: infoB?.maxRating, fmt: formatNum },
-      { label: '比赛场次', a: statsA?.contests, b: statsB?.contests, fmt: formatNum },
-      { label: '最近7天 AC 题数', a: statsA?.ac.last7, b: statsB?.ac.last7, fmt: formatNum },
-      { label: '最近30天 AC 题数', a: statsA?.ac.last30, b: statsB?.ac.last30, fmt: formatNum },
-      { label: '总 AC 题数', a: statsA?.ac.total, b: statsB?.ac.total, fmt: formatNum },
-      {
-        label: '平均每场 Rating 变化',
-        a: statsA?.avgDelta,
-        b: statsB?.avgDelta,
-        fmt: formatDelta,
-      },
-    ];
-  }, [cacheA, cacheB, statsA, statsB]);
-
-  // 统计两人各自领先的项数
-  const { aWins, bWins } = useMemo(() => {
-    let aWins = 0;
-    let bWins = 0;
-    for (const row of tableRows) {
-      const side = betterSide(row.a, row.b);
-      if (side === 'a') aWins++;
-      else if (side === 'b') bWins++;
+  // 每人的统计
+  const statsMap = useMemo(() => {
+    const m: Record<string, { ac7: number; ac30: number; acTotal: number; avgDelta: number | null; contests: number; rating?: number; maxRating?: number }> = {};
+    for (const h of selected) {
+      const cache = caches[h];
+      if (!cache) {
+        m[h] = { ac7: 0, ac30: 0, acTotal: 0, avgDelta: null, contests: 0 };
+        continue;
+      }
+      const subs = cache.recentSubmissions ?? [];
+      const nowSec = Math.floor(Date.now() / 1000);
+      m[h] = {
+        ac7: countACProblems(subs, nowSec - 7 * DAY),
+        ac30: countACProblems(subs, nowSec - 30 * DAY),
+        acTotal: countACProblems(subs),
+        avgDelta: avgRatingDelta(cache.ratingHistory ?? []),
+        contests: (cache.ratingHistory ?? []).length,
+        rating: cache.info?.rating,
+        maxRating: cache.info?.maxRating,
+      };
     }
-    return { aWins, bWins };
-  }, [tableRows]);
+    return m;
+  }, [selected, caches]);
+
+  // 对比表格: 每行一个指标, 每列一个人
+  const tableRows = useMemo(() => {
+    const rows: { label: string; values: Record<string, number | null | undefined>; fmt: (v: number | null | undefined) => string }[] = [];
+    const ratingRow: Record<string, number | null | undefined> = {};
+    const maxRow: Record<string, number | null | undefined> = {};
+    const contestRow: Record<string, number | null | undefined> = {};
+    const ac7Row: Record<string, number | null | undefined> = {};
+    const ac30Row: Record<string, number | null | undefined> = {};
+    const acTotalRow: Record<string, number | null | undefined> = {};
+    const deltaRow: Record<string, number | null | undefined> = {};
+    for (const h of selected) {
+      const s = statsMap[h];
+      ratingRow[h] = s?.rating;
+      maxRow[h] = s?.maxRating;
+      contestRow[h] = s?.contests;
+      ac7Row[h] = s?.ac7;
+      ac30Row[h] = s?.ac30;
+      acTotalRow[h] = s?.acTotal;
+      deltaRow[h] = s?.avgDelta;
+    }
+    rows.push({ label: '当前 Rating', values: ratingRow, fmt: formatNum });
+    rows.push({ label: '最高 Rating', values: maxRow, fmt: formatNum });
+    rows.push({ label: '比赛场次', values: contestRow, fmt: formatNum });
+    rows.push({ label: '最近7天 AC', values: ac7Row, fmt: formatNum });
+    rows.push({ label: '最近30天 AC', values: ac30Row, fmt: formatNum });
+    rows.push({ label: '总 AC 题数', values: acTotalRow, fmt: formatNum });
+    rows.push({ label: '平均每场 Δ', values: deltaRow, fmt: formatDelta });
+    return rows;
+  }, [selected, statsMap]);
 
   // 导出对比数据为 CSV
   const handleExportCompare = () => {
     exportCSV(
-      ['指标', handleA, handleB],
-      tableRows.map((row) => [row.label, row.fmt(row.a), row.fmt(row.b)]),
-      `对比-${handleA}-vs-${handleB}`,
+      ['指标', ...selected],
+      tableRows.map((row) => [row.label, ...selected.map((h) => row.fmt(row.values[h]))]),
+      `对比-${selected.join('-vs-')}`,
     );
   };
 
@@ -307,72 +215,90 @@ export default function Compare() {
     <div>
       <div className={styles.headerRow}>
         <h2 className={styles.heading}>好友对比</h2>
-        {tableRows.length > 0 && (
+        {enough && (
           <button className={styles.exportBtn} onClick={handleExportCompare}>
             导出 CSV
           </button>
         )}
       </div>
 
-      {/* 选择好友 A / B */}
+      {/* 多选对比者 */}
       <div className={styles.selectors}>
         <div className={styles.selectorGroup}>
           <span className={styles.selectorLabel}>
-            <span className={styles.sideDot} style={{ background: COLOR_A }} />
-            好友 A
+            选择 2–{MAX_COMPARE} 位好友对比（已选 {selected.length}/{MAX_COMPARE}）
           </span>
           <select
             className={styles.select}
-            value={handleA}
-            onChange={(e) => setHandleA(e.target.value)}
+            value=""
+            onChange={(e) => {
+              if (e.target.value) toggleSelect(e.target.value);
+            }}
           >
-            <option value="">请选择</option>
-            {options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <span className={styles.vs}>VS</span>
-
-        <div className={styles.selectorGroup}>
-          <span className={styles.selectorLabel}>
-            <span className={styles.sideDot} style={{ background: COLOR_B }} />
-            好友 B
-          </span>
-          <select
-            className={styles.select}
-            value={handleB}
-            onChange={(e) => setHandleB(e.target.value)}
-          >
-            <option value="">请选择</option>
-            {options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
+            <option value="">添加好友...</option>
+            {options
+              .filter((o) => !selected.includes(o.value))
+              .map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
           </select>
         </div>
       </div>
 
-      {!bothSelected ? (
-        <p className={styles.empty}>请选择两位好友进行对比</p>
-      ) : samePerson ? (
-        <p className={styles.empty}>请选择两位不同的好友进行对比</p>
+      {/* 已选 chips */}
+      {selected.length > 0 && (
+        <div className={styles.basicInfo} style={{ gap: 10, marginTop: 8 }}>
+          {entries.map((e) => {
+            const info = e.cache?.info;
+            return (
+              <div key={e.handle} className={styles.infoCard} style={{ position: 'relative' }}>
+                <div className={styles.accentStrip} style={{ background: e.color }} />
+                {e.loading ? (
+                  <p className={styles.hint}>加载中...</p>
+                ) : info ? (
+                  <>
+                    <span className={styles.sideBadge} style={{ background: e.color }}>
+                      {selected.indexOf(e.handle) + 1}
+                    </span>
+                    <img src={info.avatar || NO_AVATAR} className={styles.avatar} alt={info.handle} />
+                    <a
+                      href={`https://codeforces.com/profile/${info.handle}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.handle}
+                      style={{ color: getRankColor(info.rank) }}
+                    >
+                      {info.handle}
+                    </a>
+                    <p className={styles.rank} style={{ color: getRankColor(info.rank) }}>
+                      {getRankLabel(info.rank)} · {info.rating ?? 'N/A'}
+                    </p>
+                  </>
+                ) : (
+                  <p className={styles.hint}>暂无数据, 请先刷新该用户</p>
+                )}
+                <button
+                  className={styles.exportBtn}
+                  style={{ position: 'absolute', top: 6, right: 6, padding: '2px 8px', fontSize: 12 }}
+                  onClick={() => removeHandle(e.handle)}
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!enough ? (
+        <p className={styles.empty}>请至少选择两位好友进行对比</p>
+      ) : duplicates ? (
+        <p className={styles.empty}>请选择不同的好友进行对比</p>
       ) : (
         <>
-          {/* 基本信息 */}
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>基本信息</h3>
-            <div className={styles.basicInfo}>
-              <InfoCard cache={cacheA} loading={loadingA} color={COLOR_A} sideLabel="A" />
-              <InfoCard cache={cacheB} loading={loadingB} color={COLOR_B} sideLabel="B" />
-            </div>
-          </section>
-
-          {/* Rating 历史曲线 */}
+          {/* Rating 历史曲线(多人叠加) */}
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Rating 历史曲线（近10场）</h3>
             {chartData.length === 0 ? (
@@ -394,132 +320,73 @@ export default function Compare() {
                         const d = new Date(v * 1000);
                         return `${d.getMonth() + 1}/${d.getDate()}`;
                       }}
-                      label={{
-                        value: '比赛时间',
-                        position: 'insideBottom',
-                        offset: -2,
-                        fill: '#B0A99E',
-                        fontSize: 11,
-                      }}
                     />
-                    <YAxis
-                      stroke="#B0A99E"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={{ stroke: '#E2DED4' }}
-                    />
+                    <YAxis stroke="#B0A99E" fontSize={11} tickLine={false} axisLine={{ stroke: '#E2DED4' }} />
                     <Tooltip
-                      contentStyle={{
-                        background: '#FDFCF8',
-                        border: '1px solid #E2DED4',
-                        borderRadius: '12px',
-                        boxShadow:
-                          '0 2px 6px rgba(60,50,30,0.05), 0 8px 20px rgba(60,50,30,0.06)',
-                      }}
-                      labelStyle={{ color: '#7A7268' }}
+                      contentStyle={{ background: '#FDFCF8', border: '1px solid #E2DED4', borderRadius: '12px' }}
                       labelFormatter={(v: number) => {
                         const d = new Date(v * 1000);
                         return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
                       }}
-                      content={({ active, payload }: TooltipProps<number, string>) => {
-                        if (!active || !payload || payload.length === 0) return null;
-                        const data = payload[0].payload;
-                        return (
-                          <div className={styles.customTooltip}>
-                            <a
-                              href={`https://codeforces.com/contest/${data.contestId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={styles.tooltipContestLink}
-                            >
-                              {data.contestName}
-                            </a>
-                            <p className={styles.tooltipDate}>
-                              {new Date(data.time * 1000).toLocaleDateString('zh-CN')}
-                            </p>
-                            {payload[0].payload.a != null && (
-                              <p style={{ color: COLOR_A, fontWeight: 600 }}>
-                                {handleA}: {payload[0].payload.a}
-                              </p>
-                            )}
-                            {payload[0].payload.b != null && (
-                              <p style={{ color: COLOR_B, fontWeight: 600 }}>
-                                {handleB}: {payload[0].payload.b}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      }}
                     />
                     <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="a"
-                      name={handleA}
-                      stroke={COLOR_A}
-                      strokeWidth={2.5}
-                      dot={{ fill: COLOR_A, r: 3 }}
-                      activeDot={{ r: 5 }}
-                      connectNulls
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="b"
-                      name={handleB}
-                      stroke={COLOR_B}
-                      strokeWidth={2.5}
-                      dot={{ fill: COLOR_B, r: 3 }}
-                      activeDot={{ r: 5 }}
-                      connectNulls
-                    />
+                    {entries.map((e) => (
+                      <Line
+                        key={e.handle}
+                        type="monotone"
+                        dataKey={`values.${e.handle}`}
+                        name={e.handle}
+                        stroke={e.color}
+                        strokeWidth={2.5}
+                        dot={{ fill: e.color, r: 3 }}
+                        activeDot={{ r: 5 }}
+                        connectNulls
+                      />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             )}
           </section>
 
-          {/* 数据对比表格 */}
+          {/* 数据对比表格(每人一列) */}
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>数据对比</h3>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>指标</th>
-                  <th className={styles.valCol}>
-                    {handleA}
-                    {aWins < bWins && <span className={styles.roast}> 拉完了😂</span>}
-                  </th>
-                  <th className={styles.valCol}>
-                    {handleB}
-                    {bWins < aWins && <span className={styles.roast}> 拉完了😂</span>}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {tableRows.map((row) => {
-                  const side = betterSide(row.a, row.b);
-                  return (
-                    <tr key={row.label}>
-                      <td className={styles.metricCol}>{row.label}</td>
-                      <td
-                        className={`${styles.valCol} ${
-                          side === 'a' ? styles.higher : side === 'b' ? styles.lower : ''
-                        }`}
-                      >
-                        {row.fmt(row.a)}
-                      </td>
-                      <td
-                        className={`${styles.valCol} ${
-                          side === 'b' ? styles.higher : side === 'a' ? styles.lower : ''
-                        }`}
-                      >
-                        {row.fmt(row.b)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>指标</th>
+                    {entries.map((e) => (
+                      <th key={e.handle} className={styles.valCol} style={{ color: e.color }}>
+                        {e.handle}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableRows.map((row) => {
+                    // 找出最高值, 标绿
+                    const nums = selected.map((h) => row.values[h] ?? null).filter((v): v is number => v != null);
+                    const maxVal = nums.length ? Math.max(...nums) : null;
+                    return (
+                      <tr key={row.label}>
+                        <td className={styles.metricCol}>{row.label}</td>
+                        {selected.map((h) => {
+                          const v = row.values[h];
+                          const isMax = maxVal != null && v === maxVal;
+                          return (
+                            <td key={h} className={`${styles.valCol} ${isMax ? styles.higher : ''}`}>
+                              {row.fmt(v)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </section>
         </>
       )}
