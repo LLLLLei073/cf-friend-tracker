@@ -226,3 +226,10 @@
   cursor: pointer;
   accent-color: var(--accent);
 }
+
+/* 洛谷搜索结果里的 uid 小标注 */
+.subHint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 2px;
+}

@@ -20,7 +20,7 @@ export function aggregateTagStats(submissions: CFSubmission[]): TagStat[] {
   const tagMap = new Map<string, { ac: number; total: number }>();
 
   for (const sub of submissions) {
-    if (!sub.problem.contestId) continue;
+    if (!sub.problem || !sub.problem.contestId) continue;
     const key = `${sub.problem.contestId}-${sub.problem.index}`;
     const isAC = sub.verdict === 'OK';
 
@@ -93,7 +93,7 @@ export function getDifficultyDistribution(submissions: CFSubmission[]): Difficul
 
   for (const sub of submissions) {
     if (sub.verdict !== 'OK') continue;
-    if (!sub.problem.contestId) continue;
+    if (!sub.problem || !sub.problem.contestId) continue;
     const key = `${sub.problem.contestId}-${sub.problem.index}`;
     // 只取第一次 AC
     if (!acProblems.has(key)) {
@@ -260,7 +260,7 @@ export interface MonthlyStat {
 export function getMonthlyHeatmap(submissions: CFSubmission[]): MonthlyStat[] {
   const map = new Map<string, number>();
   for (const sub of submissions) {
-    if (sub.verdict !== 'OK' || !sub.problem.contestId) continue;
+    if (sub.verdict !== 'OK' || !sub.problem || !sub.problem.contestId) continue;
     const d = new Date(sub.creationTimeSeconds * 1000);
     const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     map.set(ym, (map.get(ym) ?? 0) + 1);
@@ -279,7 +279,7 @@ export function getMonthlyHeatmap(submissions: CFSubmission[]): MonthlyStat[] {
 export function getUniqueAcCount(submissions: CFSubmission[]): number {
   const set = new Set<string>();
   for (const sub of submissions) {
-    if (sub.verdict !== 'OK' || !sub.problem.contestId) continue;
+    if (sub.verdict !== 'OK' || !sub.problem || !sub.problem.contestId) continue;
     set.add(`${sub.problem.contestId}-${sub.problem.index}`);
   }
   return set.size;

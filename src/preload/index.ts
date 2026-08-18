@@ -7,6 +7,10 @@ import type {
   ContestPerformance,
   Friend,
   FriendCache,
+  LuoguCache,
+  NowcoderCache,
+  NowcoderUser,
+  PlatformAccount,
   RefreshProgress,
   Settings,
   SyncResult,
@@ -69,6 +73,34 @@ const api = {
       return () => ipcRenderer.removeListener('cf:refreshProgress', handler);
     },
   },
+  luogu: {
+    search: (name: string): Promise<PlatformAccount[]> => ipcRenderer.invoke('luogu:search', name),
+    refreshAll: (): Promise<number[]> => ipcRenderer.invoke('luogu:refreshAll'),
+    getCache: (uid: number): Promise<LuoguCache | undefined> => ipcRenderer.invoke('luogu:getCache', uid),
+    getAllCache: (): Promise<Record<number, LuoguCache>> => ipcRenderer.invoke('luogu:getAllCache'),
+    clearCache: (): Promise<boolean> => ipcRenderer.invoke('luogu:clearCache'),
+    onRefreshProgress: (callback: (progress: RefreshProgress) => void): (() => void) => {
+      const handler = (_event: IpcRendererEvent, data: RefreshProgress) => callback(data);
+      ipcRenderer.on('luogu:refreshProgress', handler);
+      return () => ipcRenderer.removeListener('luogu:refreshProgress', handler);
+    },
+  },
+  nowcoder: {
+    getUser: (id: number): Promise<NowcoderUser> => ipcRenderer.invoke('nowcoder:getUser', id),
+    refreshAll: (): Promise<number[]> => ipcRenderer.invoke('nowcoder:refreshAll'),
+    getCache: (id: number): Promise<NowcoderCache | undefined> => ipcRenderer.invoke('nowcoder:getCache', id),
+    getAllCache: (): Promise<Record<number, NowcoderCache>> => ipcRenderer.invoke('nowcoder:getAllCache'),
+    clearCache: (): Promise<boolean> => ipcRenderer.invoke('nowcoder:clearCache'),
+    getCookie: (): Promise<{ configured: boolean }> => ipcRenderer.invoke('nowcoder:getCookie'),
+    setCookie: (cookie: string): Promise<boolean> => ipcRenderer.invoke('nowcoder:setCookie', cookie),
+    loginAndFetchCookie: (): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('nowcoder:loginAndFetchCookie'),
+    onRefreshProgress: (callback: (progress: RefreshProgress) => void): (() => void) => {
+      const handler = (_event: IpcRendererEvent, data: RefreshProgress) => callback(data);
+      ipcRenderer.on('nowcoder:refreshProgress', handler);
+      return () => ipcRenderer.removeListener('nowcoder:refreshProgress', handler);
+    },
+  },
   store: {
     getFriends: (): Promise<Friend[]> => ipcRenderer.invoke('store:getFriends'),
     addFriend: (friend: Friend): Promise<boolean> => ipcRenderer.invoke('store:addFriend', friend),
@@ -107,6 +139,10 @@ const api = {
     setGroupDefs: (groups: string[]): Promise<boolean> => ipcRenderer.invoke('store:setGroupDefs', groups),
     setFriendGroups: (handle: string, groups: string[]): Promise<boolean> =>
       ipcRenderer.invoke('store:setFriendGroups', handle, groups),
+    linkLuogu: (handle: string, account: PlatformAccount): Promise<boolean> =>
+      ipcRenderer.invoke('store:linkLuogu', handle, account),
+    linkNowcoder: (handle: string, account: PlatformAccount): Promise<boolean> =>
+      ipcRenderer.invoke('store:linkNowcoder', handle, account),
   },
   updater: {
     checkForUpdates: (): Promise<{ status: UpdateStatus; info: UpdateInfo | null; error: string | null; appVersion: string }> =>

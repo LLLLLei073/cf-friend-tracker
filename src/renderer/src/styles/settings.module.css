@@ -298,6 +298,15 @@
   gap: 12px;
 }
 
+/* 平台开关行（与 notifyRow 同布局，独立命名便于语义区分） */
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  gap: 12px;
+}
+
 /* ---- 主题设置 ---- */
 .themeRow {
   display: flex;
@@ -400,4 +409,92 @@
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+/* ---- 我的关联账号 ---- */
+.muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.linkedRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.linkedLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 36px;
+}
+
+.linkedValue {
+  font-size: 14px;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.linkRemove {
+  padding: 3px 10px;
+  background: var(--danger-soft);
+  border: 1px solid rgba(196, 30, 58, 0.25);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+
+.linkRemove:hover {
+  background: #F5D5DA;
+  border-color: var(--danger);
+}
+
+.searchRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.searchRow .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.candidateList {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-input);
+}
+
+.candidateList li + li {
+  border-top: 1px solid var(--border);
+}
+
+.candidateBtn {
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.candidateBtn:hover {
+  background: var(--accent-soft);
 }

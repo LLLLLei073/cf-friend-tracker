@@ -60,6 +60,10 @@ export interface Friend {
   starred?: boolean;
   // 自定义分组: 一个好友可属于多个分组(如 队友/同学/大佬)
   groups?: string[];
+  // ---- 多平台账号 (Phase 0 起: 洛谷; 后续牛客) ----
+  // 一人 = 一条 Friend, 可挂 CF(handle) + 洛谷(uid) + 牛客(id) 多个平台账号
+  luogu?: PlatformAccount;   // 洛谷账号 (uid + 显示名)
+  nowcoder?: PlatformAccount;// 牛客账号 (id + 显示名), Phase 1b 接入
 }
 
 export interface FriendCache {
@@ -68,6 +72,86 @@ export interface FriendCache {
   ratingHistory: CFRatingChange[];
   recentSubmissions: CFSubmission[];
   cachedAt: number;
+}
+
+// ---- 多平台数据 (洛谷 / 牛客), Phase 0 起 ----
+// 平台账号标识: 挂在 Friend 上, 一人可关联多个平台
+export interface PlatformAccount {
+  uid: number;   // 洛谷 uid / 牛客 userId
+  name: string;  // 平台内显示名
+}
+
+// 洛谷用户 (字段名以 user/info 接口实测返回为准)
+export interface LuoguUser {
+  uid: number;
+  name: string;
+  avatar?: string;
+  slogan?: string;
+  passed: number;        // 通过题目数 (passedProblemCount)
+  submitted: number;     // 提交题目数 (submittedProblemCount)
+  ccfLevel?: number;     // CCF 等级 (0 起)
+  xcpcLevel?: number;    // ICPC 等级 (0 起)
+  color?: string;        // 等级颜色 (Gray/Blue/...), 用于徽章着色
+  ranking?: number | null; // 全站排名 (可能为 null)
+  followerCount?: number;
+  followingCount?: number;
+  elo?: number | null;   // 赛分 (elo/eloValue, 可能为 null)
+  registerTime?: number; // 注册时间 (秒)
+}
+
+export interface LuoguSubmission {
+  id: number;
+  pid: string;           // 题号, 如 P1001
+  title?: string;
+  status: string;        // AC / WA / ...
+  language?: string;
+  time: number;          // 提交时间 (秒)
+}
+
+export interface LuoguContest {
+  id: number;
+  name: string;
+  startTime: number;     // 秒
+  duration: number;      // 秒
+  status: 'pending' | 'running' | 'ended';
+}
+
+// 洛谷单用户缓存 (以洛谷 uid 为 key, 独立于 CF 的 cache)
+// 注: 洛谷匿名只读 API 仅 user/info 可用, 提交记录/比赛列表需登录态, 故本期 submissions 不填充
+export interface LuoguCache {
+  uid: number;
+  info: LuoguUser;
+  submissions?: LuoguSubmission[];
+  cachedAt: number;
+}
+
+// ---- 牛客数据 (Phase 1b) ----
+// 牛客无公开个人数据 API, 仅能逆向 ac.nowcoder.com 接口 + 用户自带 session cookie 获取。
+// 字段名以逆向实际返回为准(接口与签名随前端改版可能失效, 设计上必须可降级)。
+export interface NowcoderUser {
+  id: number;            // 牛客 userId
+  name: string;          // 展示昵称
+  avatar?: string;
+  rating?: number;       // 竞赛积分 / rating (字段以实测为准)
+  accepted?: number;     // 通过题数
+  solved?: number;       // 别名(部分接口用 solved 表示通过数)
+  // 其余字段联调时补全
+}
+
+// 牛客单用户缓存 (数据缺失或解析失败时 unavailable=true, 不阻断其它平台)
+export interface NowcoderCache {
+  id: number;
+  info: NowcoderUser;
+  cachedAt: number;
+  unavailable?: boolean; // 标记本次抓取失败/接口失效
+}
+
+export interface NowcoderContest {
+  id: number;
+  name: string;
+  startTime: number;
+  duration: number;
+  status: 'pending' | 'running' | 'ended';
 }
 
 export interface Settings {
@@ -98,6 +182,14 @@ export interface Settings {
   problemCacheDir: string;
   // ---- 系统托盘常驻: 开启后关闭窗口不退出应用, 后台驻留并定时刷新特别关注好友 ----
   enableTray: boolean;
+  // ---- 我的关联账号 (跨平台识别「我」, Phase 1a 起: 洛谷; 牛客 Phase 1b) ----
+  myLuogu?: PlatformAccount;     // 我的洛谷账号 (uid + 显示名)
+  myNowcoder?: PlatformAccount;  // 我的牛客账号, Phase 1b 接入
+  // ---- 牛客 session cookie (敏感凭证, 真实值存系统凭据库 keytar, 此处明文恒为空) ----
+  nowcoderCookie: string;
+  // ---- 平台开关: 关闭后对应平台不参与刷新/展示 ----
+  enableLuogu: boolean;
+  enableNowcoder: boolean;
 }
 
 export interface CFApiResponse<T> {
@@ -367,6 +459,8 @@ export interface BackupData {
   exportedAt: number;
   friends: Friend[];
   cache: Record<string, FriendCache>;
+  luoguCache: Record<number, LuoguCache>; // 洛谷缓存 (Phase 1a 起)
+  nowcoderCache: Record<number, NowcoderCache>; // 牛客缓存 (Phase 1b 起)
   settings: Settings;
   teams: Team[];
   windowState: WindowState | null;

@@ -203,3 +203,16 @@
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
+
+/* 洛谷榜单: 洛谷名按等级色着色 */
+.luoguName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 牛客榜单: 牛客名 */
+.nowcoderName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2B6CB0;
+}

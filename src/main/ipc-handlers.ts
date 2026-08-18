@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { StoreManager } from './store';
 import { fetchUserInfo, fetchUserInfoSafe, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests, fetchContestPerformance, fetchContestStandings, fetchBlogEntries } from './cf-api';
+import { searchLuoguUser, fetchLuoguUserDetail } from './luogu-api';
+import { fetchNowcoderUser, NowcoderNoCookieError } from './nowcoder-api';
 import { checkForUpdates, installUpdate, getUpdateStatus } from './updater';
 import { checkRatingChanges, checkMilestones, checkContestReminders } from './notifier';
 import { predictContest } from './predictor';
@@ -14,6 +16,10 @@ import type {
   Friend,
   Settings,
   CFUser,
+  LuoguCache,
+  NowcoderCache,
+  NowcoderUser,
+  PlatformAccount,
   Team,
   TeamAIResult,
   AIConnectionResult,
@@ -37,6 +43,20 @@ import type {
 function sendProgress(progress: RefreshProgress): void {
   BrowserWindow.getAllWindows().forEach((win) => {
     win.webContents.send('cf:refreshProgress', progress);
+  });
+}
+
+// 洛谷刷新进度广播 (独立事件名, 与 CF 刷新互不干扰)
+function sendLuoguProgress(progress: RefreshProgress): void {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    win.webContents.send('luogu:refreshProgress', progress);
+  });
+}
+
+// 牛客刷新进度广播 (独立事件名, 与 CF/洛谷刷新互不干扰)
+function sendNowcoderProgress(progress: RefreshProgress): void {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    win.webContents.send('nowcoder:refreshProgress', progress);
   });
 }
 
@@ -186,6 +206,224 @@ export function registerIpcHandlers(store: StoreManager): void {
     checkMilestones(store, oldCaches);
 
     return infos;
+  });
+
+  // ---- 洛谷数据 (Phase 1a) ----
+  // 按洛谷用户名搜索候选 (解析 uid, 用于 AddFriend 洛谷 tab)
+  ipcMain.handle('luogu:search', async (_event, name: string): Promise<PlatformAccount[]> => {
+    if (!name || !name.trim()) return [];
+    return searchLuoguUser(name.trim());
+  });
+
+  // 安全刷新单个洛谷用户: 失败仍写入基础信息(匿名接口仅 user/info 可用),
+  // 返回是否成功。逐 uid 调用, 各自容错。
+  async function refreshLuoguCacheSafe(store: StoreManager, uid: number): Promise<boolean> {
+    try {
+      const info = await fetchLuoguUserDetail(uid);
+      store.setLuoguCache(uid, {
+        uid,
+        info,
+        submissions: [],
+        cachedAt: Date.now(),
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // 刷新全部有洛谷账号的好友 (遍历 friends 的 luogu 字段, 逐 uid 刷新)
+  // 受设置 enableLuogu 门控: 关闭时直接跳过 (视为空刷新, 不报错)
+  ipcMain.handle('luogu:refreshAll', async (): Promise<number[]> => {
+    const settings = store.getSettings();
+    if (!settings.enableLuogu) {
+      sendLuoguProgress({ completed: 0, total: 0, errors: [] });
+      return [];
+    }
+    const friends = store.getFriends().filter((f) => f.luogu);
+    const uids = friends.map((f) => f.luogu!.uid);
+    if (uids.length === 0) {
+      sendLuoguProgress({ completed: 0, total: 0, errors: [] });
+      return [];
+    }
+    const total = uids.length;
+    const errors: string[] = [];
+    let completed = 0;
+    for (const uid of uids) {
+      const ok = await refreshLuoguCacheSafe(store, uid);
+      if (!ok) errors.push(String(uid));
+      completed++;
+      sendLuoguProgress({ handle: String(uid), completed, total, errors });
+    }
+    if (uids.length === 0) {
+      sendLuoguProgress({ completed: total, total, errors });
+    }
+    return uids;
+  });
+
+  ipcMain.handle('luogu:getCache', (_event, uid: number): LuoguCache | undefined => {
+    return store.getLuoguCache(uid);
+  });
+
+  ipcMain.handle('luogu:getAllCache', (): Record<number, LuoguCache> => {
+    return store.getAllLuoguCache();
+  });
+
+  ipcMain.handle('luogu:clearCache', (): boolean => {
+    store.clearLuoguCache();
+    return true;
+  });
+
+  // ---- 牛客数据 (Phase 1b, 需用户 session cookie, 可降级) ----
+  // 按牛客 userId 拉取资料。无 cookie 时抛 NO_COOKIE, 由渲染层提示配置。
+  ipcMain.handle('nowcoder:getUser', async (_event, id: number): Promise<NowcoderUser> => {
+    const cookie = await store.getNowcoderCookieAsync();
+    if (!cookie) {
+      throw new NowcoderNoCookieError();
+    }
+    return fetchNowcoderUser(id, cookie);
+  });
+
+  // 安全刷新单个牛客用户: 失败写入 unavailable 缓存, 不阻断其它平台
+  async function refreshNowcoderCacheSafe(store: StoreManager, id: number, cookie: string): Promise<boolean> {
+    try {
+      const info = await fetchNowcoderUser(id, cookie);
+      store.setNowcoderCache(id, { id, info, cachedAt: Date.now() });
+      return true;
+    } catch (e) {
+      // 任何失败都标记该用户不可用, 保留旧缓存(若有)
+      const prev = store.getNowcoderCache(id);
+      store.setNowcoderCache(id, {
+        id,
+        info: prev?.info ?? { id, name: '' },
+        cachedAt: Date.now(),
+        unavailable: true,
+      });
+      return false;
+    }
+  }
+
+  // 刷新全部有牛客账号的好友。受 enableNowcoder 门控, 且必须已配置 cookie。
+  ipcMain.handle('nowcoder:refreshAll', async (): Promise<number[]> => {
+    const settings = store.getSettings();
+    const cookie = await store.getNowcoderCookieAsync();
+    if (!settings.enableNowcoder || !cookie) {
+      sendNowcoderProgress({ completed: 0, total: 0, errors: [] });
+      return [];
+    }
+    const friends = store.getFriends().filter((f) => f.nowcoder);
+    const ids = friends.map((f) => f.nowcoder!.uid);
+    if (ids.length === 0) {
+      sendNowcoderProgress({ completed: 0, total: 0, errors: [] });
+      return [];
+    }
+    const total = ids.length;
+    const errors: string[] = [];
+    let completed = 0;
+    for (const id of ids) {
+      const ok = await refreshNowcoderCacheSafe(store, id, cookie);
+      if (!ok) errors.push(String(id));
+      completed++;
+      sendNowcoderProgress({ handle: String(id), completed, total, errors });
+    }
+    if (ids.length === 0) {
+      sendNowcoderProgress({ completed: total, total, errors });
+    }
+    return ids;
+  });
+
+  ipcMain.handle('nowcoder:getCache', (_event, id: number): NowcoderCache | undefined => {
+    return store.getNowcoderCache(id);
+  });
+
+  ipcMain.handle('nowcoder:getAllCache', (): Record<number, NowcoderCache> => {
+    return store.getAllNowcoderCache();
+  });
+
+  ipcMain.handle('nowcoder:clearCache', (): boolean => {
+    store.clearNowcoderCache();
+    return true;
+  });
+
+  // 牛客 cookie 存取 (真实值存系统凭据库 keytar; 仅返回是否存在, 不回明文)
+  ipcMain.handle('nowcoder:getCookie', async (): Promise<{ configured: boolean }> => {
+    const cookie = await store.getNowcoderCookieAsync();
+    return { configured: !!cookie };
+  });
+
+  ipcMain.handle('nowcoder:setCookie', async (_event, cookie: string): Promise<boolean> => {
+    await store.setNowcoderCookieAsync(cookie ?? '');
+    return true;
+  });
+
+  // 牛客一键登录获取 cookie：弹出独立登录窗口（内存会话，不污染主 session），
+  // 用户登录后自动抓取 NOWCODERUID 等 cookie 并保存到 keytar，免手动复制。
+  let nowcoderLoginWin: BrowserWindow | null = null;
+  ipcMain.handle('nowcoder:loginAndFetchCookie', async (): Promise<{ ok: boolean; error?: string }> => {
+    if (nowcoderLoginWin && !nowcoderLoginWin.isDestroyed()) {
+      nowcoderLoginWin.focus();
+      return { ok: false, error: '登录窗口已打开，请在该窗口完成登录' };
+    }
+    const parentWin = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+    return new Promise((resolve) => {
+      const win = new BrowserWindow({
+        width: 1100,
+        height: 760,
+        parent: parentWin,
+        title: '牛客登录 - 登录成功后自动获取 Cookie',
+        webPreferences: {
+          partition: 'nowcoder-login',
+          contextIsolation: true,
+          sandbox: true,
+        },
+      });
+      nowcoderLoginWin = win;
+      let settled = false;
+      const finish = (result: { ok: boolean; error?: string }) => {
+        if (settled) return;
+        settled = true;
+        try {
+          if (!win.isDestroyed()) win.close();
+        } catch {
+          /* noop */
+        }
+        nowcoderLoginWin = null;
+        clearTimeout(timer);
+        resolve(result);
+      };
+      const timer = setTimeout(
+        () => finish({ ok: false, error: '登录超时（5 分钟未检测到登录态）' }),
+        5 * 60 * 1000,
+      );
+
+      const checkCookie = async () => {
+        try {
+          const cookies = await win.webContents.session.cookies.get({ url: 'https://ac.nowcoder.com' });
+          const uid = cookies.find((c) => c.name === 'NOWCODERUID' && c.value);
+          if (uid) {
+            const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+            await store.setNowcoderCookieAsync(cookieStr);
+            finish({ ok: true });
+          }
+        } catch {
+          /* noop */
+        }
+      };
+
+      win.webContents.on('did-navigate', () => {
+        void checkCookie();
+      });
+      win.webContents.on('did-navigate-in-page', () => {
+        void checkCookie();
+      });
+      win.on('closed', () => {
+        nowcoderLoginWin = null;
+        finish({ ok: false, error: '用户已关闭登录窗口' });
+      });
+      void win.loadURL('https://ac.nowcoder.com/').catch(() =>
+        finish({ ok: false, error: '无法打开牛客登录页，请检查网络后重试' }),
+      );
+    });
   });
 
   // ---- Store: Friends ----
@@ -840,6 +1078,16 @@ export function registerIpcHandlers(store: StoreManager): void {
 
   ipcMain.handle('store:setFriendGroups', (_event, handle: string, groups: string[]) => {
     return store.setFriendGroups(handle, groups);
+  });
+
+  // 关联某好友的洛谷账号 (AddFriend 洛谷 tab 的「关联到已有好友」使用)
+  ipcMain.handle('store:linkLuogu', (_event, handle: string, account: PlatformAccount): boolean => {
+    return store.linkLuogu(handle, account);
+  });
+
+  // 关联某好友的牛客账号 (AddFriend 牛客 tab 的「关联到已有好友」使用)
+  ipcMain.handle('store:linkNowcoder', (_event, handle: string, account: PlatformAccount): boolean => {
+    return store.linkNowcoder(handle, account);
   });
 
   // ---- 本地收藏题目 ----

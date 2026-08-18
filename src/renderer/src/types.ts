@@ -31,4 +31,13 @@ export type {
   NotificationItem,
   FavoriteProblem,
   BlogEntry,
+  // ---- 多平台 (洛谷 / 牛客) ----
+  PlatformAccount,
+  LuoguUser,
+  LuoguSubmission,
+  LuoguContest,
+  LuoguCache,
+  NowcoderUser,
+  NowcoderCache,
+  NowcoderContest,
 } from '../../shared/types';

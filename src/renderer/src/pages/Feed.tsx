@@ -258,6 +258,7 @@ export default function Feed() {
       const seenProblems = new Set<string>();
       for (const s of submissions) {
         if (s.verdict !== 'OK') continue;
+        if (!s.problem) continue;
         const key = `${s.problem.contestId}-${s.problem.index}`;
         if (seenProblems.has(key)) continue;
         seenProblems.add(key);
@@ -315,6 +316,7 @@ export default function Feed() {
       for (const s of submissions) {
         if (s.verdict !== 'OK') continue;
         if (s.creationTimeSeconds < todaySec) continue;
+        if (!s.problem) continue;
         const key = `${s.problem.contestId}-${s.problem.index}`;
         if (seenProblems.has(key)) continue;
         seenProblems.add(key);

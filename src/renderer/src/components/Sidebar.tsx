@@ -177,6 +177,10 @@ export default function Sidebar() {
     setRefreshingHandles(new Set(fr.map((f) => f.handle)));
     try {
       await window.api.cf.refreshAll();
+      // 洛谷账号并行刷新(不阻塞 UI, 完成由 useAppData 监听 luogu:refreshProgress 重载缓存)
+      window.api.luogu.refreshAll().catch((e) => console.error('Luogu refresh failed:', e));
+      // 牛客账号并行刷新(可降级: 未配置 cookie / 未开启平台开关时服务端直接跳过)
+      window.api.nowcoder.refreshAll().catch((e) => console.error('Nowcoder refresh failed:', e));
       // 同时刷新自己的信息
       const settings = await window.api.store.getSettings();
       if (settings.myHandle) {

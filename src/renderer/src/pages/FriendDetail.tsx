@@ -18,7 +18,7 @@ import {
   Cell,
   Legend,
 } from 'recharts';
-import type { FriendCache, CFProblem } from '../types';
+import type { FriendCache, CFProblem, CFSubmission } from '../types';
 import { getRankColor, getRankLabel, getRatingColor } from '../utils/rank';
 import { NO_AVATAR } from '../utils/helpers';
 import {
@@ -165,7 +165,9 @@ export default function FriendDetail() {
           handle,
           info: info[0],
           ratingHistory: ratingRes.status === 'fulfilled' ? ratingRes.value : [],
-          recentSubmissions: subRes.status === 'fulfilled' ? subRes.value : [],
+          recentSubmissions: (subRes.status === 'fulfilled' ? subRes.value : []).filter(
+            (s) => !!s && !!s.problem
+          ),
           cachedAt: Date.now(),
         };
         setCache(newCache);
@@ -186,6 +188,14 @@ export default function FriendDetail() {
   }, [handle]);
 
   // --- Compute heatmap data from friend's submissions ---
+  // 防御：历史版本缓存或接口异常可能让某条提交缺少 problem 字段，
+  // 直接读 sub.problem.contestId 等会抛错并触发全局 ErrorBoundary（"应用出错"）。
+  // 在这里统一过滤掉缺 problem 的提交，保证后续所有渲染安全。
+  const safeSubmissions = useMemo<CFSubmission[]>(
+    () => (cache?.recentSubmissions ?? []).filter((s): s is CFSubmission => !!s && !!s.problem),
+    [cache]
+  );
+
   const heatmapData = useMemo<HeatmapDay[]>(() => {
     if (!cache?.recentSubmissions) return [];
 
@@ -195,7 +205,7 @@ export default function FriendDetail() {
     // Build daily unique AC problem sets
     const dailyProblems = new Map<string, Set<string>>();
 
-    for (const sub of cache.recentSubmissions) {
+    for (const sub of safeSubmissions) {
       if (sub.verdict !== 'OK') continue;
       if (!sub.problem.contestId) continue;
 
@@ -242,12 +252,12 @@ export default function FriendDetail() {
   }, [heatmapData]);
 
   // --- Analytics computation ---
-  const tagStats = useMemo(() => aggregateTagStats(cache?.recentSubmissions ?? []), [cache]);
+  const tagStats = useMemo(() => aggregateTagStats(safeSubmissions), [safeSubmissions]);
   const radarData = useMemo(() => getRadarData(tagStats), [tagStats]);
   const weakTags = useMemo(() => getWeakTags(tagStats), [tagStats]);
-  const difficultyDistribution = useMemo(() => getDifficultyDistribution(cache?.recentSubmissions ?? []), [cache]);
-  const verdictDistribution = useMemo(() => getVerdictDistribution(cache?.recentSubmissions ?? []), [cache]);
-  const streak = useMemo(() => calculateStreak(cache?.recentSubmissions ?? []), [cache]);
+  const difficultyDistribution = useMemo(() => getDifficultyDistribution(safeSubmissions), [safeSubmissions]);
+  const verdictDistribution = useMemo(() => getVerdictDistribution(safeSubmissions), [safeSubmissions]);
+  const streak = useMemo(() => calculateStreak(safeSubmissions), [safeSubmissions]);
 
   // --- Load recommendations when cache is available ---
   useEffect(() => {
@@ -255,7 +265,7 @@ export default function FriendDetail() {
 
     // Extract friend's AC problems
     const friendAC = new Map<string, CFProblem>();
-    for (const sub of cache.recentSubmissions) {
+    for (const sub of safeSubmissions) {
       if (sub.verdict !== 'OK') continue;
       if (!sub.problem.contestId) continue;
       const key = `${sub.problem.contestId}-${sub.problem.index}`;
@@ -289,7 +299,7 @@ export default function FriendDetail() {
         // Extract my AC problems
         const myAC = new Set<string>();
         for (const sub of myCache.recentSubmissions) {
-          if (sub.verdict === 'OK' && sub.problem.contestId) {
+          if (sub.verdict === 'OK' && sub.problem?.contestId) {
             myAC.add(`${sub.problem.contestId}-${sub.problem.index}`);
           }
         }
@@ -378,7 +388,7 @@ export default function FriendDetail() {
     );
   }
 
-  const { info, ratingHistory, recentSubmissions, cachedAt } = cache;
+  const { info, ratingHistory, cachedAt } = cache;
   const online = Date.now() / 1000 - info.lastOnlineTimeSeconds < 300;
 
   return (
@@ -603,11 +613,11 @@ export default function FriendDetail() {
 
       <section className={styles.section} ref={(el) => { sectionRefs.current['submissions'] = el; }}>
         <h3 className={styles.sectionTitle}>最近提交</h3>
-        {recentSubmissions.length === 0 ? (
+        {safeSubmissions.length === 0 ? (
           <p className={styles.emptyText}>暂无提交记录</p>
         ) : (
           <div className={styles.submissions}>
-            {recentSubmissions.slice(0, 20).map((s) => (
+            {safeSubmissions.slice(0, 20).map((s) => (
               <div key={s.id} className={styles.submission}>
                 <span
                   className={`${styles.verdict} ${

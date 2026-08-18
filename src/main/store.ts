@@ -3,6 +3,9 @@ import { randomUUID } from 'crypto';
 import type {
   Friend,
   FriendCache,
+  LuoguCache,
+  NowcoderCache,
+  PlatformAccount,
   Settings,
   Team,
   TeamAIResult,
@@ -28,6 +31,7 @@ try {
 }
 const KEYTAR_SERVICE = 'cf-friend-tracker';
 const KEYTAR_ACCOUNT = 'aiApiKey';
+const KEYTAR_NC_ACCOUNT = 'nowcoderCookie';
 // 标记是否已把明文 key 迁移到凭据库, 避免重复迁移
 let keytarMigrated = false;
 
@@ -49,12 +53,19 @@ const DEFAULT_SETTINGS: Settings = {
   cppCompilerPath: '',
   problemCacheDir: '',
   enableTray: false,
+  myLuogu: undefined,     // 我的洛谷账号 (Phase 1a 起, 跨平台识别「我」)
+  myNowcoder: undefined,  // 我的牛客账号, Phase 1b 接入
+  nowcoderCookie: '',     // 牛客 session cookie (真实值存 keytar, 此处恒空)
+  enableLuogu: true,      // 洛谷平台开关 (默认开)
+  enableNowcoder: false,  // 牛客平台开关 (默认关: 牛客脆弱, 需用户主动开启并填 cookie)
 };
 
 // 持久化数据的 schema, 用于让 electron-store 的 get/set 获得类型安全
 type StoreSchema = {
   friends: Friend[];
   cache: Record<string, FriendCache>;
+  luoguCache: Record<number, LuoguCache>; // 洛谷单用户缓存, key = 洛谷 uid (Phase 1a 起)
+  nowcoderCache: Record<number, NowcoderCache>; // 牛客单用户缓存, key = 牛客 id (Phase 1b 起)
   settings: Settings;
   teams: Team[];
   windowState: WindowState | null;
@@ -88,6 +99,8 @@ export class StoreManager {
       defaults: {
         friends: [],
         cache: {},
+        luoguCache: {},
+        nowcoderCache: {},
         settings: DEFAULT_SETTINGS,
         teams: [],
         windowState: null,
@@ -115,11 +128,27 @@ export class StoreManager {
   }
 
   removeFriend(handle: string): void {
+    // 先取出待删除好友的记录, 以便反查其挂载的洛谷/牛客 id, 一并清理多平台缓存
+    const target = this.getFriends().find((f) => f.handle === handle);
     const friends = this.getFriends().filter((f) => f.handle !== handle);
     safeSet(this.store, 'friends', friends);
+
     const cache = this.store.get('cache');
     delete cache[handle];
     safeSet(this.store, 'cache', cache);
+
+    if (target) {
+      if (target.luogu) {
+        const luoguMap = this.store.get('luoguCache');
+        delete luoguMap[target.luogu.uid];
+        safeSet(this.store, 'luoguCache', luoguMap);
+      }
+      if (target.nowcoder) {
+        const ncMap = this.store.get('nowcoderCache');
+        delete ncMap[target.nowcoder.uid];
+        safeSet(this.store, 'nowcoderCache', ncMap);
+      }
+    }
   }
 
   updateFriend(handle: string, alias: string): boolean {
@@ -161,12 +190,51 @@ export class StoreManager {
     safeSet(this.store, 'cache', {});
   }
 
+  // ---- 洛谷缓存 (Phase 1a 起, key = 洛谷 uid) ----
+  getLuoguCache(uid: number): LuoguCache | undefined {
+    return this.store.get('luoguCache')[uid];
+  }
+
+  setLuoguCache(uid: number, data: LuoguCache): void {
+    const map = this.store.get('luoguCache');
+    map[uid] = data;
+    safeSet(this.store, 'luoguCache', map);
+  }
+
+  getAllLuoguCache(): Record<number, LuoguCache> {
+    return this.store.get('luoguCache');
+  }
+
+  clearLuoguCache(): void {
+    safeSet(this.store, 'luoguCache', {});
+  }
+
+  // ---- 牛客缓存 (Phase 1b 起, key = 牛客 id) ----
+  getNowcoderCache(id: number): NowcoderCache | undefined {
+    return this.store.get('nowcoderCache')[id];
+  }
+
+  setNowcoderCache(id: number, data: NowcoderCache): void {
+    const map = this.store.get('nowcoderCache');
+    map[id] = data;
+    safeSet(this.store, 'nowcoderCache', map);
+  }
+
+  getAllNowcoderCache(): Record<number, NowcoderCache> {
+    return this.store.get('nowcoderCache');
+  }
+
+  clearNowcoderCache(): void {
+    safeSet(this.store, 'nowcoderCache', {});
+  }
+
   // ---- Settings ----
   // 同步读取设置(从 electron-store)。aiApiKey 字段在 keytar 可用时可能为空
   // (已迁移到系统凭据库), 需要真实 key 时用 getApiKeyAsync()。
   // 不需要 aiApiKey 的场景(通知/预测/窗口等)直接用此同步方法即可。
   getSettings(): Settings {
-    return { ...DEFAULT_SETTINGS, ...this.store.get('settings') };
+    // nowcoderCookie 真实值存于系统凭据库, 此处始终返回空字符串, 避免明文落盘
+    return { ...DEFAULT_SETTINGS, ...this.store.get('settings'), nowcoderCookie: '' };
   }
 
   // 异步读取 aiApiKey: 优先系统凭据库(keytar), 回退 store 明文。
@@ -216,6 +284,34 @@ export class StoreManager {
       // 迁移失败保留明文
     }
     keytarMigrated = true;
+  }
+
+  // ---- 牛客 session cookie (敏感凭证, 同 aiApiKey 走 keytar) ----
+  // 真实 cookie 仅存系统凭据库, store 明文 nowcoderCookie 恒为空。
+  async getNowcoderCookieAsync(): Promise<string> {
+    if (keytar) {
+      try {
+        const stored = await keytar.getPassword(KEYTAR_SERVICE, KEYTAR_NC_ACCOUNT);
+        if (stored) return stored;
+      } catch {
+        /* 回退空 */
+      }
+    }
+    return '';
+  }
+
+  async setNowcoderCookieAsync(cookie: string): Promise<void> {
+    if (keytar) {
+      try {
+        await keytar.setPassword(KEYTAR_SERVICE, KEYTAR_NC_ACCOUNT, cookie ?? '');
+        return;
+      } catch {
+        // 凭据库写入失败: 回退明文 (更不安全, 但保证功能可用)
+      }
+    }
+    // 无 keytar 时回退: 明文存于 store (nowcoderCookie 字段)
+    const s = this.store.get('settings');
+    safeSet(this.store, 'settings', { ...s, nowcoderCookie: cookie ?? '' });
   }
 
   // ---- Teams ----
@@ -386,6 +482,26 @@ export class StoreManager {
     return true;
   }
 
+  // 关联某好友的洛谷账号 (AddFriend 洛谷 tab 的「关联到已有好友」使用)
+  linkLuogu(handle: string, account: PlatformAccount): boolean {
+    const friends = this.getFriends();
+    const idx = friends.findIndex((f) => f.handle === handle);
+    if (idx < 0) return false;
+    friends[idx] = { ...friends[idx], luogu: account };
+    safeSet(this.store, 'friends', friends);
+    return true;
+  }
+
+  // 关联某好友的牛客账号 (AddFriend 牛客 tab 的「关联到已有好友」使用)
+  linkNowcoder(handle: string, account: PlatformAccount): boolean {
+    const friends = this.getFriends();
+    const idx = friends.findIndex((f) => f.handle === handle);
+    if (idx < 0) return false;
+    friends[idx] = { ...friends[idx], nowcoder: account };
+    safeSet(this.store, 'friends', friends);
+    return true;
+  }
+
   // ---- 数据备份与迁移 ----
   // 导出全部持久化数据为可序列化对象(用于写文件迁移到另一台机器)
   exportAll(): BackupData {
@@ -394,6 +510,8 @@ export class StoreManager {
       exportedAt: Date.now(),
       friends: this.getFriends(),
       cache: this.getAllCache(),
+      luoguCache: this.getAllLuoguCache(),
+      nowcoderCache: this.getAllNowcoderCache(),
       settings: this.getSettings(),
       teams: this.getTeams(),
       windowState: this.getWindowState(),
@@ -410,6 +528,8 @@ export class StoreManager {
       if (!data || typeof data !== 'object') return { ok: false, error: '备份文件格式无效' };
       if (Array.isArray(data.friends)) safeSet(this.store, 'friends', data.friends);
       if (data.cache && typeof data.cache === 'object') safeSet(this.store, 'cache', data.cache);
+      if (data.luoguCache && typeof data.luoguCache === 'object') safeSet(this.store, 'luoguCache', data.luoguCache);
+      if (data.nowcoderCache && typeof data.nowcoderCache === 'object') safeSet(this.store, 'nowcoderCache', data.nowcoderCache);
       if (data.settings && typeof data.settings === 'object') {
         // 与默认值合并, 保证新字段有默认值, 向后兼容旧备份
         const merged = { ...DEFAULT_SETTINGS, ...data.settings };

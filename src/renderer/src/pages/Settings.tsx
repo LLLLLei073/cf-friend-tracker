@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import type { Settings as SettingsType, UpdateStatus, UpdateInfo, UpdateProgress } from '../types';
+import type { Settings as SettingsType, UpdateStatus, UpdateInfo, UpdateProgress, PlatformAccount } from '../types';
 import ChangelogModal from '../components/ChangelogModal';
 import Markdown from '../components/Markdown';
 import styles from '../styles/settings.module.css';
@@ -32,10 +32,29 @@ export default function Settings() {
   const [aiTesting, setAiTesting] = useState(false);
   const [aiTestMsg, setAiTestMsg] = useState('');
 
+  // 我的关联账号（洛谷）
+  const [luoguQuery, setLuoguQuery] = useState('');
+  const [luoguCandidates, setLuoguCandidates] = useState<PlatformAccount[]>([]);
+  const [luoguSearching, setLuoguSearching] = useState(false);
+  const [luoguSearchMsg, setLuoguSearchMsg] = useState('');
+
+  // 我的关联账号（牛客）
+  const [ncIdQuery, setNcIdQuery] = useState('');
+  const [ncVerifying, setNcVerifying] = useState(false);
+  const [ncVerifyMsg, setNcVerifyMsg] = useState('');
+  // 牛客 session cookie（敏感，存系统凭据库；UI 不回显明文，只显示是否已配置）
+  const [cookieConfigured, setCookieConfigured] = useState(false);
+  const [cookieInput, setCookieInput] = useState('');
+  const [cookieSaving, setCookieSaving] = useState(false);
+  const [cookieMsg, setCookieMsg] = useState('');
+  const [cookieLogging, setCookieLogging] = useState(false);
+
   useEffect(() => {
     (async () => {
       const s = await window.api.store.getSettings();
       setSettings(s);
+      const nc = await window.api.nowcoder.getCookie();
+      setCookieConfigured(nc.configured);
       const result = await window.api.updater.getStatus();
       setUpdateStatus(result.status);
       setUpdateInfo(result.info);
@@ -78,7 +97,7 @@ export default function Settings() {
       return;
     }
     window.api.store.setSettings(settings);
-  }, [settings?.theme, settings?.defaultPage, settings?.notifyRatingChange, settings?.notifyContestStart, settings?.contestNotifyMinutes, settings?.launchRefreshStarredOnly, settings?.enableTray, settings?.aiApiBase, settings?.aiApiKey, settings?.aiModel]);
+  }, [settings?.theme, settings?.defaultPage, settings?.notifyRatingChange, settings?.notifyContestStart, settings?.contestNotifyMinutes, settings?.launchRefreshStarredOnly, settings?.enableTray, settings?.aiApiBase, settings?.aiApiKey, settings?.aiModel, settings?.enableLuogu, settings?.enableNowcoder]);
 
   const handleSave = async () => {
     if (!settings) return;
@@ -163,6 +182,142 @@ export default function Settings() {
     }
   };
 
+  // ---- 我的关联账号: 洛谷 ----
+  const handleSearchLuogu = async () => {
+    const q = luoguQuery.trim();
+    if (!q) return;
+    setLuoguSearching(true);
+    setLuoguSearchMsg('');
+    setLuoguCandidates([]);
+    try {
+      const res = await window.api.luogu.search(q);
+      if (res && res.length > 0) {
+        setLuoguCandidates(res);
+      } else {
+        setLuoguSearchMsg('未找到匹配的洛谷账号');
+      }
+    } catch (e) {
+      setLuoguSearchMsg(`搜索失败: ${(e as Error).message}`);
+    } finally {
+      setLuoguSearching(false);
+    }
+  };
+
+  const handleLinkLuogu = async (acc: PlatformAccount) => {
+    if (!settings) return;
+    const next = { ...settings, myLuogu: acc };
+    setSettings(next);
+    setLuoguCandidates([]);
+    setLuoguQuery('');
+    setLuoguSearchMsg('已选择，正在保存…');
+    try {
+      await window.api.store.setSettings(next);
+      setLuoguSearchMsg(`已关联洛谷账号「${acc.name}」`);
+    } catch (e) {
+      setLuoguSearchMsg(`保存失败: ${(e as Error).message}`);
+    }
+  };
+
+  const handleUnlinkLuogu = async () => {
+    if (!settings) return;
+    const next = { ...settings, myLuogu: undefined };
+    setSettings(next);
+    setLuoguSearchMsg('');
+    try {
+      await window.api.store.setSettings(next);
+    } catch (e) {
+      setLuoguSearchMsg(`解除失败: ${(e as Error).message}`);
+    }
+  };
+
+  // ---- 我的关联账号: 牛客 ----
+  const handleVerifyNowcoder = async () => {
+    const raw = ncIdQuery.trim();
+    if (!/^\d+$/.test(raw)) {
+      setNcVerifyMsg('请输入有效的牛客数字用户 ID');
+      return;
+    }
+    const id = parseInt(raw, 10);
+    if (!cookieConfigured) {
+      setNcVerifyMsg('请先在下方配置牛客 Session Cookie 后再校验');
+      return;
+    }
+    setNcVerifying(true);
+    setNcVerifyMsg('');
+    try {
+      const user = await window.api.nowcoder.getUser(id);
+      const acc: PlatformAccount = { uid: user.id, name: user.name };
+      const next = { ...settings!, myNowcoder: acc };
+      setSettings(next);
+      setNcIdQuery('');
+      try {
+        await window.api.store.setSettings(next);
+        setNcVerifyMsg(`已关联牛客账号「${user.name}」`);
+      } catch (e) {
+        setNcVerifyMsg(`保存失败: ${(e as Error).message}`);
+      }
+    } catch (e) {
+      const err = e as Error;
+      if (err.name === 'NowcoderNoCookieError' || err.message === 'NO_COOKIE') {
+        setNcVerifyMsg('Cookie 无效或已过期，请重新配置后重试');
+        setCookieConfigured(false);
+      } else {
+        setNcVerifyMsg(`校验失败: ${err.message}`);
+      }
+    } finally {
+      setNcVerifying(false);
+    }
+  };
+
+  const handleUnlinkNowcoder = async () => {
+    if (!settings) return;
+    const next = { ...settings, myNowcoder: undefined };
+    setSettings(next);
+    setNcVerifyMsg('');
+    try {
+      await window.api.store.setSettings(next);
+    } catch (e) {
+      setNcVerifyMsg(`解除失败: ${(e as Error).message}`);
+    }
+  };
+
+  const handleSaveCookie = async () => {
+    const cookie = cookieInput.trim();
+    if (!cookie) return;
+    setCookieSaving(true);
+    setCookieMsg('');
+    try {
+      await window.api.nowcoder.setCookie(cookie);
+      setCookieConfigured(true);
+      setCookieInput('');
+      setCookieMsg('✓ Cookie 已保存（仅存于系统凭据库）');
+    } catch (e) {
+      setCookieMsg(`保存失败: ${(e as Error).message}`);
+    } finally {
+      setCookieSaving(false);
+      setTimeout(() => setCookieMsg(''), 4000);
+    }
+  };
+
+  const handleLoginFetch = async () => {
+    setCookieLogging(true);
+    setCookieMsg('');
+    try {
+      const r = await window.api.nowcoder.loginAndFetchCookie();
+      if (r.ok) {
+        setCookieConfigured(true);
+        setCookieMsg('✓ 已自动获取并保存 Cookie');
+      } else {
+        setCookieMsg(r.error || '未获取到 Cookie');
+      }
+    } catch (e) {
+      setCookieMsg(`获取失败: ${(e as Error).message}`);
+    } finally {
+      setCookieLogging(false);
+      setTimeout(() => setCookieMsg(''), 5000);
+    }
+  };
+
   // 渲染更新状态文本
   const renderUpdateStatus = () => {
     switch (updateStatus) {
@@ -230,6 +385,173 @@ export default function Settings() {
             onChange={(e) => setSettings({ ...settings, myHandle: e.target.value })}
             className={styles.input}
           />
+        </div>
+
+        {/* ---- 我的关联账号 ---- */}
+        <div className={styles.updateSection}>
+          <label className={styles.updateLabel}>我的关联账号</label>
+          <p className={styles.updateHint}>关联你自己的洛谷 / 牛客账号，跨平台功能（如排行、刷新）会据此识别「我」。</p>
+
+          <div className={styles.linkedRow}>
+            <span className={styles.linkedLabel}>洛谷</span>
+            {settings.myLuogu ? (
+              <span className={styles.linkedValue}>
+                {settings.myLuogu.name}
+                <span className={styles.muted}>（uid {settings.myLuogu.uid}）</span>
+                <button type="button" onClick={handleUnlinkLuogu} className={styles.linkRemove}>
+                  解除关联
+                </button>
+              </span>
+            ) : (
+              <span className={styles.muted}>未关联</span>
+            )}
+          </div>
+
+          {!settings.myLuogu && (
+            <div className={styles.field}>
+              <label>搜索并关联洛谷账号</label>
+              <div className={styles.searchRow}>
+                <input
+                  type="text"
+                  value={luoguQuery}
+                  onChange={(e) => setLuoguQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !luoguSearching) handleSearchLuogu();
+                  }}
+                  placeholder="输入洛谷用户名，如 tourist"
+                  className={styles.input}
+                />
+                <button
+                  type="button"
+                  onClick={handleSearchLuogu}
+                  disabled={luoguSearching || !luoguQuery.trim()}
+                  className={styles.checkBtn}
+                >
+                  {luoguSearching ? '搜索中…' : '搜索'}
+                </button>
+              </div>
+              {luoguCandidates.length > 0 && (
+                <ul className={styles.candidateList}>
+                  {luoguCandidates.map((c) => (
+                    <li key={c.uid}>
+                      <button type="button" onClick={() => handleLinkLuogu(c)} className={styles.candidateBtn}>
+                        {c.name} <span className={styles.muted}>（uid {c.uid}）</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {luoguSearchMsg && <p className={styles.updateMsg}>{luoguSearchMsg}</p>}
+            </div>
+          )}
+
+          {/* ---- 牛客关联 ---- */}
+          <div className={styles.linkedRow}>
+            <span className={styles.linkedLabel}>牛客</span>
+            {settings.myNowcoder ? (
+              <span className={styles.linkedValue}>
+                {settings.myNowcoder.name}
+                <span className={styles.muted}>（uid {settings.myNowcoder.uid}）</span>
+                <button type="button" onClick={handleUnlinkNowcoder} className={styles.linkRemove}>
+                  解除关联
+                </button>
+              </span>
+            ) : (
+              <span className={styles.muted}>未关联</span>
+            )}
+          </div>
+
+          {!settings.myNowcoder && (
+            <div className={styles.field}>
+              <label>输入牛客用户 ID 并校验关联</label>
+              <div className={styles.searchRow}>
+                <input
+                  type="text"
+                  value={ncIdQuery}
+                  onChange={(e) => setNcIdQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !ncVerifying) handleVerifyNowcoder();
+                  }}
+                  placeholder="牛客个人主页 URL 里的数字 ID"
+                  className={styles.input}
+                />
+                <button
+                  type="button"
+                  onClick={handleVerifyNowcoder}
+                  disabled={ncVerifying || !ncIdQuery.trim()}
+                  className={styles.checkBtn}
+                >
+                  {ncVerifying ? '校验中…' : '校验'}
+                </button>
+              </div>
+              {ncVerifyMsg && <p className={styles.updateMsg}>{ncVerifyMsg}</p>}
+            </div>
+          )}
+
+          <div className={styles.field}>
+            <label>牛客 Session Cookie（读取你的牛客数据必需，敏感信息）</label>
+            <div className={styles.searchRow}>
+              <button
+                type="button"
+                onClick={handleLoginFetch}
+                disabled={cookieLogging}
+                className={styles.checkBtn}
+              >
+                {cookieLogging ? '等待登录中…' : '一键登录获取'}
+              </button>
+              <span className={styles.muted}>弹出牛客登录页，登录后自动抓取 Cookie（推荐）</span>
+            </div>
+            <p className={styles.updateHint}>或手动粘贴 Cookie：</p>
+            <div className={styles.searchRow}>
+              <input
+                type="password"
+                value={cookieInput}
+                onChange={(e) => setCookieInput(e.target.value)}
+                placeholder="粘贴从浏览器复制的 session cookie"
+                className={styles.input}
+              />
+              <button
+                type="button"
+                onClick={handleSaveCookie}
+                disabled={cookieSaving || !cookieInput.trim()}
+                className={styles.checkBtn}
+              >
+                {cookieSaving ? '保存中…' : '保存'}
+              </button>
+            </div>
+            <p className={styles.updateHint}>
+              {cookieConfigured
+                ? '✓ 已配置 Cookie（明文仅存于系统凭据库，不会写入本地文件）'
+                : '尚未配置 Cookie，牛客相关功能（校验关联、刷新排行）不可用。'}
+            </p>
+            {cookieMsg && (
+              <p className={styles.updateMsg} style={{ color: cookieMsg.startsWith('✓') ? '#4A7C3A' : '#C41E3A' }}>
+                {cookieMsg}
+              </p>
+            )}
+          </div>
+
+          <div className={styles.switchRow}>
+            <label className={styles.notifyLabel}>启用洛谷跨平台功能</label>
+            <input
+              type="checkbox"
+              checked={settings.enableLuogu}
+              onChange={(e) => setSettings({ ...settings, enableLuogu: e.target.checked })}
+              className={styles.notifyToggle}
+            />
+          </div>
+          <div className={styles.switchRow}>
+            <label className={styles.notifyLabel}>启用牛客跨平台功能</label>
+            <input
+              type="checkbox"
+              checked={settings.enableNowcoder}
+              onChange={(e) => setSettings({ ...settings, enableNowcoder: e.target.checked })}
+              className={styles.notifyToggle}
+            />
+          </div>
+          <p className={styles.updateHint}>
+            关闭后，对应平台的刷新与排行会被跳过（关闭牛客可避免无 Cookie 时的报错）。两项修改即时生效。
+          </p>
         </div>
 
         <div className={styles.field}>
