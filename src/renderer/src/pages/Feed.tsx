@@ -235,6 +235,8 @@ export default function Feed() {
     const list: ActivityEvent[] = [];
 
     for (const p of people) {
+      // 动态不再展示"我"自己的活动（对应需求：我的动态已迁移到复盘页的"练习时间轴"）
+      if (p.isMe) continue;
       const cache = caches[p.handle];
       if (!cache) continue;
 

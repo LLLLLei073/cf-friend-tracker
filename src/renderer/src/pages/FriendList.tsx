@@ -8,7 +8,7 @@ type SortKey = 'rating' | 'handle' | 'online';
 
 export default function FriendList() {
   // useAppData 统一加载好友/缓存并监听刷新进度自动更新
-  const { friends, caches, luoguCaches, nowcoderCaches, setFriends } = useAppData();
+  const { friends, caches, luoguCaches, setFriends } = useAppData();
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('rating');
 
@@ -81,7 +81,6 @@ export default function FriendList() {
               friend={f}
               cache={caches[f.handle]}
               luoguCache={f.luogu ? luoguCaches[f.luogu.uid] : undefined}
-              nowcoderCache={f.nowcoder ? nowcoderCaches[f.nowcoder.uid] : undefined}
               onToggleStar={handleToggleStar}
             />
           ))}

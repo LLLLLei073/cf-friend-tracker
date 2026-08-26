@@ -1,13 +1,13 @@
 import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { FriendCache, LuoguCache, NowcoderCache } from '../types';
+import type { FriendCache, LuoguCache } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import { NO_AVATAR, countACProblems, getMedalClass } from '../utils/helpers';
 import { useAppData } from '../hooks/useAppData';
 import { exportCSV } from '../utils/export';
 import styles from '../styles/leaderboard.module.css';
 
-type Tab = 'solved' | 'rating' | 'luogu' | 'nowcoder';
+type Tab = 'solved' | 'rating' | 'luogu';
 
 interface SolvedEntry {
   handle: string;
@@ -17,18 +17,6 @@ interface SolvedEntry {
   rank?: string;
   rating?: number;
   solvedCount: number;
-}
-
-interface NowcoderEntry {
-  handle: string;
-  alias: string;
-  isMe: boolean;
-  id: number;
-  name: string;
-  avatar?: string;
-  rating?: number;
-  accepted?: number;
-  unavailable?: boolean;
 }
 
 interface RatingEntry {
@@ -56,7 +44,7 @@ interface LuoguEntry {
 export default function Leaderboard() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('solved');
-  const { friends, caches, luoguCaches, nowcoderCaches, myHandle } = useAppData();
+  const { friends, caches, luoguCaches, myHandle, myLuogu } = useAppData();
 
   // 合并:自己 + 好友(去重)
   const allPeople = useMemo(() => {
@@ -67,9 +55,11 @@ export default function Leaderboard() {
     return [...me, ...fr];
   }, [friends, myHandle]);
 
-  // 洛谷榜单: 取有洛谷账号的好友, 按通过题数(passed)降序 (同平台内排名, 不归一 CF)
+  // 洛谷榜单: 取有洛谷账号的好友 + 「我的洛谷」(若已绑定), 按通过题数(passed)降序
+  // 之前漏了 myLuogu —— 用户绑定后排行榜看不到自己的数据, 体验差。
+  // myLuogu 标记 isMe=true, 用 myHandle 充当列表 handle (与 CF 端共用「我」识别)
   const luoguRanking = useMemo<LuoguEntry[]>(() => {
-    return friends
+    const fromFriends: LuoguEntry[] = friends
       .filter((f) => f.luogu && luoguCaches[f.luogu.uid])
       .map((f) => {
         const lg = luoguCaches[f.luogu!.uid].info;
@@ -84,31 +74,27 @@ export default function Leaderboard() {
           submitted: lg.submitted,
           color: lg.color,
         };
-      })
-      .sort((a, b) => b.passed - a.passed);
-  }, [friends, luoguCaches, myHandle]);
-
-  // 牛客榜单: 取有牛客账号的好友, 按 rating 降序 (同平台内排名, 不归一 CF/洛谷)
-  const nowcoderRanking = useMemo<NowcoderEntry[]>(() => {
-    return friends
-      .filter((f) => f.nowcoder && nowcoderCaches[f.nowcoder.uid])
-      .map((f) => {
-        const nc = nowcoderCaches[f.nowcoder!.uid];
-        return {
-          handle: f.handle,
-          alias: f.alias || f.handle,
-          isMe: f.handle === myHandle,
-          id: f.nowcoder!.uid,
-          name: f.nowcoder!.name,
-          avatar: nc.info.avatar,
-          rating: nc.info.rating,
-          accepted: nc.info.accepted,
-          unavailable: nc.unavailable,
-        };
-      })
-      .filter((e) => !e.unavailable)
-      .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
-  }, [friends, nowcoderCaches, myHandle]);
+      });
+    // 「我的洛谷」: 即使我不在 friends 里 (跨平台孤立绑定), 也作为一条记录入榜
+    let fromMe: LuoguEntry[] = [];
+    if (myLuogu && luoguCaches[myLuogu.uid] && !fromFriends.some((e) => e.isMe)) {
+      const lg = luoguCaches[myLuogu.uid].info;
+      fromMe = [
+        {
+          handle: myHandle || `__me_luogu_${myLuogu.uid}`,
+          alias: myLuogu.name,
+          isMe: true,
+          uid: myLuogu.uid,
+          name: myLuogu.name,
+          avatar: lg.avatar,
+          passed: lg.passed,
+          submitted: lg.submitted,
+          color: lg.color,
+        },
+      ];
+    }
+    return [...fromFriends, ...fromMe].sort((a, b) => b.passed - a.passed);
+  }, [friends, luoguCaches, myHandle, myLuogu]);
 
   // 近两天做题排行:统计最近2天内 AC 的不重复题目数
   const solvedRanking = useMemo<SolvedEntry[]>(() => {
@@ -165,12 +151,6 @@ export default function Leaderboard() {
         luoguRanking.map((e, i) => [i + 1, e.handle, e.alias, e.name, e.passed, e.submitted]),
         '排行榜-洛谷',
       );
-    } else if (tab === 'nowcoder') {
-      exportCSV(
-        ['排名', 'Handle', '别名', '牛客名', 'Rating', '通过题数'],
-        nowcoderRanking.map((e, i) => [i + 1, e.handle, e.alias, e.name, e.rating ?? '', e.accepted ?? '']),
-        '排行榜-牛客',
-      );
     } else {
       exportCSV(
         ['排名', 'Handle', '别名', 'Rating', '最高 Rating'],
@@ -206,12 +186,6 @@ export default function Leaderboard() {
           onClick={() => setTab('luogu')}
         >
           洛谷
-        </button>
-        <button
-          className={tab === 'nowcoder' ? styles.activeTab : styles.tab}
-          onClick={() => setTab('nowcoder')}
-        >
-          牛客
         </button>
       </div>
 
@@ -356,55 +330,6 @@ export default function Leaderboard() {
                     </td>
                     <td className={styles.numCol}>
                       <span className={styles.maxRating}>{e.submitted}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {tab === 'nowcoder' && (
-        <div>
-          {nowcoderRanking.length === 0 ? (
-            <p className={styles.empty}>暂无牛客数据。在「添加好友」里添加牛客账号并配置 cookie 后刷新查看 (牛客数据脆弱, 可能因官网改版失效)。</p>
-          ) : (
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th className={styles.rankCol}>#</th>
-                  <th>好友</th>
-                  <th>牛客名</th>
-                  <th className={styles.numCol}>Rating</th>
-                  <th className={styles.numCol}>通过</th>
-                </tr>
-              </thead>
-              <tbody>
-                {nowcoderRanking.map((e, i) => (
-                  <tr key={e.handle} className={styles.row} onClick={() => navigate(`/friends/${e.handle}`)}>
-                    <td className={styles.rankCol}>
-                      <span className={getMedalClass(i, { gold: styles.medal, silver: styles.medal, bronze: styles.medal, normal: styles.rankNum })}>{i + 1}</span>
-                    </td>
-                    <td>
-                      <div className={styles.userCell}>
-                        <img
-                          src={e.avatar || NO_AVATAR}
-                          className={styles.avatar}
-                          alt={e.alias}
-                        />
-                        <span>{e.alias}</span>
-                        {e.isMe && <span className={styles.meTag}>我</span>}
-                      </div>
-                    </td>
-                    <td>
-                      <span className={styles.nowcoderName}>{e.name}</span>
-                    </td>
-                    <td className={styles.numCol}>
-                      <span style={{ fontWeight: 'bold' }}>{e.rating ?? 'N/A'}</span>
-                    </td>
-                    <td className={styles.numCol}>
-                      <span className={styles.maxRating}>{e.accepted ?? '—'}</span>
                     </td>
                   </tr>
                 ))}

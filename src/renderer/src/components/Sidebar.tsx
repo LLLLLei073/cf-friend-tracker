@@ -179,13 +179,17 @@ export default function Sidebar() {
       await window.api.cf.refreshAll();
       // 洛谷账号并行刷新(不阻塞 UI, 完成由 useAppData 监听 luogu:refreshProgress 重载缓存)
       window.api.luogu.refreshAll().catch((e) => console.error('Luogu refresh failed:', e));
-      // 牛客账号并行刷新(可降级: 未配置 cookie / 未开启平台开关时服务端直接跳过)
-      window.api.nowcoder.refreshAll().catch((e) => console.error('Nowcoder refresh failed:', e));
       // 同时刷新自己的信息
       const settings = await window.api.store.getSettings();
       if (settings.myHandle) {
         const myResult = await window.api.cf.refreshMyProfile();
         if (myResult) setMyInfo(myResult);
+      }
+      // 「我的洛谷」若已绑定, 单独刷一次 (luogu.refreshAll 只遍历 friends, 不会刷 settings.myLuogu)
+      if (settings.myLuogu?.uid) {
+        window.api.luogu
+          .refreshByUid(settings.myLuogu.uid)
+          .catch((e) => console.error('My luogu refresh failed:', e));
       }
       await loadData();
       // 更新刷新时间显示
@@ -627,6 +631,13 @@ export default function Sidebar() {
               >
                 <span className={styles.navCardIcon}>📈</span>
                 <span className={styles.navCardLabel}>训练看板</span>
+              </button>
+              <button
+                className={`${styles.navCard} ${location.pathname === '/review' ? styles.navCardActive : ''}`}
+                onClick={() => { navigate('/review'); setNavPanelOpen(false); }}
+              >
+                <span className={styles.navCardIcon}>🎯</span>
+                <span className={styles.navCardLabel}>复盘与练习</span>
               </button>
               <button
                 className={`${styles.navCard} ${location.pathname === '/virtual' ? styles.navCardActive : ''}`}

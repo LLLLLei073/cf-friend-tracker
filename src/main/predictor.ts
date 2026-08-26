@@ -14,7 +14,7 @@ function expectedWin(rA: number, rB: number): number {
  * seed = 1 + sum_{j != i} P(j beats i)
  * 这里 P(j beats i) = 1 - E(i beats j) = expectedWin(rj, ri)
  */
-function computeSeed(targetRating: number, allRatings: number[]): number {
+export function computeSeed(targetRating: number, allRatings: number[]): number {
   let seed = 1;
   for (const r of allRatings) {
     seed += expectedWin(r, targetRating); // P(other with rating r beats target)
@@ -26,7 +26,7 @@ function computeSeed(targetRating: number, allRatings: number[]): number {
  * 计算表现分: 找到 rating R 使得 seed(R) = actualRank。
  * 表现分表示"如果这个选手一直保持这个水平，他的 rating 应该是多少"。
  */
-function computePerformanceRating(actualRank: number, allOtherRatings: number[]): number {
+export function computePerformanceRating(actualRank: number, allOtherRatings: number[]): number {
   let lo = 1;
   let hi = 4000;
   while (hi - lo > 1) {
@@ -193,4 +193,45 @@ export async function predictContest(
     predictions: friendPredictions,
     totalParticipants: participants.length,
   };
+}
+
+/**
+ * 计算某场比赛中指定 handle 的 carrotplus 单场表现分（performance）。
+ *
+ * 复用官方 standings（含全部参赛者的排名与题目结果）与参赛者"当前" rating，
+ * 通过 Elo seed 二分法求解使 seed(rating) == rank 的 rating，即为该场表现分。
+ * 注意：carrot 扩展同样使用参赛者当前 rating 近似其赛时 rating，此处保持一致。
+ */
+export async function computeCarrotPerformance(contestId: number, handle: string): Promise<number> {
+  const standings = await fetchContestStandings(contestId);
+  const rows = standings.rows;
+  if (rows.length === 0) throw new Error('该比赛没有可用的官方榜单数据');
+
+  const target = handle.toLowerCase();
+  const myRow = rows.find((r) => (r.party.members[0]?.handle ?? '').toLowerCase() === target);
+  if (!myRow) throw new Error('你的账号未出现在该场比赛的官方榜单中');
+  const myRank = myRow.rank;
+
+  const allHandles = rows
+    .map((r) => r.party.members[0]?.handle)
+    .filter((h): h is string => !!h);
+
+  // 批量获取全部参赛者当前 rating（分批，单批失败时内部容错降级）
+  const BATCH = 200;
+  const ratingMap = new Map<string, number>();
+  for (let i = 0; i < allHandles.length; i += BATCH) {
+    const batch = allHandles.slice(i, i + BATCH);
+    const { infos } = await fetchUserInfoSafe(batch);
+    for (const u of infos) ratingMap.set(u.handle, u.rating ?? 0);
+  }
+
+  // 其余参赛者（排除自己）的 rating 集合
+  const otherRatings: number[] = [];
+  for (const h of allHandles) {
+    if (h.toLowerCase() === target) continue;
+    otherRatings.push(ratingMap.get(h) ?? 0);
+  }
+  if (otherRatings.length === 0) throw new Error('无法获取参赛者 rating');
+
+  return computePerformanceRating(myRank, otherRatings);
 }

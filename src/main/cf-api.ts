@@ -9,6 +9,12 @@ import type {
   CFContestStandings,
   ContestPerformance,
 } from '../shared/types';
+import {
+  validateCFUserArray,
+  validateCFRatingArray,
+  validateCFSubmissionArray,
+  validateCFContestArray,
+} from './validators';
 
 const API_BASE = 'https://codeforces.com/api';
 const MIN_INTERVAL_MS = 2000; // CF 限制:1次/2秒
@@ -160,7 +166,8 @@ async function cfRequest<T>(
 }
 
 export async function fetchUserInfo(handles: string[]): Promise<CFUser[]> {
-  return cfRequest<CFUser[]>('user.info', { handles: handles.join(';') });
+  const raw = await cfRequest<CFUser[]>('user.info', { handles: handles.join(';') });
+  return validateCFUserArray(raw);
 }
 
 /**
@@ -198,11 +205,13 @@ export async function fetchUserInfoSafe(
 }
 
 export async function fetchUserRating(handle: string): Promise<CFRatingChange[]> {
-  return cfRequest<CFRatingChange[]>('user.rating', { handle });
+  const raw = await cfRequest<CFRatingChange[]>('user.rating', { handle });
+  return validateCFRatingArray(raw);
 }
 
 export async function fetchUserStatus(handle: string, count = 50): Promise<CFSubmission[]> {
-  return cfRequest<CFSubmission[]>('user.status', { handle, count: count.toString() });
+  const raw = await cfRequest<CFSubmission[]>('user.status', { handle, count: count.toString() });
+  return validateCFSubmissionArray(raw);
 }
 
 export async function fetchFriends(
@@ -214,7 +223,8 @@ export async function fetchFriends(
 }
 
 export async function fetchContests(): Promise<CFContest[]> {
-  return cfRequest<CFContest[]>('contest.list', {});
+  const raw = await cfRequest<CFContest[]>('contest.list', {});
+  return validateCFContestArray(raw);
 }
 
 export async function fetchContestStandings(

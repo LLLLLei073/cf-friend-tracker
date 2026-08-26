@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import type { Settings as SettingsType, UpdateStatus, UpdateInfo, UpdateProgress, PlatformAccount } from '../types';
+import type { Settings as SettingsType, UpdateStatus, UpdateInfo, UpdateProgress, PlatformAccount, CacheStats, LuoguCache } from '../types';
+import { useToast } from '../components/Toast';
+import { callApi } from '../utils/safe-call';
 import ChangelogModal from '../components/ChangelogModal';
 import Markdown from '../components/Markdown';
 import styles from '../styles/settings.module.css';
@@ -37,24 +39,26 @@ export default function Settings() {
   const [luoguCandidates, setLuoguCandidates] = useState<PlatformAccount[]>([]);
   const [luoguSearching, setLuoguSearching] = useState(false);
   const [luoguSearchMsg, setLuoguSearchMsg] = useState('');
+  // 「我的洛谷」详情缓存 — 用于在 Settings 里直接展示「数据已导入」的具体数字
+  // (之前只显示一行文字「已关联 xxx」, 用户看不到实际数据, 体验差)
+  const [myLuoguCache, setMyLuoguCache] = useState<LuoguCache | undefined>(undefined);
 
-  // 我的关联账号（牛客）
-  const [ncIdQuery, setNcIdQuery] = useState('');
-  const [ncVerifying, setNcVerifying] = useState(false);
-  const [ncVerifyMsg, setNcVerifyMsg] = useState('');
-  // 牛客 session cookie（敏感，存系统凭据库；UI 不回显明文，只显示是否已配置）
-  const [cookieConfigured, setCookieConfigured] = useState(false);
-  const [cookieInput, setCookieInput] = useState('');
-  const [cookieSaving, setCookieSaving] = useState(false);
-  const [cookieMsg, setCookieMsg] = useState('');
-  const [cookieLogging, setCookieLogging] = useState(false);
+  // 进入页面 / 设置变更时, 同步拉一次我的洛谷缓存
+  useEffect(() => {
+    (async () => {
+      if (settings?.myLuogu?.uid) {
+        const all = await window.api.luogu.getAllCache();
+        setMyLuoguCache(all[settings.myLuogu.uid]);
+      } else {
+        setMyLuoguCache(undefined);
+      }
+    })();
+  }, [settings?.myLuogu?.uid]);
 
   useEffect(() => {
     (async () => {
       const s = await window.api.store.getSettings();
       setSettings(s);
-      const nc = await window.api.nowcoder.getCookie();
-      setCookieConfigured(nc.configured);
       const result = await window.api.updater.getStatus();
       setUpdateStatus(result.status);
       setUpdateInfo(result.info);
@@ -97,7 +101,7 @@ export default function Settings() {
       return;
     }
     window.api.store.setSettings(settings);
-  }, [settings?.theme, settings?.defaultPage, settings?.notifyRatingChange, settings?.notifyContestStart, settings?.contestNotifyMinutes, settings?.launchRefreshStarredOnly, settings?.enableTray, settings?.aiApiBase, settings?.aiApiKey, settings?.aiModel, settings?.enableLuogu, settings?.enableNowcoder]);
+  }, [settings?.theme, settings?.defaultPage, settings?.notifyRatingChange, settings?.notifyContestStart, settings?.contestNotifyMinutes, settings?.launchRefreshStarredOnly, settings?.enableTray, settings?.aiApiBase, settings?.aiApiKey, settings?.aiModel, settings?.enableLuogu]);
 
   const handleSave = async () => {
     if (!settings) return;
@@ -131,11 +135,24 @@ export default function Settings() {
     }
   };
 
+  // 题面缓存统计与自动清理
+  const toast = useToast();
+  const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
+  const [cacheCleaning, setCacheCleaning] = useState(false);
+  const loadCacheStats = async () => {
+    setCacheStats(await window.api.cache.getStats());
+  };
+  useEffect(() => {
+    loadCacheStats();
+  }, []);
+
   const handleClearCache = async () => {
-    if (confirm('确定要清空所有缓存数据吗?好友列表不会删除。')) {
-      await window.api.store.clearCache();
-      alert('缓存已清空');
-    }
+    if (!confirm('确定要清空所有缓存数据吗?好友列表不会删除。')) return;
+    const ok = await callApi(window.api.store.clearCache(), toast, {
+      successMsg: '缓存已清空',
+      errorMsg: '清空缓存失败',
+    });
+    if (ok) loadCacheStats();
   };
 
   const handleCheckUpdate = async () => {
@@ -212,7 +229,21 @@ export default function Settings() {
     setLuoguSearchMsg('已选择，正在保存…');
     try {
       await window.api.store.setSettings(next);
-      setLuoguSearchMsg(`已关联洛谷账号「${acc.name}」`);
+      // 关联后立即拉一次详情, 让 settings.myLuogu 的数据随时可见
+      // (myLuogu 现在直接在 Settings 里渲染概览卡片, 失败也要给用户具体提示)
+      try {
+        const ok = await window.api.luogu.refreshByUid(acc.uid);
+        if (ok) {
+          // 刷新本地 myLuoguCache 状态, 即时展示新数据
+          const all = await window.api.luogu.getAllCache();
+          setMyLuoguCache(all[acc.uid]);
+          setLuoguSearchMsg(`已关联洛谷账号「${acc.name}」并导入数据`);
+        } else {
+          setLuoguSearchMsg(`已关联「${acc.name}」, 但拉取详情失败 — 请检查网络或稍后手动刷新`);
+        }
+      } catch (e) {
+        setLuoguSearchMsg(`已关联, 但拉取详情异常: ${(e as Error).message}`);
+      }
     } catch (e) {
       setLuoguSearchMsg(`保存失败: ${(e as Error).message}`);
     }
@@ -220,103 +251,25 @@ export default function Settings() {
 
   const handleUnlinkLuogu = async () => {
     if (!settings) return;
+    const removedUid = settings.myLuogu?.uid;
     const next = { ...settings, myLuogu: undefined };
     setSettings(next);
     setLuoguSearchMsg('');
     try {
       await window.api.store.setSettings(next);
+      // 精准删除"我的洛谷"对应的 LuoguCache, 不影响好友数据
+      if (removedUid != null) {
+        window.api.luogu
+          .deleteCacheForUid(removedUid)
+          .catch(() => {/* 即便失败也不阻断解绑流程 */});
+        setMyLuoguCache(undefined);
+      }
     } catch (e) {
       setLuoguSearchMsg(`解除失败: ${(e as Error).message}`);
     }
   };
 
-  // ---- 我的关联账号: 牛客 ----
-  const handleVerifyNowcoder = async () => {
-    const raw = ncIdQuery.trim();
-    if (!/^\d+$/.test(raw)) {
-      setNcVerifyMsg('请输入有效的牛客数字用户 ID');
-      return;
-    }
-    const id = parseInt(raw, 10);
-    if (!cookieConfigured) {
-      setNcVerifyMsg('请先在下方配置牛客 Session Cookie 后再校验');
-      return;
-    }
-    setNcVerifying(true);
-    setNcVerifyMsg('');
-    try {
-      const user = await window.api.nowcoder.getUser(id);
-      const acc: PlatformAccount = { uid: user.id, name: user.name };
-      const next = { ...settings!, myNowcoder: acc };
-      setSettings(next);
-      setNcIdQuery('');
-      try {
-        await window.api.store.setSettings(next);
-        setNcVerifyMsg(`已关联牛客账号「${user.name}」`);
-      } catch (e) {
-        setNcVerifyMsg(`保存失败: ${(e as Error).message}`);
-      }
-    } catch (e) {
-      const err = e as Error;
-      if (err.name === 'NowcoderNoCookieError' || err.message === 'NO_COOKIE') {
-        setNcVerifyMsg('Cookie 无效或已过期，请重新配置后重试');
-        setCookieConfigured(false);
-      } else {
-        setNcVerifyMsg(`校验失败: ${err.message}`);
-      }
-    } finally {
-      setNcVerifying(false);
-    }
-  };
-
-  const handleUnlinkNowcoder = async () => {
-    if (!settings) return;
-    const next = { ...settings, myNowcoder: undefined };
-    setSettings(next);
-    setNcVerifyMsg('');
-    try {
-      await window.api.store.setSettings(next);
-    } catch (e) {
-      setNcVerifyMsg(`解除失败: ${(e as Error).message}`);
-    }
-  };
-
-  const handleSaveCookie = async () => {
-    const cookie = cookieInput.trim();
-    if (!cookie) return;
-    setCookieSaving(true);
-    setCookieMsg('');
-    try {
-      await window.api.nowcoder.setCookie(cookie);
-      setCookieConfigured(true);
-      setCookieInput('');
-      setCookieMsg('✓ Cookie 已保存（仅存于系统凭据库）');
-    } catch (e) {
-      setCookieMsg(`保存失败: ${(e as Error).message}`);
-    } finally {
-      setCookieSaving(false);
-      setTimeout(() => setCookieMsg(''), 4000);
-    }
-  };
-
-  const handleLoginFetch = async () => {
-    setCookieLogging(true);
-    setCookieMsg('');
-    try {
-      const r = await window.api.nowcoder.loginAndFetchCookie();
-      if (r.ok) {
-        setCookieConfigured(true);
-        setCookieMsg('✓ 已自动获取并保存 Cookie');
-      } else {
-        setCookieMsg(r.error || '未获取到 Cookie');
-      }
-    } catch (e) {
-      setCookieMsg(`获取失败: ${(e as Error).message}`);
-    } finally {
-      setCookieLogging(false);
-      setTimeout(() => setCookieMsg(''), 5000);
-    }
-  };
+  // ---- 我的关联账号: 牛客已整体移除 (Phase 1b 退役, 2026-08) ----
 
   // 渲染更新状态文本
   const renderUpdateStatus = () => {
@@ -407,6 +360,23 @@ export default function Settings() {
             )}
           </div>
 
+          {/* 已关联时, 直接展示拉取到的洛谷数据 (头像 + 通过/提交 + 等级色)
+              让用户立刻看到「数据是否真的导入」, 不要再回到好友列表才能确认 */}
+          {settings.myLuogu && (
+            <MyLuoguSummary
+              account={settings.myLuogu}
+              cache={myLuoguCache}
+              onRefresh={async () => {
+                const ok = await window.api.luogu.refreshByUid(settings.myLuogu!.uid);
+                if (ok) {
+                  const all = await window.api.luogu.getAllCache();
+                  setMyLuoguCache(all[settings.myLuogu!.uid]);
+                }
+                return ok;
+              }}
+            />
+          )}
+
           {!settings.myLuogu && (
             <div className={styles.field}>
               <label>搜索并关联洛谷账号</label>
@@ -445,91 +415,7 @@ export default function Settings() {
             </div>
           )}
 
-          {/* ---- 牛客关联 ---- */}
-          <div className={styles.linkedRow}>
-            <span className={styles.linkedLabel}>牛客</span>
-            {settings.myNowcoder ? (
-              <span className={styles.linkedValue}>
-                {settings.myNowcoder.name}
-                <span className={styles.muted}>（uid {settings.myNowcoder.uid}）</span>
-                <button type="button" onClick={handleUnlinkNowcoder} className={styles.linkRemove}>
-                  解除关联
-                </button>
-              </span>
-            ) : (
-              <span className={styles.muted}>未关联</span>
-            )}
-          </div>
-
-          {!settings.myNowcoder && (
-            <div className={styles.field}>
-              <label>输入牛客用户 ID 并校验关联</label>
-              <div className={styles.searchRow}>
-                <input
-                  type="text"
-                  value={ncIdQuery}
-                  onChange={(e) => setNcIdQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !ncVerifying) handleVerifyNowcoder();
-                  }}
-                  placeholder="牛客个人主页 URL 里的数字 ID"
-                  className={styles.input}
-                />
-                <button
-                  type="button"
-                  onClick={handleVerifyNowcoder}
-                  disabled={ncVerifying || !ncIdQuery.trim()}
-                  className={styles.checkBtn}
-                >
-                  {ncVerifying ? '校验中…' : '校验'}
-                </button>
-              </div>
-              {ncVerifyMsg && <p className={styles.updateMsg}>{ncVerifyMsg}</p>}
-            </div>
-          )}
-
-          <div className={styles.field}>
-            <label>牛客 Session Cookie（读取你的牛客数据必需，敏感信息）</label>
-            <div className={styles.searchRow}>
-              <button
-                type="button"
-                onClick={handleLoginFetch}
-                disabled={cookieLogging}
-                className={styles.checkBtn}
-              >
-                {cookieLogging ? '等待登录中…' : '一键登录获取'}
-              </button>
-              <span className={styles.muted}>弹出牛客登录页，登录后自动抓取 Cookie（推荐）</span>
-            </div>
-            <p className={styles.updateHint}>或手动粘贴 Cookie：</p>
-            <div className={styles.searchRow}>
-              <input
-                type="password"
-                value={cookieInput}
-                onChange={(e) => setCookieInput(e.target.value)}
-                placeholder="粘贴从浏览器复制的 session cookie"
-                className={styles.input}
-              />
-              <button
-                type="button"
-                onClick={handleSaveCookie}
-                disabled={cookieSaving || !cookieInput.trim()}
-                className={styles.checkBtn}
-              >
-                {cookieSaving ? '保存中…' : '保存'}
-              </button>
-            </div>
-            <p className={styles.updateHint}>
-              {cookieConfigured
-                ? '✓ 已配置 Cookie（明文仅存于系统凭据库，不会写入本地文件）'
-                : '尚未配置 Cookie，牛客相关功能（校验关联、刷新排行）不可用。'}
-            </p>
-            {cookieMsg && (
-              <p className={styles.updateMsg} style={{ color: cookieMsg.startsWith('✓') ? '#4A7C3A' : '#C41E3A' }}>
-                {cookieMsg}
-              </p>
-            )}
-          </div>
+          {/* ---- 牛客已整体移除 (Phase 1b 退役, 2026-08) ---- */}
 
           <div className={styles.switchRow}>
             <label className={styles.notifyLabel}>启用洛谷跨平台功能</label>
@@ -540,17 +426,8 @@ export default function Settings() {
               className={styles.notifyToggle}
             />
           </div>
-          <div className={styles.switchRow}>
-            <label className={styles.notifyLabel}>启用牛客跨平台功能</label>
-            <input
-              type="checkbox"
-              checked={settings.enableNowcoder}
-              onChange={(e) => setSettings({ ...settings, enableNowcoder: e.target.checked })}
-              className={styles.notifyToggle}
-            />
-          </div>
           <p className={styles.updateHint}>
-            关闭后，对应平台的刷新与排行会被跳过（关闭牛客可避免无 Cookie 时的报错）。两项修改即时生效。
+            关闭后, 洛谷的刷新与跨平台排行会被跳过。修改即时生效。
           </p>
         </div>
 
@@ -590,6 +467,38 @@ export default function Settings() {
           <p>上次刷新时间: {settings.lastRefreshAt
             ? new Date(settings.lastRefreshAt).toLocaleString()
             : '从未刷新'}</p>
+        </div>
+
+        <div className={styles.updateSection}>
+          <label className={styles.updateLabel}>题面缓存</label>
+          {cacheStats && (
+            <p className={styles.updateHint}>
+              题面 {cacheStats.problemStatements} 个 · 代码 {cacheStats.problemCodeFiles} 个 · 收藏 {cacheStats.favoritesCount} 个 · 共 {formatBytes(cacheStats.totalBytes)}
+              <br />
+              目录: {cacheStats.cacheDir}
+            </p>
+          )}
+          <div className={styles.themeRow}>
+            <button
+              className={styles.checkBtn}
+              disabled={cacheCleaning}
+              onClick={async () => {
+                setCacheCleaning(true);
+                const res = await callApi(window.api.cache.cleanup(90), toast, { errorMsg: '清理失败' });
+                setCacheCleaning(false);
+                if (res) {
+                  toast.success(`已清理 ${res.removed} 个过期题面, 释放 ${formatBytes(res.freedBytes)}`);
+                  loadCacheStats();
+                }
+              }}
+            >
+              {cacheCleaning ? '清理中...' : '清理过期题面'}
+            </button>
+            <button className={styles.checkBtn} onClick={loadCacheStats}>
+              刷新统计
+            </button>
+          </div>
+          <p className={styles.updateHint}>应用启动时自动删除超过 90 天未访问的题面, 防止磁盘占用无限增长。</p>
         </div>
 
         <button onClick={handleClearCache} className={styles.dangerBtn}>
@@ -860,6 +769,113 @@ export default function Settings() {
         </div>
       </div>
       {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
+    </div>
+  );
+}
+
+// 「我的洛谷」概览卡片 — 在 Settings 页直接展示已导入的数据
+// 之前只显示一行"已关联 xxx", 用户看不到任何数据是否真的导入, 体验差。
+// 此卡片让用户绑定后立即看到：头像、通过题数、提交题数、等级色块,
+function MyLuoguSummary({
+  account,
+  cache,
+  onRefresh,
+}: {
+  account: PlatformAccount;
+  cache: LuoguCache | undefined;
+  onRefresh: () => Promise<boolean>;
+}): JSX.Element {
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 12px',
+        marginTop: 6,
+        marginBottom: 10,
+        background: 'var(--surface-1, rgba(0,0,0,0.04))',
+        borderRadius: 6,
+        border: '1px solid var(--border, rgba(0,0,0,0.1))',
+      }}
+    >
+      {cache?.info?.avatar ? (
+        <img
+          src={cache.info.avatar}
+          alt={account.name}
+          style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
+        />
+      ) : (
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            background: cache?.info?.color || '#888',
+            color: '#FFF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 700,
+            fontSize: 18,
+          }}
+        >
+          {account.name.slice(0, 1).toUpperCase()}
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 14 }}>{account.name}</div>
+        {cache ? (
+          <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>
+            通过 <strong style={{ color: cache.info.color || 'inherit' }}>{cache.info.passed}</strong> 题 ·
+            提交 {cache.info.submitted} 题 · 等级
+            <span
+              style={{
+                display: 'inline-block',
+                marginLeft: 4,
+                padding: '0 6px',
+                borderRadius: 8,
+                background: cache.info.color || '#888',
+                color: '#FFF',
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
+              {cache.info.color ? '已导入' : '—'}
+            </span>
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
+            尚未拉取详情 · 点「重新拉取」即可
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={handleRefresh}
+        disabled={refreshing}
+        style={{
+          padding: '4px 10px',
+          fontSize: 12,
+          border: '1px solid var(--accent, #4A9EFF)',
+          background: 'transparent',
+          color: 'var(--accent, #4A9EFF)',
+          borderRadius: 4,
+          cursor: refreshing ? 'wait' : 'pointer',
+          opacity: refreshing ? 0.6 : 1,
+        }}
+      >
+        {refreshing ? '拉取中…' : '重新拉取'}
+      </button>
     </div>
   );
 }

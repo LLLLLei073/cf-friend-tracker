@@ -8,8 +8,7 @@ import type {
   Friend,
   FriendCache,
   LuoguCache,
-  NowcoderCache,
-  NowcoderUser,
+  MeCache,
   PlatformAccount,
   RefreshProgress,
   Settings,
@@ -32,6 +31,11 @@ import type {
   NotificationItem,
   FavoriteProblem,
   BlogEntry,
+  CacheStats,
+  CleanupResult,
+  ReviewState,
+  ReviewProblem,
+  DailyPractice,
 } from '../shared/types';
 
 const api = {
@@ -67,6 +71,14 @@ const api = {
     // 拉取指定数量提交(训练看板等深度分析使用, 默认 1000 条)
     getSubmissions: (handle: string, count?: number): Promise<CFSubmission[]> =>
       ipcRenderer.invoke('cf:getSubmissions', handle, count),
+    // 计算单场 carrotplus 表现分(基于官方 standings + 参赛者当前 rating 的 Elo seed 二分法), 结果按比赛缓存
+    computePerformance: (contestId: number): Promise<number> =>
+      ipcRenderer.invoke('cf:computePerformance', contestId),
+    // 复盘页缓存: 同步读 (mount 时立即拿, 零延迟渲染) + 主动刷新 (后台拉新并写回)
+    getMeCache: (handle: string): Promise<MeCache | undefined> =>
+      ipcRenderer.invoke('cf:getMeCache', handle),
+    refreshMeData: (handle: string): Promise<MeCache | null> =>
+      ipcRenderer.invoke('cf:refreshMeData', handle),
     onRefreshProgress: (callback: (progress: RefreshProgress) => void): (() => void) => {
       const handler = (_event: IpcRendererEvent, data: RefreshProgress) => callback(data);
       ipcRenderer.on('cf:refreshProgress', handler);
@@ -75,30 +87,19 @@ const api = {
   },
   luogu: {
     search: (name: string): Promise<PlatformAccount[]> => ipcRenderer.invoke('luogu:search', name),
+    // 按 uid 立即拉一次详情并写缓存 — AddFriend / Settings 绑定后立即调用，让 FriendRow 徽章 / 洛谷榜立刻可见
+    refreshByUid: (uid: number): Promise<boolean> => ipcRenderer.invoke('luogu:refreshByUid', uid),
     refreshAll: (): Promise<number[]> => ipcRenderer.invoke('luogu:refreshAll'),
     getCache: (uid: number): Promise<LuoguCache | undefined> => ipcRenderer.invoke('luogu:getCache', uid),
     getAllCache: (): Promise<Record<number, LuoguCache>> => ipcRenderer.invoke('luogu:getAllCache'),
     clearCache: (): Promise<boolean> => ipcRenderer.invoke('luogu:clearCache'),
+    // 单 uid 精准删除缓存（用于解除我的洛谷关联, 不影响好友数据）
+    deleteCacheForUid: (uid: number): Promise<boolean> =>
+      ipcRenderer.invoke('luogu:deleteCacheForUid', uid),
     onRefreshProgress: (callback: (progress: RefreshProgress) => void): (() => void) => {
       const handler = (_event: IpcRendererEvent, data: RefreshProgress) => callback(data);
       ipcRenderer.on('luogu:refreshProgress', handler);
       return () => ipcRenderer.removeListener('luogu:refreshProgress', handler);
-    },
-  },
-  nowcoder: {
-    getUser: (id: number): Promise<NowcoderUser> => ipcRenderer.invoke('nowcoder:getUser', id),
-    refreshAll: (): Promise<number[]> => ipcRenderer.invoke('nowcoder:refreshAll'),
-    getCache: (id: number): Promise<NowcoderCache | undefined> => ipcRenderer.invoke('nowcoder:getCache', id),
-    getAllCache: (): Promise<Record<number, NowcoderCache>> => ipcRenderer.invoke('nowcoder:getAllCache'),
-    clearCache: (): Promise<boolean> => ipcRenderer.invoke('nowcoder:clearCache'),
-    getCookie: (): Promise<{ configured: boolean }> => ipcRenderer.invoke('nowcoder:getCookie'),
-    setCookie: (cookie: string): Promise<boolean> => ipcRenderer.invoke('nowcoder:setCookie', cookie),
-    loginAndFetchCookie: (): Promise<{ ok: boolean; error?: string }> =>
-      ipcRenderer.invoke('nowcoder:loginAndFetchCookie'),
-    onRefreshProgress: (callback: (progress: RefreshProgress) => void): (() => void) => {
-      const handler = (_event: IpcRendererEvent, data: RefreshProgress) => callback(data);
-      ipcRenderer.on('nowcoder:refreshProgress', handler);
-      return () => ipcRenderer.removeListener('nowcoder:refreshProgress', handler);
     },
   },
   store: {
@@ -141,8 +142,7 @@ const api = {
       ipcRenderer.invoke('store:setFriendGroups', handle, groups),
     linkLuogu: (handle: string, account: PlatformAccount): Promise<boolean> =>
       ipcRenderer.invoke('store:linkLuogu', handle, account),
-    linkNowcoder: (handle: string, account: PlatformAccount): Promise<boolean> =>
-      ipcRenderer.invoke('store:linkNowcoder', handle, account),
+    // store:linkNowcoder 已移除 (Phase 1b 退役)
   },
   updater: {
     checkForUpdates: (): Promise<{ status: UpdateStatus; info: UpdateInfo | null; error: string | null; appVersion: string }> =>
@@ -234,6 +234,24 @@ const api = {
     // 导出比赛列表为 .ics 日历文件
     exportIcs: (contests: CFContest[]): Promise<{ ok: boolean; path?: string; error?: string; canceled?: boolean }> =>
       ipcRenderer.invoke('contest:exportIcs', contests),
+  },
+  cache: {
+    // 题面缓存占用统计(题面数 / 代码文件数 / 收藏数 / 总字节), 供设置页展示
+    getStats: (): Promise<CacheStats> => ipcRenderer.invoke('cache:stats'),
+    // 手动清理过期题面(超过 maxAgeDays 天未访问), 返回删除数与释放空间
+    cleanup: (maxAgeDays?: number): Promise<CleanupResult> =>
+      ipcRenderer.invoke('cache:cleanup', maxAgeDays),
+  },
+  review: {
+    // 复习库 / 每日练习 / 练习时间轴 相关
+    getState: (): Promise<ReviewState> => ipcRenderer.invoke('review:getState'),
+    add: (items: ReviewProblem[]): Promise<number> => ipcRenderer.invoke('review:add', items),
+    remove: (contestId: number, index: string): Promise<boolean> =>
+      ipcRenderer.invoke('review:remove', contestId, index),
+    setNote: (contestId: number, index: string, note: string): Promise<boolean> =>
+      ipcRenderer.invoke('review:setNote', contestId, index, note),
+    clear: (): Promise<void> => ipcRenderer.invoke('review:clear'),
+    setDaily: (daily: DailyPractice): Promise<void> => ipcRenderer.invoke('review:setDaily', daily),
   },
   ai: {
     analyzeTeam: (teamId: string, settings?: Settings): Promise<TeamAIResult> =>

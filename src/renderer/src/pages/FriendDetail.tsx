@@ -636,7 +636,7 @@ export default function FriendDetail() {
                     {s.problem.contestId}{s.problem.index} - {s.problem.name}
                   </a>
                 </span>
-                <span className={styles.lang}>{s.language}</span>
+                <span className={styles.lang}>{s.programmingLanguage}</span>
                 <span className={styles.time}>
                   {new Date(s.creationTimeSeconds * 1000).toLocaleString()}
                 </span>

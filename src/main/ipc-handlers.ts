@@ -4,21 +4,23 @@ import path from 'path';
 import { StoreManager } from './store';
 import { fetchUserInfo, fetchUserInfoSafe, fetchUserRating, fetchUserStatus, fetchFriends, fetchContests, fetchContestPerformance, fetchContestStandings, fetchBlogEntries } from './cf-api';
 import { searchLuoguUser, fetchLuoguUserDetail } from './luogu-api';
-import { fetchNowcoderUser, NowcoderNoCookieError } from './nowcoder-api';
+// nowcoder-api 已移除 (Phase 1b 退役, 2026-08)
 import { checkForUpdates, installUpdate, getUpdateStatus } from './updater';
 import { checkRatingChanges, checkMilestones, checkContestReminders } from './notifier';
-import { predictContest } from './predictor';
+import { predictContest, computeCarrotPerformance } from './predictor';
 import { analyzeTeam, testAIConnection, buildReportMarkdown, buildReportExcelBuffer, translateProblemHTML } from './ai';
 import { fetchProblemList, refreshProblemList, fetchProblemStatement, fetchContestProblemList } from './problem-fetcher';
 import { runCode, detectCompiler } from './code-runner';
 import { getCode, setCode, setStatement, getProblemCacheDir, setProblemCacheDir, migrateProblemCache, clearProblemCache, listFavorites, addFavorite, removeFavorite, isFavorite } from './problem-store';
+import { getProblemCacheStats, runStartupCleanup, cleanupOldStatements } from './cache-cleanup';
+import { getReviewState, addReviewProblems, removeReviewProblem, setReviewNote, clearReviewProblems, setDailyPractice, getPerformance, setPerformance } from './review-store';
+import type { CacheStats, CleanupResult, ReviewState, ReviewProblem, DailyPractice } from '../shared/types';
 import type {
   Friend,
   Settings,
   CFUser,
   LuoguCache,
-  NowcoderCache,
-  NowcoderUser,
+  MeCache,
   PlatformAccount,
   Team,
   TeamAIResult,
@@ -50,13 +52,6 @@ function sendProgress(progress: RefreshProgress): void {
 function sendLuoguProgress(progress: RefreshProgress): void {
   BrowserWindow.getAllWindows().forEach((win) => {
     win.webContents.send('luogu:refreshProgress', progress);
-  });
-}
-
-// 牛客刷新进度广播 (独立事件名, 与 CF/洛谷刷新互不干扰)
-function sendNowcoderProgress(progress: RefreshProgress): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('nowcoder:refreshProgress', progress);
   });
 }
 
@@ -99,6 +94,30 @@ async function refreshUserCacheSafe(store: StoreManager, info: CFUser): Promise<
   }
 }
 
+/**
+ * 拉取并写入「我」的复盘缓存 (ratingHistory + 1000 条 submissions + 已结束比赛)。
+ * 失败抛出错误 (由调用方决定是否降级); 成功时返回新缓存条目。
+ */
+async function refreshMeDataInternal(store: StoreManager, handle: string): Promise<MeCache> {
+  const [ratingHistory, submissions, allContests] = await Promise.all([
+    fetchUserRating(handle),
+    fetchUserStatus(handle, 1000),
+    fetchContests(),
+  ]);
+  const finishedContests = allContests
+    .filter((c) => c.phase === 'FINISHED')
+    .sort((a, b) => b.startTimeSeconds - a.startTimeSeconds);
+  const entry: MeCache = {
+    handle,
+    ratingHistory,
+    submissions,
+    finishedContests,
+    cachedAt: Date.now(),
+  };
+  store.setMeCache(handle, entry);
+  return entry;
+}
+
 export function registerIpcHandlers(store: StoreManager): void {
   // ---- CF API ----
   ipcMain.handle('cf:getUserInfo', async (_event, handles: string[]) => {
@@ -121,6 +140,22 @@ export function registerIpcHandlers(store: StoreManager): void {
   ipcMain.handle('cf:getFriends', async (_event, handle: string, apiKey: string, apiSecret: string) => {
     return fetchFriends(handle, apiKey, apiSecret);
   });
+
+  // ---- 「我」的复盘数据缓存 (Review 页, stale-while-revalidate) ----
+  // 同步读: 渲染端 mount 时立即拿到缓存数据, 零延迟渲染
+  ipcMain.handle('cf:getMeCache', (_event, handle: string): MeCache | undefined => {
+    return store.getMeCache(handle);
+  });
+
+  // 主动刷新: 拉 rating + 1000 条 submissions + 已结束比赛, 写入 meCache 并返回
+  // (失败时不写缓存, 保留旧数据; 渲染端据此决定是否 toast 提示)
+  ipcMain.handle(
+    'cf:refreshMeData',
+    async (_event, handle: string): Promise<MeCache | null> => {
+      if (!handle) return null;
+      return refreshMeDataInternal(store, handle);
+    },
+  );
 
   ipcMain.handle('cf:refreshAll', async () => {
     const friends = store.getFriends();
@@ -205,6 +240,15 @@ export function registerIpcHandlers(store: StoreManager): void {
     checkRatingChanges(store, oldCaches, settings);
     checkMilestones(store, oldCaches);
 
+    // 顺手把「我」的复盘缓存也刷一下, 避免 Review 页还要等下次后台刷新
+    if (settings.myHandle) {
+      try {
+        await refreshMeDataInternal(store, settings.myHandle);
+      } catch (e) {
+        console.warn('refreshAll: me cache refresh failed:', (e as Error).message);
+      }
+    }
+
     return infos;
   });
 
@@ -231,6 +275,24 @@ export function registerIpcHandlers(store: StoreManager): void {
       return false;
     }
   }
+
+  // 按 uid 立即拉一次洛谷详情并写入 LuoguCache。
+  // 用于 AddFriend 洛谷 tab 添加 / Settings 绑定我的洛谷后立刻生效:
+  // 绑定操作只写 friend.luogu 或 settings.myLuogu (uid+name), 不自动 fetch;
+  // 不主动调用一次, FriendRow 徽章 / 排行榜洛谷 tab 永远看不到数据,
+  // 必须再手动点 Sidebar 全量刷新才会填入缓存 —— 用户体验差。
+  // 一次绑定一次拉取, 不依赖 enableLuogu 开关 (用户既然绑了洛谷就一定要能看到数据)。
+  ipcMain.handle('luogu:refreshByUid', async (_event, uid: number): Promise<boolean> => {
+    const ok = await refreshLuoguCacheSafe(store, uid);
+    // 推一条 progress, 触发 useAppData 重载 getAllCache, 渲染端自动刷新
+    sendLuoguProgress({
+      handle: String(uid),
+      completed: 1,
+      total: 1,
+      errors: ok ? [] : [String(uid)],
+    });
+    return ok;
+  });
 
   // 刷新全部有洛谷账号的好友 (遍历 friends 的 luogu 字段, 逐 uid 刷新)
   // 受设置 enableLuogu 门控: 关闭时直接跳过 (视为空刷新, 不报错)
@@ -274,159 +336,16 @@ export function registerIpcHandlers(store: StoreManager): void {
     return true;
   });
 
-  // ---- 牛客数据 (Phase 1b, 需用户 session cookie, 可降级) ----
-  // 按牛客 userId 拉取资料。无 cookie 时抛 NO_COOKIE, 由渲染层提示配置。
-  ipcMain.handle('nowcoder:getUser', async (_event, id: number): Promise<NowcoderUser> => {
-    const cookie = await store.getNowcoderCookieAsync();
-    if (!cookie) {
-      throw new NowcoderNoCookieError();
-    }
-    return fetchNowcoderUser(id, cookie);
+  // 精准删除单 uid 缓存（用于解除"我的洛谷"时, 不影响好友数据）
+  ipcMain.handle('luogu:deleteCacheForUid', (_event, uid: number): boolean => {
+    return store.deleteLuoguCache(uid);
   });
 
-  // 安全刷新单个牛客用户: 失败写入 unavailable 缓存, 不阻断其它平台
-  async function refreshNowcoderCacheSafe(store: StoreManager, id: number, cookie: string): Promise<boolean> {
-    try {
-      const info = await fetchNowcoderUser(id, cookie);
-      store.setNowcoderCache(id, { id, info, cachedAt: Date.now() });
-      return true;
-    } catch (e) {
-      // 任何失败都标记该用户不可用, 保留旧缓存(若有)
-      const prev = store.getNowcoderCache(id);
-      store.setNowcoderCache(id, {
-        id,
-        info: prev?.info ?? { id, name: '' },
-        cachedAt: Date.now(),
-        unavailable: true,
-      });
-      return false;
-    }
-  }
+  // ---- 牛客数据已整体移除 (Phase 1b 退役, 2026-08) ----
+// 原因: 无公开 API, 需逆向 + 用户 session cookie; cookie 字段脆弱、维护成本过高。
+// 数据不再导出 any IPC, 老 store 里的 nowcoderCache 字段会被忽略 (兼容性保留)。
 
-  // 刷新全部有牛客账号的好友。受 enableNowcoder 门控, 且必须已配置 cookie。
-  ipcMain.handle('nowcoder:refreshAll', async (): Promise<number[]> => {
-    const settings = store.getSettings();
-    const cookie = await store.getNowcoderCookieAsync();
-    if (!settings.enableNowcoder || !cookie) {
-      sendNowcoderProgress({ completed: 0, total: 0, errors: [] });
-      return [];
-    }
-    const friends = store.getFriends().filter((f) => f.nowcoder);
-    const ids = friends.map((f) => f.nowcoder!.uid);
-    if (ids.length === 0) {
-      sendNowcoderProgress({ completed: 0, total: 0, errors: [] });
-      return [];
-    }
-    const total = ids.length;
-    const errors: string[] = [];
-    let completed = 0;
-    for (const id of ids) {
-      const ok = await refreshNowcoderCacheSafe(store, id, cookie);
-      if (!ok) errors.push(String(id));
-      completed++;
-      sendNowcoderProgress({ handle: String(id), completed, total, errors });
-    }
-    if (ids.length === 0) {
-      sendNowcoderProgress({ completed: total, total, errors });
-    }
-    return ids;
-  });
-
-  ipcMain.handle('nowcoder:getCache', (_event, id: number): NowcoderCache | undefined => {
-    return store.getNowcoderCache(id);
-  });
-
-  ipcMain.handle('nowcoder:getAllCache', (): Record<number, NowcoderCache> => {
-    return store.getAllNowcoderCache();
-  });
-
-  ipcMain.handle('nowcoder:clearCache', (): boolean => {
-    store.clearNowcoderCache();
-    return true;
-  });
-
-  // 牛客 cookie 存取 (真实值存系统凭据库 keytar; 仅返回是否存在, 不回明文)
-  ipcMain.handle('nowcoder:getCookie', async (): Promise<{ configured: boolean }> => {
-    const cookie = await store.getNowcoderCookieAsync();
-    return { configured: !!cookie };
-  });
-
-  ipcMain.handle('nowcoder:setCookie', async (_event, cookie: string): Promise<boolean> => {
-    await store.setNowcoderCookieAsync(cookie ?? '');
-    return true;
-  });
-
-  // 牛客一键登录获取 cookie：弹出独立登录窗口（内存会话，不污染主 session），
-  // 用户登录后自动抓取 NOWCODERUID 等 cookie 并保存到 keytar，免手动复制。
-  let nowcoderLoginWin: BrowserWindow | null = null;
-  ipcMain.handle('nowcoder:loginAndFetchCookie', async (): Promise<{ ok: boolean; error?: string }> => {
-    if (nowcoderLoginWin && !nowcoderLoginWin.isDestroyed()) {
-      nowcoderLoginWin.focus();
-      return { ok: false, error: '登录窗口已打开，请在该窗口完成登录' };
-    }
-    const parentWin = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
-    return new Promise((resolve) => {
-      const win = new BrowserWindow({
-        width: 1100,
-        height: 760,
-        parent: parentWin,
-        title: '牛客登录 - 登录成功后自动获取 Cookie',
-        webPreferences: {
-          partition: 'nowcoder-login',
-          contextIsolation: true,
-          sandbox: true,
-        },
-      });
-      nowcoderLoginWin = win;
-      let settled = false;
-      const finish = (result: { ok: boolean; error?: string }) => {
-        if (settled) return;
-        settled = true;
-        try {
-          if (!win.isDestroyed()) win.close();
-        } catch {
-          /* noop */
-        }
-        nowcoderLoginWin = null;
-        clearTimeout(timer);
-        resolve(result);
-      };
-      const timer = setTimeout(
-        () => finish({ ok: false, error: '登录超时（5 分钟未检测到登录态）' }),
-        5 * 60 * 1000,
-      );
-
-      const checkCookie = async () => {
-        try {
-          const cookies = await win.webContents.session.cookies.get({ url: 'https://ac.nowcoder.com' });
-          const uid = cookies.find((c) => c.name === 'NOWCODERUID' && c.value);
-          if (uid) {
-            const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
-            await store.setNowcoderCookieAsync(cookieStr);
-            finish({ ok: true });
-          }
-        } catch {
-          /* noop */
-        }
-      };
-
-      win.webContents.on('did-navigate', () => {
-        void checkCookie();
-      });
-      win.webContents.on('did-navigate-in-page', () => {
-        void checkCookie();
-      });
-      win.on('closed', () => {
-        nowcoderLoginWin = null;
-        finish({ ok: false, error: '用户已关闭登录窗口' });
-      });
-      void win.loadURL('https://ac.nowcoder.com/').catch(() =>
-        finish({ ok: false, error: '无法打开牛客登录页，请检查网络后重试' }),
-      );
-    });
-  });
-
-  // ---- Store: Friends ----
+// ---- Store: Friends ----
   ipcMain.handle('store:getFriends', () => {
     return store.getFriends();
   });
@@ -674,6 +593,33 @@ export function registerIpcHandlers(store: StoreManager): void {
     }
   });
 
+  // 计算单场 carrotplus 表现分（基于官方 standings + 参赛者当前 rating 的 Elo seed 二分法）。
+  // 结果按比赛缓存到复习库状态，首次计算按需触发（避免逐场拉取全部参赛者 rating）。
+  ipcMain.handle('cf:computePerformance', async (_event, contestId: number): Promise<number> => {
+    try {
+      const cached = getPerformance(contestId);
+      if (cached !== undefined) return cached;
+      const settings = store.getSettings();
+      const handle = settings.myHandle;
+      if (!handle) throw new Error('未设置我的 handle，无法计算表现分');
+      const perf = await computeCarrotPerformance(contestId, handle);
+      setPerformance(contestId, perf);
+      return perf;
+    } catch (e) {
+      throw new Error(`计算表现分失败: ${(e as Error).message}`);
+    }
+  });
+
+  // ---- 复习库 / 每日练习 / 练习时间轴 ----
+  ipcMain.handle('review:getState', (): ReviewState => getReviewState());
+  ipcMain.handle('review:add', (_event, items: ReviewProblem[]): number => addReviewProblems(items));
+  ipcMain.handle('review:remove', (_event, contestId: number, index: string): boolean =>
+    removeReviewProblem(contestId, index));
+  ipcMain.handle('review:setNote', (_event, contestId: number, index: string, note: string): boolean =>
+    setReviewNote(contestId, index, note));
+  ipcMain.handle('review:clear', (): void => clearReviewProblems());
+  ipcMain.handle('review:setDaily', (_event, daily: DailyPractice): void => setDailyPractice(daily));
+
   // 获取题面（仅从本地缓存读取; Codeforces 页面域被 Cloudflare 反爬,
   // 应用内无法抓取, 未缓存时返回 OPEN_BROWSER 信号, 由前端调用系统浏览器打开原题）
   ipcMain.handle(
@@ -784,6 +730,17 @@ export function registerIpcHandlers(store: StoreManager): void {
   // 清空题目缓存: 删除题面 / 题目清单 / 保存的代码（保留目录本身）
   ipcMain.handle('problem:clearCache', (): import('./problem-store').ClearResult => {
     return clearProblemCache();
+  });
+
+  // ---- 题面缓存自动清理与统计 (设置页展示 / 手动清理决策) ----
+  // 统计题面缓存目录占用(题面数 / 代码文件数 / 收藏数 / 总字节数)
+  ipcMain.handle('cache:stats', (): CacheStats => {
+    return getProblemCacheStats();
+  });
+
+  // 手动清理过期题面: 删除超过 maxAgeDays 天未访问的题面文件, 返回删除数与释放空间
+  ipcMain.handle('cache:cleanup', (_event, maxAgeDays?: number): CleanupResult => {
+    return cleanupOldStatements(maxAgeDays);
   });
 
   // ---- Window State ----
@@ -1085,10 +1042,7 @@ export function registerIpcHandlers(store: StoreManager): void {
     return store.linkLuogu(handle, account);
   });
 
-  // 关联某好友的牛客账号 (AddFriend 牛客 tab 的「关联到已有好友」使用)
-  ipcMain.handle('store:linkNowcoder', (_event, handle: string, account: PlatformAccount): boolean => {
-    return store.linkNowcoder(handle, account);
-  });
+  // store:linkNowcoder 已移除
 
   // ---- 本地收藏题目 ----
   ipcMain.handle('problem:getFavorites', (): FavoriteProblem[] => {

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { PlatformAccount, NowcoderUser } from '../types';
+import type { PlatformAccount } from '../types';
 import styles from '../styles/addFriend.module.css';
 
 export default function AddFriend() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'manual' | 'import' | 'luogu' | 'nowcoder'>('manual');
+  const [tab, setTab] = useState<'manual' | 'import' | 'luogu'>('manual');
 
   // 手动添加
   const [handle, setHandle] = useState('');
@@ -33,14 +33,7 @@ export default function AddFriend() {
   const [luoguAdding, setLuoguAdding] = useState(false);
   const [friendsForLink, setFriendsForLink] = useState<{ handle: string; alias: string }[]>([]);
 
-  // 牛客添加 (Phase 1b, 需用户在设置中配置 session cookie)
-  const [ncQuery, setNcQuery] = useState('');
-  const [ncVerifying, setNcVerifying] = useState(false);
-  const [ncInfo, setNcInfo] = useState<NowcoderUser | null>(null);
-  const [ncError, setNcError] = useState('');
-  const [ncLinkTarget, setNcLinkTarget] = useState(''); // '' = 新建好友, 否则为已存在好友 handle
-  const [ncAdding, setNcAdding] = useState(false);
-
+  // ---- 手动添加 ----
   const verifyHandle = async () => {
     if (!handle.trim()) return;
     setVerifying(true);
@@ -57,6 +50,12 @@ export default function AddFriend() {
     } finally {
       setVerifying(false);
     }
+  };
+
+  // ---- 洛谷 ----
+  const loadFriendsForLink = async () => {
+    const fr = await window.api.store.getFriends();
+    setFriendsForLink(fr.map((f) => ({ handle: f.handle, alias: f.alias || f.handle })));
   };
 
   const addFriend = async () => {
@@ -107,11 +106,6 @@ export default function AddFriend() {
   };
 
   // ---- 洛谷 ----
-  const loadFriendsForLink = async () => {
-    const fr = await window.api.store.getFriends();
-    setFriendsForLink(fr.map((f) => ({ handle: f.handle, alias: f.alias || f.handle })));
-  };
-
   const searchLuogu = async () => {
     if (!luoguQuery.trim()) return;
     setLuoguSearching(true);
@@ -156,6 +150,11 @@ export default function AddFriend() {
           });
           if (!ok) setLuoguError(`「${acc.name}」已存在, 跳过`);
         }
+        // 绑定后立即拉一次详情写 LuoguCache: FriendRow 徽章 / 排行榜洛谷 tab 立即可见,
+        // 不必等用户再去点 Sidebar 全量刷新。失败静默——缓存层会留空, 但不会阻断用户的添加意图。
+        window.api.luogu
+          .refreshByUid(acc.uid)
+          .catch((e) => console.warn(`luogu refreshByUid(${acc.uid}) failed:`, e));
       }
       navigate('/friends');
     } catch (e) {
@@ -165,57 +164,7 @@ export default function AddFriend() {
     }
   };
 
-  // ---- 牛客 ----
-  // 牛客按 userId 验证: 需要用户在设置中配置自己的 session cookie
-  const verifyNowcoder = async () => {
-    const idNum = Number(ncQuery.trim());
-    if (!ncQuery.trim() || !Number.isInteger(idNum) || idNum <= 0) {
-      setNcError('请输入有效的牛客 userId（数字）');
-      return;
-    }
-    setNcVerifying(true);
-    setNcError('');
-    setNcInfo(null);
-    try {
-      const info = await window.api.nowcoder.getUser(idNum);
-      setNcInfo(info);
-    } catch (e) {
-      const msg = (e as Error).message || '';
-      if (msg === 'NO_COOKIE') {
-        setNcError('未配置牛客 cookie：请先在「设置」里填入你的牛客 session cookie，并开启牛客平台开关');
-      } else {
-        setNcError(`验证失败：${msg}`);
-      }
-    } finally {
-      setNcVerifying(false);
-    }
-  };
-
-  const addNowcoder = async () => {
-    if (!ncInfo) return;
-    setNcAdding(true);
-    setNcError('');
-    try {
-      if (ncLinkTarget) {
-        // 关联到已有好友（在其 Friend 上挂 nowcoder 字段）
-        await window.api.store.linkNowcoder(ncLinkTarget, { uid: ncInfo.id, name: ncInfo.name });
-      } else {
-        // 新建纯牛客好友：handle 用合成主键 nowcoder:{id}
-        const ok = await window.api.store.addFriend({
-          handle: `nowcoder:${ncInfo.id}`,
-          alias: ncInfo.name,
-          addedAt: Date.now(),
-          nowcoder: { uid: ncInfo.id, name: ncInfo.name },
-        });
-        if (!ok) setNcError(`「${ncInfo.name}」已存在，跳过`);
-      }
-      navigate('/friends');
-    } catch (e) {
-      setNcError(`添加失败：${(e as Error).message}`);
-    } finally {
-      setNcAdding(false);
-    }
-  };
+  // ---- 牛客已移除 (Phase 1b 退役, 2026-08) ----
 
   return (
     <div>
@@ -238,12 +187,6 @@ export default function AddFriend() {
           onClick={() => { setTab('luogu'); loadFriendsForLink(); }}
         >
           从洛谷添加
-        </button>
-        <button
-          className={tab === 'nowcoder' ? styles.activeTab : styles.tab}
-          onClick={() => { setTab('nowcoder'); loadFriendsForLink(); }}
-        >
-          从牛客添加
         </button>
       </div>
 
@@ -446,66 +389,6 @@ export default function AddFriend() {
                 className={styles.submitBtn}
               >
                 {luoguAdding ? '添加中...' : `添加选中的 ${luoguSelected.size} 个`}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === 'nowcoder' && (
-        <div className={styles.form}>
-          <p className={styles.hint}>
-            牛客无公开 API，需你把自己的 session cookie 填到「设置」并开启牛客平台开关（数据脆弱，可能因官网改版失效）。
-            按牛客 userId 添加，可关联到已有好友或新建纯牛客好友。
-          </p>
-          <div className={styles.field}>
-            <label>牛客 userId（数字）</label>
-            <div className={styles.inputRow}>
-              <input
-                type="text"
-                value={ncQuery}
-                onChange={(e) => { setNcQuery(e.target.value); setNcInfo(null); setNcError(''); }}
-                placeholder="如 100000000"
-                className={styles.input}
-                onKeyDown={(e) => { if (e.key === 'Enter') verifyNowcoder(); }}
-              />
-              <button onClick={verifyNowcoder} disabled={ncVerifying || !ncQuery.trim()} className={styles.btn}>
-                {ncVerifying ? '验证中...' : '验证'}
-              </button>
-            </div>
-          </div>
-
-          {ncInfo && (
-            <div className={styles.field}>
-              <label>关联到已有好友（可选，留空则新建牛客好友）</label>
-              <select
-                value={ncLinkTarget}
-                onChange={(e) => setNcLinkTarget(e.target.value)}
-                className={styles.input}
-              >
-                <option value="">＋ 新建牛客好友</option>
-                {friendsForLink.map((f) => (
-                  <option key={f.handle} value={f.handle}>
-                    关联到：{f.alias}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {ncError && <p className={styles.error}>{ncError}</p>}
-
-          {ncInfo && (
-            <div className={styles.importList}>
-              <div className={styles.importToolbar}>
-                <span>已验证：{ncInfo.name}{ncInfo.rating !== undefined ? ` · rating ${ncInfo.rating}` : ''}</span>
-              </div>
-              <button
-                onClick={addNowcoder}
-                disabled={ncAdding}
-                className={styles.submitBtn}
-              >
-                {ncAdding ? '添加中...' : '添加'}
               </button>
             </div>
           )}

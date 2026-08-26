@@ -18,13 +18,17 @@
 | 平台 | 数据来源 | 是否需要登录 | 稳定性 | 处理策略 |
 |---|---|---|---|---|
 | 洛谷 | `www.luogu.com.cn/api/...`（非官方但文档化、稳定） | 只读一般无需 | 高 | 直接集成，复用 CF 的 RequestQueue+重试 |
-| 牛客 | `ac.nowcoder.com` 内部 JSON / 页面内嵌 JSON | **需要用户自己的 session cookie** | 低（签名易变、易封） | 可开关、可降级；无 cookie 时该平台功能置灰 |
+| ~~牛客~~ | ~~`ac.nowcoder.com` 内部 JSON / 页面内嵌 JSON~~ | ~~需要用户自己的 session cookie~~ | ~~低（签名易变、易封）~~ | **已退役 (2026-08)**: 无公开 API + cookie 字段脆弱 + 接口经常改版, 维护成本超过收益 |
 
-**牛客硬性约束（必须接受）**：
-- 牛客**没有**公开的个人竞赛数据 API。企业版 `api.nowcoder.com/v1`（OAuth2）是招聘数据，拿不到个人 rating / 提交。
-- 个人数据只能靠逆向 `ac.nowcoder.com` 接口 + 用户从浏览器复制的 session cookie（如 `_nowcoder_*`）。
-- cookie 属敏感凭证：存 keytar（与 `aiApiKey` 同机制），不落明文、仅本地、不上传。
-- 接口路径与签名随前端改版可能失效，UI 须明确标注「牛客数据可能随时失效，属尽力而为」。
+**~~牛客硬性约束（必须接受）~~ 已退役 (2026-08)**：
+- ~~牛客没有公开的个人竞赛数据 API。企业版 `api.nowcoder.com/v1`（OAuth2）是招聘数据，拿不到个人 rating / 提交。~~
+- ~~个人数据只能靠逆向 `ac.nowcoder.com` 接口 + 用户从浏览器复制的 session cookie（如 `_nowcoder_*`）。~~
+- ~~cookie 属敏感凭证：存 keytar（与 `aiApiKey` 同机制），不落明文、仅本地、不上传。~~
+- ~~接口路径与签名随前端改版可能失效，UI 须明确标注「牛客数据可能随时失效，属尽力而为」。~~
+
+退役原因：cookie 字段名（NOWCODERUID / t-user-id / userIdSession 等）随前端改版频繁变化，配置流程反复失败、用户反复报错；逆向 `__INITIAL_STATE__` 解析对结构变化脆弱。综合维护成本超过收益。
+
+退役处理：删除 `src/main/nowcoder-api.ts` + `tests/nowcoder-api.test.ts` + 所有 `nowcoder:*` IPC + `Friend.nowcoder` / `settings.myNowcoder` / `nowcoderCookie` / `enableNowcoder` / `Nowcoder*` 类型 + AddFriend/Settings/Leaderboard/FriendRow/Sidebar 中相关 UI + cookie 解析/预览逻辑。Store 中的 `nowcoderCache` 字段保持 schema 兼容（被忽略），老用户升级不报错。
 
 ## 2.1 实测更新（2026-08-16 · Phase 0 / 1a 真实联调）
 
@@ -45,14 +49,13 @@
 - **submissions / contests 与 Contests 洛谷比赛区块**：因匿名 404 不可达，**推迟到登录态支持（keytar 存洛谷 cookie）之后**（归入 Phase 1b / 二期）。
 - C3VK 反爬 cookie 握手（302 重定向→取 cookie→重试）已内置在 `luogu-api.ts` 的 `luoguGet`，真实家用 IP 通常直接 200。
 
-### 2.1.1 实测更新（2026-08-16 · Phase 1b 牛客真实联调）
+### ~~2.1.1 实测更新（2026-08-16 · Phase 1b 牛客真实联调）~~ 已退役
 
-牛客的真实行为印证了「cookie 门控 + SPA 壳」的判断（已用真实无 cookie 请求验证）：
+~~牛客的真实行为印证了「cookie 门控 + SPA 壳」的判断（已用真实无 cookie 请求验证）：~~
 
-- 未登录访问 `ac.nowcoder.com` 任意个人页，服务端只返回**极简 SPA 壳 HTML**（含 `<div id="root">` 与 bundle 引用），**不内嵌任何个人数据**；个人 rating / 通过数等必须经用户自有 session cookie 走 XHR 接口（即页面运行时拉取后内嵌的 `window.__INITIAL_STATE__`）。
-- 因此数据层 `nowcoder-api.ts` 采用：拉取 `/acm/contest/profile/{id}` 页面 HTML → 抽取 `window.__INITIAL_STATE__` JSON（括号配平扫描，兼容字符串内括号）→ 递归 DFS 查找第一个「含 id 类字段 + 名称类字段」的对象 → 映射为 `NowcoderUser`。该递归策略**不硬编码路径**，对牛客前端改版（字段名/结构漂移）更鲁棒；解析失败或 cookie 失效（302 到登录页）统一向上抛 `NowcoderNoCookieError` / 解析错误，由上层标记 `unavailable` 而不崩溃。
-- cookie 真实值存系统凭据库 keytar（service `cf-friend-tracker`、account `nowcoderCookie`），`Settings.nowcoderCookie` 明文恒为空、`getSettings()` 永远回显空串，避免明文落盘。
-- 默认 `enableNowcoder=false`，关闭时刷新编排与榜单跳过牛客；用户配置 cookie 且开启开关后才参与。AddFriend / Settings 均无公开搜索 API，改为「输入牛客数字 userId → 带 cookie 校验 → 关联」。
+> 牛客集成已整体退役（详见上方退役说明）。下方相关章节保留作为历史决策记录，不再维护。
+
+// 牛客相关章节已退役, 仅留以上退役说明作为历史决策记录
 
 **对计划的收敛影响**：
 - Phase 1b 已完整实现：数据层（逆向 + 递归解析 + 可降级）、store（keytar cookie + nowcoderCache + linkNowcoder）、ipc/preload 接入、AddFriend 牛客 tab、FriendRow 牛客徽章、Leaderboard 牛客 tab、Settings「我的关联账号（牛客）+ cookie 输入 + 平台开关」、Sidebar 刷新并入 nowcoder。✅ 已通过 node/web 临时 tsc 检查（0 错误）+ vitest（46 项全过，含 8 项 nowcoder-api 单测）。

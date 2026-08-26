@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import FriendList from './pages/FriendList';
@@ -16,9 +16,13 @@ import Problems from './pages/Problems';
 import ProblemView from './pages/ProblemView';
 import Training from './pages/Training';
 import VirtualContest from './pages/VirtualContest';
+import Review from './pages/Review';
 import ErrorBoundary from './components/ErrorBoundary';
 import ChangelogModal from './components/ChangelogModal';
 import AltNavWheel from './components/AltNavWheel';
+import CommandPalette from './components/CommandPalette';
+import ShortcutHelp from './components/ShortcutHelp';
+import { ToastProvider } from './components/Toast';
 import { CHANGELOG } from './data/changelog';
 
 export default function App() {
@@ -26,6 +30,8 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
   const [appVersion, setAppVersion] = useState('');
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutOpen, setShortcutOpen] = useState(false);
 
   // 应用主题 + 启动时跳转到默认页面 + 更新日志检查
   useEffect(() => {
@@ -71,6 +77,27 @@ export default function App() {
     })();
   }, []);
 
+  // 全局快捷键: Ctrl/Cmd+K 命令面板, Ctrl+/ 快捷键中心
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const key = e.key.toLowerCase();
+      if (key === 'k') {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      } else if (key === '/') {
+        e.preventDefault();
+        setShortcutOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  const closePalette = useCallback(() => setPaletteOpen(false), []);
+  const closeShortcut = useCallback(() => setShortcutOpen(false), []);
+
   if (!ready) {
     return (
       <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-base)' }}>
@@ -81,38 +108,46 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-base)' }}>
-      <Sidebar />
-      <main style={{
-        flex: 1,
-        overflow: 'auto',
-        padding: '28px 32px 40px',
-        backgroundColor: 'var(--bg-base)',
-        backgroundImage: 'repeating-linear-gradient(to bottom, transparent, transparent 27px, var(--rule-line) 27px, var(--rule-line) 28px)',
-        backgroundAttachment: 'local',
-      }}>
-        <Routes>
-          <Route path="/" element={<FriendList />} />
-          <Route path="/friends" element={<FriendList />} />
-          <Route path="/friends/:handle" element={<FriendDetail />} />
-          <Route path="/feed" element={<Feed />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/teams" element={<Teams />} />
-          <Route path="/contests" element={<Contests />} />
-          <Route path="/problems" element={<Problems />} />
-          <Route path="/problems/:contestId/:index" element={<ProblemView />} />
-          <Route path="/training" element={<Training />} />
-          <Route path="/virtual" element={<VirtualContest />} />
-          <Route path="/compare" element={<Compare />} />
-          <Route path="/report" element={<Report />} />
-          <Route path="/add" element={<AddFriend />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </main>
-      {showChangelog && (
-        <ChangelogModal onClose={() => setShowChangelog(false)} initialVersion={appVersion || CHANGELOG[0]?.version} />
-      )}
-      <AltNavWheel />
-    </div>
+    <ToastProvider>
+      <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-base)' }}>
+        <Sidebar />
+        <main style={{
+          flex: 1,
+          overflow: 'auto',
+          padding: '28px 32px 40px',
+          backgroundColor: 'var(--bg-base)',
+          backgroundImage: 'repeating-linear-gradient(to bottom, transparent, transparent 27px, var(--rule-line) 27px, var(--rule-line) 28px)',
+          backgroundAttachment: 'local',
+        }}>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<FriendList />} />
+              <Route path="/friends" element={<FriendList />} />
+              <Route path="/friends/:handle" element={<FriendDetail />} />
+              <Route path="/feed" element={<Feed />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/teams" element={<Teams />} />
+              <Route path="/contests" element={<Contests />} />
+              <Route path="/problems" element={<Problems />} />
+              <Route path="/problems/:contestId/:index" element={<ProblemView />} />
+              <Route path="/training" element={<Training />} />
+              <Route path="/review" element={<Review />} />
+              <Route path="/virtual" element={<VirtualContest />} />
+              <Route path="/compare" element={<Compare />} />
+              <Route path="/report" element={<Report />} />
+              <Route path="/add" element={<AddFriend />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </ErrorBoundary>
+        </main>
+        {showChangelog && (
+          <ChangelogModal onClose={() => setShowChangelog(false)} initialVersion={appVersion || CHANGELOG[0]?.version} />
+        )}
+        <AltNavWheel />
+        <CommandPalette open={paletteOpen} onClose={closePalette} />
+        {shortcutOpen && <ShortcutHelp onClose={closeShortcut} />}
+      </div>
+    </ToastProvider>
   );
 }

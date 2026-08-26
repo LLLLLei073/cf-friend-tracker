@@ -8,6 +8,7 @@ import { registerIpcHandlers } from './ipc-handlers';
 import { initUpdater } from './updater';
 import { startContestReminderTimer, stopContestReminderTimer } from './notifier';
 import { refreshStarredInBackground } from './notifier';
+import { runStartupCleanup } from './cache-cleanup';
 
 // 调试日志
 const logFile = path.join(app.getPath('userData'), 'debug.log');
@@ -117,6 +118,10 @@ function createWindow(): void {
   debugLog('createWindow called');
   const savedState = store.getWindowState();
   debugLog(`Window state: ${JSON.stringify(savedState)}`);
+  // 应用图标: 开发态从 build/ 读 PNG (Windows 上 PNG 即可, macOS 上更佳)。
+  // 打包后 .exe/.dmg 的图标由 electron-builder 的 build.icon 嵌入, 此处只是任务栏/窗口图标补充。
+  // 路径基于 app.getAppPath() 解析, 兼容 dev (项目根) 与 packaged (app resources) 两种场景。
+  const iconPath = path.join(app.getAppPath(), 'build', 'icon.png');
   const win = new BrowserWindow({
     width: savedState?.width ?? 1100,
     height: savedState?.height ?? 750,
@@ -124,6 +129,7 @@ function createWindow(): void {
     y: savedState?.y,
     minWidth: 800,
     minHeight: 600,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -195,6 +201,9 @@ app.whenReady().then(async () => {
     debugLog(`migrateApiKeyIfNeeded failed: ${String(e)}`);
   }
   createWindow();
+
+  // 启动时清理过期题面缓存(静默, 不阻断启动)
+  runStartupCleanup();
 
   // 初始化自动更新(生产模式启动后延迟自动检查)
   initUpdater();

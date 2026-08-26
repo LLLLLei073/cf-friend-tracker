@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import type { Friend, FriendCache, LuoguCache, NowcoderCache } from '../types';
+import type { Friend, FriendCache, LuoguCache } from '../types';
 import { getRankColor, getRankLabel } from '../utils/rank';
 import styles from '../styles/friendList.module.css';
 
@@ -7,7 +7,6 @@ interface Props {
   friend: Friend;
   cache?: FriendCache;
   luoguCache?: LuoguCache;
-  nowcoderCache?: NowcoderCache;
   onToggleStar?: (handle: string, starred: boolean) => void;
 }
 
@@ -18,7 +17,7 @@ function formatRelativeTime(seconds: number): string {
   return `${Math.floor(diff / 86400)} 天前`;
 }
 
-export default function FriendRow({ friend, cache, luoguCache, nowcoderCache, onToggleStar }: Props) {
+export default function FriendRow({ friend, cache, luoguCache, onToggleStar }: Props) {
   const navigate = useNavigate();
   const info = cache?.info;
   const online = info ? Date.now() / 1000 - info.lastOnlineTimeSeconds < 300 : false;
@@ -31,11 +30,6 @@ export default function FriendRow({ friend, cache, luoguCache, nowcoderCache, on
   const luogu = friend.luogu ? luoguCache : undefined;
   const luoguInfo = luogu?.info;
 
-  // 牛客徽章: 通过 friend.nowcoder?.uid 取缓存, 显示 rating; 抓取失败灰化显示 N/A
-  const nc = friend.nowcoder ? nowcoderCache : undefined;
-  const ncInfo = nc?.info;
-  const ncUnavailable = !!nc?.unavailable;
-
   const handleToggleStar = (e: React.MouseEvent) => {
     e.stopPropagation();
     onToggleStar?.(friend.handle, !friend.starred);
@@ -44,7 +38,7 @@ export default function FriendRow({ friend, cache, luoguCache, nowcoderCache, on
   return (
     <div className={`${styles.row} ${friend.starred ? styles.rowStarred : ''}`} onClick={() => navigate(`/friends/${friend.handle}`)}>
       <img
-        src={info?.avatar || luoguInfo?.avatar || ncInfo?.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
+        src={info?.avatar || luoguInfo?.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'}
         className={styles.avatar}
         alt={friend.handle}
       />
@@ -61,18 +55,6 @@ export default function FriendRow({ friend, cache, luoguCache, nowcoderCache, on
             title={`洛谷: 通过 ${luoguInfo.passed} 题 · 提交 ${luoguInfo.submitted} 题`}
           >
             洛谷 {luoguInfo.passed}
-          </span>
-        )}
-        {ncInfo && (
-          <span
-            className={`${styles.nowcoderBadge} ${ncUnavailable ? styles.nowcoderBadgeNA : ''}`}
-            title={
-              ncUnavailable
-                ? '牛客: 数据抓取失败 (cookie 失效或接口变更)'
-                : `牛客: rating ${ncInfo.rating ?? 'N/A'}${ncInfo.accepted !== undefined ? ` · 通过 ${ncInfo.accepted} 题` : ''}`
-            }
-          >
-            牛客 {ncUnavailable ? 'N/A' : (ncInfo.rating ?? '—')}
           </span>
         )}
       </div>
