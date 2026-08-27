@@ -2,6 +2,8 @@
 
 Electron + React 桌面应用，用于关注 Codeforces 好友的 Rating 变化、做题记录、比赛情况和在线状态。
 
+> ⚠️ **项目已停止维护** — 本仓库已收尾，最终版本为 [v1.4.1](https://github.com/LLLLLei073/cf-friend-tracker/releases/tag/v1.4.1)（2026-08-26）。不再接受 issue / PR；如需继续开发请 fork 后自行维护。
+
 ## 功能
 
 ### 好友管理

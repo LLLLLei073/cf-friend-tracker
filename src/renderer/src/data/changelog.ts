@@ -8,6 +8,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.1',
+    date: '2026-08-26',
+    title: '洛谷根因修复 + 复盘缓存 + 应用图标 + 移除牛客（小更新）',
+    features: [
+      { icon: '💾', text: '新增本地缓存层：复盘页按 handle 缓存 rating / submissions / 已结束比赛，5 分钟 TTL 软过期 + stale-while-revalidate，进入页面零延迟渲染' },
+      { icon: '🎨', text: '新增正式版应用图标：1024×1024 主图标（深海军蓝 + 白色 CF monogram + 青色二叉树元素），多尺寸 .ico 自适应任何 UI 主题' },
+      { icon: '🚀', text: 'Carrotplus 表现分按比赛缓存，避免反复展开同一场比赛时重新走 standings 接口' },
+    ],
+    fixes: [
+      { icon: '🐛', text: '修复添加好友时洛谷数据不显示：AddFriend 洛谷 tab 和 Settings 绑定后立即拉取并写入缓存，不再需要再点全量刷新' },
+      { icon: '🐛', text: '修复"我的洛谷"数据完全不可见：排行榜把 myLuogu 入榜、Sidebar 全量刷新一并刷、Settings 绑定后直接渲染概览卡片' },
+      { icon: '🐛', text: '修复复盘页赛内通过 / 赛后补题 / 练习时间轴全空：CF API 字段名 language → programmingLanguage 修正' },
+      { icon: '🐛', text: '修复 IPC 抛错时字符串匹配失效：统一返回 {ok,code,error} / {ok,user} 结构化结果，渲染端按 result.code 判断' },
+      { icon: '🧹', text: '移除牛客整个集成模块（无公开 API、cookie 易失效、维护成本高），老用户字段静默忽略不崩溃' },
+    ],
+  },
+  {
     version: '1.4.0',
     date: '2026-08-16',
     title: '训练看板与虚拟比赛 + 托盘常驻 / 通知中心 / 数据备份',
